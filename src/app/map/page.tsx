@@ -1,17 +1,17 @@
 // src/app/map/page.tsx
 'use client';
 
-import { GoogleMap, LoadScript, Marker, InfoWindow, HeatmapLayer } from '@react-google-maps/api';
+import { GoogleMap, LoadScript, Marker, InfoWindow } from '@react-google-maps/api';
 import { StandaloneSearchBox } from '@react-google-maps/api';
-import { useState, useEffect } from 'react';
-import { X, Flame } from 'lucide-react';
+import { useState, useEffect, useCallback } from 'react';
+import { X } from 'lucide-react';
 
 const mapContainerStyle = {
   width: '100%',
   height: '100vh',
 };
 
-const center = {
+const fallbackCenter = {
   lat: 32.7194,
   lng: -117.1591,
 };
@@ -31,16 +31,14 @@ type Location = {
 
 export default function MapPage() {
   const [locations, setLocations] = useState<Location[]>([]);
-  const [filteredLocations, setFilteredLocations] = useState<Location[]>([]);
   const [selected, setSelected] = useState<Location | null>(null);
   const [loading, setLoading] = useState(true);
   const [searchBox, setSearchBox] = useState<any>(null);
   const [places, setPlaces] = useState<any[]>([]);
   const [showAddModal, setShowAddModal] = useState(false);
   const [newPlace, setNewPlace] = useState<any>(null);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [heatMapOn, setHeatMapOn] = useState(false);
-  const [isKeywordSearch, setIsKeywordSearch] = useState(false);
+  const [mapCenter, setMapCenter] = useState(fallbackCenter);
+  const [mapInstance, setMapInstance] = useState<any>(null);
 
   // Form fields
   const [rating, setRating] = useState(8.0);
@@ -48,13 +46,30 @@ export default function MapPage() {
   const [area, setArea] = useState('');
   const [tags, setTags] = useState('');
 
+  // Get user's current location on initial load
+  useEffect(() => {
+    if ('geolocation' in navigator) {
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          const pos = {
+            lat: position.coords.latitude,
+            lng: position.coords.longitude,
+          };
+          setMapCenter(pos);
+        },
+        () => setMapCenter(fallbackCenter)
+      );
+    } else {
+      setMapCenter(fallbackCenter);
+    }
+  }, []);
+
   // Load existing LV locations
   useEffect(() => {
     fetch('/api/locations')
       .then((res) => res.json())
       .then((data) => {
         setLocations(data || []);
-        setFilteredLocations(data || []);
         setLoading(false);
       })
       .catch((err) => {
@@ -63,39 +78,21 @@ export default function MapPage() {
       });
   }, []);
 
-  // Handle search input change
-  const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const query = e.target.value.toLowerCase();
-    setSearchQuery(query);
-
-    if (query.trim() === '') {
-      setFilteredLocations(locations);
-      setIsKeywordSearch(false);
-      setHeatMapOn(false);
-      return;
-    }
-
-    // Check if query is a keyword (e.g., tacos, sushi) or specific place
-    const isKeyword = ['tacos', 'sushi', 'burgers', 'mexican', 'italian', 'hotel', 'restaurant'].includes(query); // Expand this list as needed
-    setIsKeywordSearch(isKeyword);
-
-    if (isKeyword) {
-      const filtered = locations.filter(loc => 
-        loc.tags?.some(tag => tag.toLowerCase().includes(query)) ||
-        loc.cuisine?.toLowerCase().includes(query)
-      );
-      setFilteredLocations(filtered);
-      setPlaces([]); // Clear new places pins for keyword mode
-    } else {
-      setFilteredLocations(locations); // Show all for specific place search
-      setHeatMapOn(false);
-    }
-  };
-
   const onPlacesChanged = () => {
-    if (!searchBox) return;
+    if (!searchBox || !mapInstance) return;
     const results = searchBox.getPlaces();
-    if (results) setPlaces(results);
+    if (results && results.length > 0) {
+      const place = results[0];
+      setPlaces(results);
+
+      const newCenter = {
+        lat: place.geometry.location.lat(),
+        lng: place.geometry.location.lng(),
+      };
+      setMapCenter(newCenter);
+      mapInstance.panTo(newCenter);
+      mapInstance.setZoom(15);
+    }
   };
 
   const handleAddClick = (place: any) => {
@@ -143,7 +140,6 @@ export default function MapPage() {
     if (res.ok) {
       const saved = await res.json();
       setLocations((prev) => [...prev, ...saved]);
-      setFilteredLocations((prev) => [...prev, ...saved]);
       setShowAddModal(false);
       setNewPlace(null);
       setRating(8.0);
@@ -176,12 +172,21 @@ export default function MapPage() {
     return '#fcd34d';
   };
 
+  const onMapLoad = useCallback((map: any) => {
+    setMapInstance(map);
+  }, []);
+
   return (
     <LoadScript
       googleMapsApiKey={process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY!}
       libraries={['places']}
     >
-      <GoogleMap mapContainerStyle={mapContainerStyle} center={center} zoom={14}>
+      <GoogleMap
+        mapContainerStyle={mapContainerStyle}
+        center={mapCenter}
+        zoom={14}
+        onLoad={onMapLoad}
+      >
         {/* Existing curated LV markers */}
         {locations.map((loc) => (
           <Marker
@@ -252,7 +257,7 @@ export default function MapPage() {
         )}
       </GoogleMap>
 
-      {/* Search Bar - Solid white background */}
+      {/* Search Bar */}
       <div className="absolute top-4 left-1/2 -translate-x-1/2 w-96 z-10">
         <StandaloneSearchBox onLoad={(ref) => setSearchBox(ref)} onPlacesChanged={onPlacesChanged}>
           <input
@@ -314,7 +319,13 @@ export default function MapPage() {
                     onChange={(e) => setRating(parseFloat(e.target.value))}
                     className="w-full h-8 bg-transparent cursor-pointer appearance-none focus:outline-none [&::-webkit-slider-runnable-track]:h-8 [&::-webkit-slider-runnable-track]:rounded-full [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:h-12 [&::-webkit-slider-thumb]:w-12 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:-mt-2 [&::-webkit-slider-thumb]:shadow-2xl [&::-webkit-slider-thumb]:cursor-grab [&::-moz-range-track]:h-8 [&::-moz-range-track]:rounded-full [&::-moz-range-thumb]:h-12 [&::-moz-range-thumb]:w-12 [&::-moz-range-thumb]:rounded-full"
                     style={{
-                      background: `linear-gradient(to right, #fcd34d 0%, #fcd34d ${(rating / 11) * 100}%, #f59e0b ${(rating / 11) * 100}%, #ea580c 70%, #dc2626 85%, #991b1b 100%)`,
+                      background: `linear-gradient(to right, 
+                        #fcd34d 0%, 
+                        #fcd34d ${(rating / 11) * 100}%, 
+                        #f59e0b ${(rating / 11) * 100}%, 
+                        #ea580c 70%, 
+                        #dc2626 85%, 
+                        #991b1b 100%)`,
                     }}
                   />
                   

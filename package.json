@@ -10,7 +10,7 @@
   },
   "dependencies": {
     "@react-google-maps/api": "^2.19.3",
-    "@supabase/ssr": "^0.5.0",
+    "@supabase/ssr": "^0.5.2",
     "@tailwindcss/postcss": "^4.1.18",
     "babel-plugin-react-compiler": "^1.0.0",
     "lucide-react": "^0.453.0",
