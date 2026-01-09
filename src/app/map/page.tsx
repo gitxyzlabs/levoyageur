@@ -83,7 +83,7 @@ export default function MapPage() {
       });
   }, []);
 
-  // Auto-focus search on load
+  // Auto-focus search
   useEffect(() => {
     if (isLoaded && searchInputRef.current) {
       searchInputRef.current.focus();
@@ -173,13 +173,7 @@ export default function MapPage() {
     return '#fcd34d';
   };
 
-  if (!isLoaded) {
-    return (
-      <div className="flex h-screen items-center justify-center bg-gray-50 text-gray-700 text-xl font-medium">
-        Loading map...
-      </div>
-    );
-  }
+  if (!isLoaded) return <div className="flex h-screen items-center justify-center bg-gray-50 text-gray-700 text-xl font-medium">Loading map...</div>;
 
   return (
     <div className="relative w-full h-screen">
@@ -254,25 +248,25 @@ export default function MapPage() {
         )}
       </GoogleMap>
 
-      {/* Premium bottom-centered search bar */}
-      <div className="absolute bottom-8 left-1/2 -translate-x-1/2 z-10 w-full max-w-xl px-6">
+      {/* Premium floating bottom-centered search bar */}
+      <div className="absolute bottom-[env(safe-area-inset-bottom)] left-1/2 -translate-x-1/2 z-10 w-full max-w-2xl px-6 pb-6">
         <div className="relative group">
           <StandaloneSearchBox onLoad={(ref) => setSearchBox(ref)} onPlacesChanged={onPlacesChanged}>
             <div className="relative">
               {/* Search Icon */}
-              <div className="absolute inset-y-0 left-5 flex items-center pointer-events-none">
-                <Search className="h-5 w-5 text-gray-400 group-focus-within:text-amber-600 transition-colors" />
+              <div className="absolute inset-y-0 left-6 flex items-center pointer-events-none">
+                <Search className="h-6 w-6 text-gray-400 group-focus-within:text-amber-600 transition-colors duration-300" />
               </div>
 
               {/* Input */}
               <input
                 ref={searchInputRef}
                 type="text"
-                placeholder="Search places to add (tacos, sushi, rooftop...)"
-                className="w-full pl-14 pr-14 py-4.5 text-base rounded-2xl bg-white/90 backdrop-blur-xl border border-gray-200/40 shadow-lg focus:outline-none focus:ring-4 focus:ring-amber-400/30 focus:border-amber-400/50 text-gray-900 placeholder-gray-500 transition-all duration-300"
+                placeholder="Search places to add (tacos, sushi, rooftop bar...)"
+                className="w-full pl-16 pr-16 py-5 text-lg rounded-2xl bg-white/85 backdrop-blur-2xl border border-white/30 shadow-2xl focus:outline-none focus:ring-4 focus:ring-amber-400/40 focus:border-amber-400/50 text-gray-900 placeholder-gray-500 transition-all duration-300"
               />
 
-              {/* Clear button (appears when typing) */}
+              {/* Clear button */}
               {searchValue && (
                 <button
                   onClick={() => {
@@ -280,9 +274,9 @@ export default function MapPage() {
                     if (searchInputRef.current) searchInputRef.current.value = '';
                     setPlaces([]);
                   }}
-                  className="absolute inset-y-0 right-5 flex items-center text-gray-400 hover:text-gray-700 transition"
+                  className="absolute inset-y-0 right-6 flex items-center text-gray-400 hover:text-gray-700 transition duration-200"
                 >
-                  <X size={18} />
+                  <X size={20} />
                 </button>
               )}
             </div>
