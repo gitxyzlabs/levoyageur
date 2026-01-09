@@ -1,7 +1,7 @@
 // src/app/map/page.tsx
 'use client';
 
-import { GoogleMap, LoadScript, Marker, InfoWindow } from '@react-google-maps/api';
+import { GoogleMap, Marker, InfoWindow, useJsApiLoader } from '@react-google-maps/api';
 import { StandaloneSearchBox } from '@react-google-maps/api';
 import { useState, useEffect, useCallback } from 'react';
 import { X } from 'lucide-react';
@@ -38,13 +38,17 @@ export default function MapPage() {
   const [showAddModal, setShowAddModal] = useState(false);
   const [newPlace, setNewPlace] = useState<any>(null);
   const [mapCenter, setMapCenter] = useState(fallbackCenter);
-  const [mapInstance, setMapInstance] = useState<any>(null);
 
   // Form fields
   const [rating, setRating] = useState(8.0);
   const [cuisine, setCuisine] = useState('');
   const [area, setArea] = useState('');
   const [tags, setTags] = useState('');
+
+  const { isLoaded } = useJsApiLoader({
+    googleMapsApiKey: process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY!,
+    libraries: ['places'],
+  });
 
   // Get user's current location on initial load
   useEffect(() => {
@@ -79,20 +83,9 @@ export default function MapPage() {
   }, []);
 
   const onPlacesChanged = () => {
-    if (!searchBox || !mapInstance) return;
+    if (!searchBox) return;
     const results = searchBox.getPlaces();
-    if (results && results.length > 0) {
-      const place = results[0];
-      setPlaces(results);
-
-      const newCenter = {
-        lat: place.geometry.location.lat(),
-        lng: place.geometry.location.lng(),
-      };
-      setMapCenter(newCenter);
-      mapInstance.panTo(newCenter);
-      mapInstance.setZoom(15);
-    }
+    if (results) setPlaces(results);
   };
 
   const handleAddClick = (place: any) => {
@@ -172,213 +165,78 @@ export default function MapPage() {
     return '#fcd34d';
   };
 
-  const onMapLoad = useCallback((map: any) => {
-    setMapInstance(map);
-  }, []);
+  if (!isLoaded) return <div className="flex h-screen items-center justify-center bg-gray-50 text-gray-700">Loading map...</div>;
 
   return (
-    <LoadScript
-      googleMapsApiKey={process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY!}
-      libraries={['places']}
-    >
-      <GoogleMap
-        mapContainerStyle={mapContainerStyle}
-        center={mapCenter}
-        zoom={14}
-        onLoad={onMapLoad}
-      >
-        {/* Existing curated LV markers */}
-        {locations.map((loc) => (
-          <Marker
-            key={loc.id || loc.place_id}
-            position={{ lat: loc.lat, lng: loc.lng }}
-            onClick={() => setSelected(loc)}
-            icon={{
-              path: google.maps.SymbolPath.CIRCLE,
-              fillColor: getMarkerColor(loc.editor_rating || 5),
-              fillOpacity: 1,
-              strokeColor: '#fff',
-              strokeWeight: 4,
-              scale: getMarkerScale(loc.editor_rating || 5),
-            }}
-            label={{
-              text: loc.editor_rating != null ? loc.editor_rating.toFixed(1) : '?',
-              color: 'white',
-              fontSize: '14px',
-              fontWeight: 'bold',
-            }}
-          />
-        ))}
+    <GoogleMap mapContainerStyle={mapContainerStyle} center={mapCenter} zoom={14}>
+      {/* Existing curated LV markers */}
+      {locations.map((loc) => (
+        <Marker
+          key={loc.id || loc.place_id}
+          position={{ lat: loc.lat, lng: loc.lng }}
+          onClick={() => setSelected(loc)}
+          icon={{
+            path: google.maps.SymbolPath.CIRCLE,
+            fillColor: getMarkerColor(loc.editor_rating || 5),
+            fillOpacity: 1,
+            strokeColor: '#fff',
+            strokeWeight: 4,
+            scale: getMarkerScale(loc.editor_rating || 5),
+          }}
+          label={{
+            text: loc.editor_rating != null ? loc.editor_rating.toFixed(1) : '?',
+            color: 'white',
+            fontSize: '14px',
+            fontWeight: 'bold',
+          }}
+        />
+      ))}
 
-        {/* Search result pins (blue) */}
-        {places.map((place, i) => (
-          <Marker
-            key={`search-${i}`}
-            position={{
-              lat: place.geometry.location.lat(),
-              lng: place.geometry.location.lng(),
-            }}
-            icon={{
-              url: 'http://maps.google.com/mapfiles/ms/micons/blue-dot.png',
-            }}
-            onClick={() => handleAddClick(place)}
-          />
-        ))}
+      {/* Search result pins (blue) */}
+      {places.map((place, i) => (
+        <Marker
+          key={`search-${i}`}
+          position={{
+            lat: place.geometry.location.lat(),
+            lng: place.geometry.location.lng(),
+          }}
+          icon={{
+            url: 'http://maps.google.com/mapfiles/ms/micons/blue-dot.png',
+          }}
+          onClick={() => handleAddClick(place)}
+        />
+      ))}
 
-        {/* Info window */}
-        {selected && (
-          <InfoWindow
-            position={{ lat: selected.lat, lng: selected.lng }}
-            onCloseClick={() => setSelected(null)}
-          >
-            <div className="p-4 max-w-xs">
-              {selected.image ? (
-                <img
-                  src={selected.image}
-                  alt={selected.name}
-                  className="w-full h-40 object-cover rounded-lg mb-3"
-                />
-              ) : (
-                <div className="bg-gray-200 border-2 border-dashed rounded-lg w-full h-40 mb-3 flex items-center justify-center">
-                  <p className="text-gray-500 text-sm">No photo</p>
-                </div>
-              )}
-              <h3 className="font-serif text-xl font-bold text-gray-900">{selected.name}</h3>
-              <p className="text-sm text-gray-600 mt-1">
-                {selected.cuisine || 'Restaurant'} • {selected.area || 'San Diego'}
-              </p>
-              <div className="mt-4">
-                <span className="bg-amber-100 text-amber-800 px-4 py-2 rounded-full text-lg font-bold">
-                  LV {selected.editor_rating != null ? selected.editor_rating.toFixed(1) : '—'}/11
-                </span>
-              </div>
-            </div>
-          </InfoWindow>
-        )}
-      </GoogleMap>
-
-      {/* Search Bar */}
-      <div className="absolute top-4 left-1/2 -translate-x-1/2 w-96 z-10">
-        <StandaloneSearchBox onLoad={(ref) => setSearchBox(ref)} onPlacesChanged={onPlacesChanged}>
-          <input
-            type="text"
-            placeholder="Search places to add (e.g., The Taco Stand)"
-            className="w-full px-6 py-4 text-lg rounded-full shadow-2xl bg-white text-gray-900 border-0 outline-none placeholder-gray-500 focus:ring-4 focus:ring-amber-300"
-            style={{ boxShadow: '0 4px 20px rgba(0,0,0,0.15)' }}
-          />
-        </StandaloneSearchBox>
-      </div>
-
-      {/* Add New Location Modal */}
-      {showAddModal && newPlace && (
-        <div className="absolute inset-0 bg-black/60 z-20 flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-8 max-h-screen overflow-y-auto">
-            <div className="flex justify-between items-center mb-6">
-              <h2 className="text-2xl font-serif font-bold text-gray-900">Add to Le Voyageur</h2>
-              <button
-                onClick={() => setShowAddModal(false)}
-                className="p-2 hover:bg-gray-100 rounded-full"
-              >
-                <X size={28} />
-              </button>
-            </div>
-
-            <h3 className="text-xl font-medium mb-4">{newPlace.name}</h3>
-
-            {newPlace.image ? (
+      {/* Info window */}
+      {selected && (
+        <InfoWindow
+          position={{ lat: selected.lat, lng: selected.lng }}
+          onCloseClick={() => setSelected(null)}
+        >
+          <div className="p-4 max-w-xs">
+            {selected.image ? (
               <img
-                src={newPlace.image}
-                alt={newPlace.name}
-                className="w-full h-48 object-cover rounded-lg mb-6"
+                src={selected.image}
+                alt={selected.name}
+                className="w-full h-40 object-cover rounded-lg mb-3"
               />
             ) : (
-              <div className="bg-gray-100 h-48 rounded-lg mb-6 flex items-center justify-center">
-                <p className="text-gray-500">No photo available</p>
+              <div className="bg-gray-200 border-2 border-dashed rounded-lg w-full h-40 mb-3 flex items-center justify-center">
+                <p className="text-gray-500 text-sm">No photo</p>
               </div>
             )}
-
-            <div className="space-y-8">
-              {/* Hot Decimal Slider - 0 to 11 */}
-              <div>
-                <label className="block text-sm font-semibold mb-4 text-center">LV Editor Rating</label>
-                
-                <div className="text-center mb-6">
-                  <span className="text-6xl font-bold" style={{ color: getHotColor(rating) }}>
-                    {rating.toFixed(1)}
-                  </span>
-                  <span className="text-2xl text-gray-600 ml-2">/11</span>
-                </div>
-
-                <div className="relative px-4">
-                  <input
-                    type="range"
-                    min="0"
-                    max="11"
-                    step="0.1"
-                    value={rating}
-                    onChange={(e) => setRating(parseFloat(e.target.value))}
-                    className="w-full h-8 bg-transparent cursor-pointer appearance-none focus:outline-none [&::-webkit-slider-runnable-track]:h-8 [&::-webkit-slider-runnable-track]:rounded-full [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:h-12 [&::-webkit-slider-thumb]:w-12 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:-mt-2 [&::-webkit-slider-thumb]:shadow-2xl [&::-webkit-slider-thumb]:cursor-grab [&::-moz-range-track]:h-8 [&::-moz-range-track]:rounded-full [&::-moz-range-thumb]:h-12 [&::-moz-range-thumb]:w-12 [&::-moz-range-thumb]:rounded-full"
-                    style={{
-                      background: `linear-gradient(to right, 
-                        #fcd34d 0%, 
-                        #fcd34d ${(rating / 11) * 100}%, 
-                        #f59e0b ${(rating / 11) * 100}%, 
-                        #ea580c 70%, 
-                        #dc2626 85%, 
-                        #991b1b 100%)`,
-                    }}
-                  />
-                  
-                  <style jsx>{`
-                    input[type="range"]::-webkit-slider-thumb {
-                      background: ${getHotColor(rating)};
-                      box-shadow: 0 0 20px ${getHotColor(rating)}80;
-                    }
-                    input[type="range"]::-moz-range-thumb {
-                      background: ${getHotColor(rating)};
-                      box-shadow: 0 0 20px ${getHotColor(rating)}80;
-                    }
-                  `}</style>
-                  
-                  <div className="flex justify-between text-xs text-gray-500 mt-3 px-2">
-                    <span>0.0</span>
-                    <span>5.5</span>
-                    <span>11.0</span>
-                  </div>
-                </div>
-              </div>
-
-              <input
-                placeholder="Cuisine (e.g., Mexican, Italian)"
-                value={cuisine}
-                onChange={(e) => setCuisine(e.target.value)}
-                className="w-full px-5 py-4 border border-gray-300 rounded-xl focus:outline-none focus:ring-4 focus:ring-amber-200"
-              />
-
-              <input
-                placeholder="Area (e.g., North Park, Gaslamp)"
-                value={area}
-                onChange={(e) => setArea(e.target.value)}
-                className="w-full px-5 py-4 border border-gray-300 rounded-xl focus:outline-none focus:ring-4 focus:ring-amber-200"
-              />
-
-              <input
-                placeholder="Tags (comma separated: tacos, casual, rooftop)"
-                value={tags}
-                onChange={(e) => setTags(e.target.value)}
-                className="w-full px-5 py-4 border border-gray-300 rounded-xl focus:outline-none focus:ring-4 focus:ring-amber-200"
-              />
-
-              <button
-                onClick={saveNewLocation}
-                className="w-full bg-amber-600 hover:bg-amber-700 text-white font-bold py-5 rounded-xl text-lg transition shadow-lg"
-              >
-                Save to Guide
-              </button>
+            <h3 className="font-serif text-xl font-bold text-gray-900">{selected.name}</h3>
+            <p className="text-sm text-gray-600 mt-1">
+              {selected.cuisine || 'Restaurant'} • {selected.area || 'San Diego'}
+            </p>
+            <div className="mt-4">
+              <span className="bg-amber-100 text-amber-800 px-4 py-2 rounded-full text-lg font-bold">
+                LV {selected.editor_rating != null ? selected.editor_rating.toFixed(1) : '—'}/11
+              </span>
             </div>
           </div>
-        </div>
+        </InfoWindow>
       )}
-    </LoadScript>
+    </GoogleMap>
   );
 }
