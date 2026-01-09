@@ -83,7 +83,7 @@ export default function MapPage() {
       });
   }, []);
 
-  // Auto-focus search
+  // Auto-focus search input
   useEffect(() => {
     if (isLoaded && searchInputRef.current) {
       searchInputRef.current.focus();
@@ -183,15 +183,15 @@ export default function MapPage() {
 
   return (
     <div className="relative w-full h-screen overflow-hidden">
-      {/* Top header with logo and menu */}
-      <div className="absolute top-0 left-0 right-0 z-20 px-6 pt-6 pb-4 bg-gradient-to-b from-white/90 to-transparent backdrop-blur-sm">
+      {/* Top fixed header with logo and menu */}
+      <div className="absolute top-0 left-0 right-0 z-30 px-6 pt-6 pb-4 bg-gradient-to-b from-white/95 to-transparent backdrop-blur-md border-b border-white/20">
         <div className="flex items-center justify-between max-w-5xl mx-auto">
           {/* Logo */}
-          <h1 className="text-3xl font-serif font-bold text-amber-900 tracking-tight">
+          <h1 className="text-3xl md:text-4xl font-serif font-extrabold text-amber-900 tracking-tight drop-shadow-sm">
             Le Voyageur
           </h1>
 
-          {/* Menu button (placeholder for future menu) */}
+          {/* Menu button */}
           <button className="p-3 rounded-full bg-white/80 backdrop-blur-sm border border-gray-200/50 shadow-sm hover:bg-white/90 transition">
             <Menu size={24} className="text-gray-700" />
           </button>
@@ -271,7 +271,7 @@ export default function MapPage() {
       </GoogleMap>
 
       {/* Premium floating bottom-centered search bar */}
-      <div className="absolute bottom-[env(safe-area-inset-bottom)] left-1/2 -translate-x-1/2 z-10 w-full max-w-xl px-8 pb-8">
+      <div className="absolute bottom-[env(safe-area-inset-bottom)] left-1/2 -translate-x-1/2 z-10 w-full max-w-xl px-6 pb-10">
         <div className="relative group">
           <StandaloneSearchBox onLoad={(ref) => setSearchBox(ref)} onPlacesChanged={onPlacesChanged}>
             <div className="relative">
@@ -287,7 +287,7 @@ export default function MapPage() {
                 value={searchValue}
                 onChange={(e) => setSearchValue(e.target.value)}
                 placeholder="Search places to add (tacos, sushi, rooftop bar...)"
-                className="w-full pl-16 pr-16 py-6 text-lg rounded-3xl bg-white/90 backdrop-blur-2xl border border-white/30 shadow-2xl focus:outline-none focus:ring-4 focus:ring-amber-400/40 focus:border-amber-400/50 text-gray-900 placeholder-gray-500 transition-all duration-300 transform group-focus-within:scale-[1.02]"
+                className="w-full pl-16 pr-16 py-5 text-lg rounded-3xl bg-white/90 backdrop-blur-2xl border border-white/30 shadow-2xl focus:outline-none focus:ring-4 focus:ring-amber-400/40 focus:border-amber-400/50 text-gray-900 placeholder-gray-500 transition-all duration-300 transform group-focus-within:scale-[1.02]"
               />
 
               {/* Clear button */}
