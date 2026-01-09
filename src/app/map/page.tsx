@@ -183,17 +183,17 @@ export default function MapPage() {
 
   return (
     <div className="relative w-full h-screen overflow-hidden">
-      {/* Top fixed header with logo and menu */}
-      <div className="absolute top-0 left-0 right-0 z-30 px-6 pt-6 pb-4 bg-gradient-to-b from-white/95 to-transparent backdrop-blur-md border-b border-white/20">
+      {/* Premium fixed top header */}
+      <div className="absolute top-0 left-0 right-0 z-30 px-6 pt-6 pb-4 bg-gradient-to-b from-white/95 to-transparent backdrop-blur-md border-b border-white/20 shadow-sm">
         <div className="flex items-center justify-between max-w-5xl mx-auto">
           {/* Logo */}
-          <h1 className="text-3xl md:text-4xl font-serif font-extrabold text-amber-900 tracking-tight drop-shadow-sm">
+          <h1 className="text-3xl md:text-4xl font-serif font-extrabold text-amber-900 tracking-tight drop-shadow-md">
             Le Voyageur
           </h1>
 
           {/* Menu button */}
-          <button className="p-3 rounded-full bg-white/80 backdrop-blur-sm border border-gray-200/50 shadow-sm hover:bg-white/90 transition">
-            <Menu size={24} className="text-gray-700" />
+          <button className="p-3 rounded-full bg-white/80 backdrop-blur-sm border border-gray-200/50 shadow-sm hover:bg-white/90 hover:shadow-md transition duration-300">
+            <Menu size={26} className="text-gray-800" />
           </button>
         </div>
       </div>
@@ -271,7 +271,7 @@ export default function MapPage() {
       </GoogleMap>
 
       {/* Premium floating bottom-centered search bar */}
-      <div className="absolute bottom-[env(safe-area-inset-bottom)] left-1/2 -translate-x-1/2 z-10 w-full max-w-xl px-6 pb-10">
+      <div className="absolute bottom-[calc(5rem + env(safe-area-inset-bottom))] left-1/2 -translate-x-1/2 z-10 w-full max-w-xl px-8 pb-8">
         <div className="relative group">
           <StandaloneSearchBox onLoad={(ref) => setSearchBox(ref)} onPlacesChanged={onPlacesChanged}>
             <div className="relative">
