@@ -177,6 +177,21 @@ export default function MapPage() {
     );
   };
 
+  const renderStars = (rating: number | null) => {
+    if (rating == null) return '—';
+    const full = Math.floor(rating);
+    const half = rating % 1 >= 0.5 ? 1 : 0;
+    const empty = 5 - full - half;
+
+    return (
+      <span className="text-amber-500">
+        {'★'.repeat(full)}
+        {half === 1 && '½'}
+        {'☆'.repeat(empty)}
+      </span>
+    );
+  };
+
   const getMarkerColor = (r: number = 5) => {
     if (r >= 10.5) return '#991b1b';
     if (r >= 9.5) return '#be123c';
@@ -298,7 +313,7 @@ export default function MapPage() {
                   {/* LV Rating */}
                   <div className="text-center">
                     <div className="text-5xl font-extrabold text-amber-800">
-                      {selected.editor_rating?.toFixed(1) || '—'}
+                      {selected.editor_rating != null ? selected.editor_rating.toFixed(1) : '—'}
                     </div>
                     <p className="text-sm text-amber-700 font-medium">LV Rating</p>
                   </div>
@@ -306,11 +321,14 @@ export default function MapPage() {
                   {/* Google User Rating */}
                   <div className="text-center">
                     <div className="text-5xl font-extrabold text-gray-800">
-                      {selected.google_rating?.toFixed(1) || '—'}
+                      {selected.google_rating != null ? selected.google_rating.toFixed(1) : '—'}
                     </div>
                     <p className="text-sm text-gray-600 font-medium">
                       User Rating ({selected.google_count || 0} reviews)
                     </p>
+                    <div className="mt-1 text-amber-500 text-xl">
+                      {renderStars(selected.google_rating)}
+                    </div>
                   </div>
                 </div>
 
