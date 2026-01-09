@@ -4,7 +4,7 @@
 import { GoogleMap, Marker, InfoWindow, useJsApiLoader } from '@react-google-maps/api';
 import { StandaloneSearchBox } from '@react-google-maps/api';
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { X, Search, Menu } from 'lucide-react';
+import { X, Search, Heart, Share2, Navigation, Menu } from 'lucide-react';
 
 const mapContainerStyle = {
   width: '100%',
@@ -27,6 +27,8 @@ type Location = {
   lat: number;
   lng: number;
   place_id?: string | null;
+  google_rating?: number | null;
+  google_count?: number | null;
 };
 
 export default function MapPage() {
@@ -40,6 +42,7 @@ export default function MapPage() {
   const [mapCenter, setMapCenter] = useState(fallbackCenter);
   const [searchValue, setSearchValue] = useState('');
   const searchInputRef = useRef<HTMLInputElement>(null);
+  const mapRef = useRef<google.maps.Map | null>(null);
 
   // Form fields
   const [rating, setRating] = useState(8.0);
@@ -153,6 +156,27 @@ export default function MapPage() {
     }
   };
 
+  const fetchGoogleRating = (placeId: string) => {
+    if (!placeId || !mapRef.current) return;
+
+    const service = new google.maps.places.PlacesService(mapRef.current);
+    service.getDetails(
+      { placeId, fields: ['rating', 'user_ratings_total'] },
+      (place, status) => {
+        if (status === google.maps.places.PlacesServiceStatus.OK && place) {
+          setSelected((prev) => {
+            if (!prev) return prev;
+            return {
+              ...prev,
+              google_rating: place.rating ?? null,
+              google_count: place.user_ratings_total ?? null,
+            };
+          });
+        }
+      }
+    );
+  };
+
   const getMarkerColor = (r: number = 5) => {
     if (r >= 10.5) return '#991b1b';
     if (r >= 9.5) return '#be123c';
@@ -173,13 +197,7 @@ export default function MapPage() {
     return '#fcd34d';
   };
 
-  if (!isLoaded) {
-    return (
-      <div className="flex h-screen items-center justify-center bg-gray-50 text-gray-700 text-xl font-medium">
-        Loading map...
-      </div>
-    );
-  }
+  if (!isLoaded) return <div className="flex h-screen items-center justify-center bg-gray-50 text-gray-700 text-xl font-medium">Loading map...</div>;
 
   return (
     <div className="relative w-full h-screen overflow-hidden">
@@ -192,20 +210,30 @@ export default function MapPage() {
           </h1>
 
           {/* Menu button */}
-          <button className="p-3 rounded-full bg-white/80 backdrop-blur-sm border border-gray-200/50 shadow-sm hover:bg-white/90 hover:shadow-md transition duration-300">
-            <Menu size={26} className="text-gray-800" />
+          <button className="p-3 rounded-full bg-white/80 backdrop-blur-sm border border-gray-200/50 shadow-sm hover:bg-white/90 transition">
+            <Menu size={26} className="text-gray-700" />
           </button>
         </div>
       </div>
 
       {/* Map */}
-      <GoogleMap mapContainerStyle={mapContainerStyle} center={mapCenter} zoom={14}>
+      <GoogleMap
+        mapContainerStyle={mapContainerStyle}
+        center={mapCenter}
+        zoom={14}
+        onLoad={(map) => {
+          mapRef.current = map;
+        }}
+      >
         {/* Existing curated LV markers */}
         {locations.map((loc) => (
           <Marker
             key={loc.id || loc.place_id}
             position={{ lat: loc.lat, lng: loc.lng }}
-            onClick={() => setSelected(loc)}
+            onClick={() => {
+              setSelected(loc);
+              if (loc.place_id) fetchGoogleRating(loc.place_id);
+            }}
             icon={{
               path: google.maps.SymbolPath.CIRCLE,
               fillColor: getMarkerColor(loc.editor_rating || 5),
@@ -238,32 +266,71 @@ export default function MapPage() {
           />
         ))}
 
-        {/* Info window */}
+        {/* Premium Info Window / Action Menu */}
         {selected && (
           <InfoWindow
             position={{ lat: selected.lat, lng: selected.lng }}
             onCloseClick={() => setSelected(null)}
           >
-            <div className="p-4 max-w-xs">
+            <div className="w-96 bg-white rounded-2xl shadow-2xl overflow-hidden border border-gray-100">
+              {/* Hero image */}
               {selected.image ? (
                 <img
                   src={selected.image}
                   alt={selected.name}
-                  className="w-full h-40 object-cover rounded-lg mb-3"
+                  className="w-full h-48 object-cover"
                 />
               ) : (
-                <div className="bg-gray-200 border-2 border-dashed rounded-lg w-full h-40 mb-3 flex items-center justify-center">
-                  <p className="text-gray-500 text-sm">No photo</p>
+                <div className="w-full h-48 bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center">
+                  <p className="text-gray-500 font-medium">No photo available</p>
                 </div>
               )}
-              <h3 className="font-serif text-xl font-bold text-gray-900">{selected.name}</h3>
-              <p className="text-sm text-gray-600 mt-1">
-                {selected.cuisine || 'Restaurant'} • {selected.area || 'San Diego'}
-              </p>
-              <div className="mt-4">
-                <span className="bg-amber-100 text-amber-800 px-4 py-2 rounded-full text-lg font-bold">
-                  LV {selected.editor_rating != null ? selected.editor_rating.toFixed(1) : '—'}/11
-                </span>
+
+              {/* Content */}
+              <div className="p-6">
+                <h3 className="text-2xl font-serif font-bold text-gray-900 mb-1">{selected.name}</h3>
+                <p className="text-sm text-gray-600 mb-6">
+                  {selected.cuisine || 'Restaurant'} • {selected.area || 'San Diego'}
+                </p>
+
+                {/* Ratings */}
+                <div className="flex items-center gap-8 mb-8">
+                  {/* LV Rating */}
+                  <div className="text-center">
+                    <div className="text-5xl font-extrabold text-amber-800">
+                      {selected.editor_rating?.toFixed(1) || '—'}
+                    </div>
+                    <p className="text-sm text-amber-700 font-medium">LV Rating</p>
+                  </div>
+
+                  {/* Google User Rating */}
+                  <div className="text-center">
+                    <div className="text-5xl font-extrabold text-gray-800">
+                      {selected.google_rating?.toFixed(1) || '—'}
+                    </div>
+                    <p className="text-sm text-gray-600 font-medium">
+                      User Rating ({selected.google_count || 0} reviews)
+                    </p>
+                  </div>
+                </div>
+
+                {/* Action buttons */}
+                <div className="grid grid-cols-3 gap-4">
+                  <button className="flex flex-col items-center gap-2 p-4 bg-amber-50 hover:bg-amber-100 rounded-xl transition">
+                    <Heart size={28} className="text-amber-600" />
+                    <span className="text-sm font-medium text-gray-800">Favorite</span>
+                  </button>
+
+                  <button className="flex flex-col items-center gap-2 p-4 bg-amber-50 hover:bg-amber-100 rounded-xl transition">
+                    <Share2 size={28} className="text-amber-600" />
+                    <span className="text-sm font-medium text-gray-800">Share</span>
+                  </button>
+
+                  <button className="flex flex-col items-center gap-2 p-4 bg-amber-50 hover:bg-amber-100 rounded-xl transition">
+                    <Navigation size={28} className="text-amber-600" />
+                    <span className="text-sm font-medium text-gray-800">Directions</span>
+                  </button>
+                </div>
               </div>
             </div>
           </InfoWindow>
