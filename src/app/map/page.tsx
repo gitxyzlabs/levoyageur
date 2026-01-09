@@ -47,19 +47,18 @@ export default function MapPage() {
 
   const { isLoaded } = useJsApiLoader({
     googleMapsApiKey: process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY!,
-    libraries: ['places'],
+    libraries: ['places'], // Ensure Places library loads for search
   });
 
-  // Get user's current location on initial load
+  // Get user's current location
   useEffect(() => {
     if ('geolocation' in navigator) {
       navigator.geolocation.getCurrentPosition(
         (position) => {
-          const pos = {
+          setMapCenter({
             lat: position.coords.latitude,
             lng: position.coords.longitude,
-          };
-          setMapCenter(pos);
+          });
         },
         () => setMapCenter(fallbackCenter)
       );
@@ -68,7 +67,7 @@ export default function MapPage() {
     }
   }, []);
 
-  // Load existing LV locations
+  // Load LV locations
   useEffect(() => {
     fetch('/api/locations')
       .then((res) => res.json())
@@ -165,7 +164,7 @@ export default function MapPage() {
     return '#fcd34d';
   };
 
-  if (!isLoaded) return <div className="flex h-screen items-center justify-center bg-gray-50 text-gray-700">Loading map...</div>;
+  if (!isLoaded) return <div className="flex h-screen items-center justify-center bg-gray-50 text-gray-700 text-xl">Loading map...</div>;
 
   return (
     <GoogleMap mapContainerStyle={mapContainerStyle} center={mapCenter} zoom={14}>
