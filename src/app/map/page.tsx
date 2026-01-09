@@ -173,10 +173,16 @@ export default function MapPage() {
     return '#fcd34d';
   };
 
-  if (!isLoaded) return <div className="flex h-screen items-center justify-center bg-gray-50 text-gray-700 text-xl font-medium">Loading map...</div>;
+  if (!isLoaded) {
+    return (
+      <div className="flex h-screen items-center justify-center bg-gray-50 text-gray-700 text-xl font-medium">
+        Loading map...
+      </div>
+    );
+  }
 
   return (
-    <div className="relative w-full h-screen">
+    <div className="relative w-full h-screen overflow-hidden">
       <GoogleMap mapContainerStyle={mapContainerStyle} center={mapCenter} zoom={14}>
         {/* Existing curated LV markers */}
         {locations.map((loc) => (
@@ -249,21 +255,23 @@ export default function MapPage() {
       </GoogleMap>
 
       {/* Premium floating bottom-centered search bar */}
-      <div className="absolute bottom-[env(safe-area-inset-bottom)] left-1/2 -translate-x-1/2 z-10 w-full max-w-2xl px-6 pb-6">
+      <div className="absolute bottom-[calc(1rem+env(safe-area-inset-bottom))] left-1/2 -translate-x-1/2 z-10 w-full max-w-3xl px-6">
         <div className="relative group">
           <StandaloneSearchBox onLoad={(ref) => setSearchBox(ref)} onPlacesChanged={onPlacesChanged}>
             <div className="relative">
               {/* Search Icon */}
               <div className="absolute inset-y-0 left-6 flex items-center pointer-events-none">
-                <Search className="h-6 w-6 text-gray-400 group-focus-within:text-amber-600 transition-colors duration-300" />
+                <Search className="h-6 w-6 text-gray-500 group-focus-within:text-amber-600 transition-colors duration-300" />
               </div>
 
               {/* Input */}
               <input
                 ref={searchInputRef}
                 type="text"
-                placeholder="Search places to add (tacos, sushi, rooftop bar...)"
-                className="w-full pl-16 pr-16 py-5 text-lg rounded-2xl bg-white/85 backdrop-blur-2xl border border-white/30 shadow-2xl focus:outline-none focus:ring-4 focus:ring-amber-400/40 focus:border-amber-400/50 text-gray-900 placeholder-gray-500 transition-all duration-300"
+                value={searchValue}
+                onChange={(e) => setSearchValue(e.target.value)}
+                placeholder="Search places to add (tacos, sushi, rooftop, museum...)"
+                className="w-full pl-16 pr-16 py-5 text-lg rounded-3xl bg-white/70 backdrop-blur-xl border border-white/30 shadow-2xl focus:outline-none focus:ring-4 focus:ring-amber-400/40 focus:border-amber-400/50 text-gray-900 placeholder-gray-500 transition-all duration-300 transform group-focus-within:scale-[1.02]"
               />
 
               {/* Clear button */}
@@ -286,8 +294,8 @@ export default function MapPage() {
 
       {/* Add New Location Modal */}
       {showAddModal && newPlace && (
-        <div className="absolute inset-0 bg-black/60 z-20 flex items-center justify-center p-4">
-          <div className="bg-white rounded-3xl shadow-2xl max-w-lg w-full p-8 max-h-[90vh] overflow-y-auto">
+        <div className="absolute inset-0 bg-black/70 z-20 flex items-center justify-center p-4">
+          <div className="bg-white/95 backdrop-blur-xl rounded-3xl shadow-2xl max-w-lg w-full p-10 max-h-[90vh] overflow-y-auto border border-white/20">
             <div className="flex justify-between items-center mb-8">
               <h2 className="text-3xl font-serif font-bold text-gray-900">Add to Le Voyageur</h2>
               <button
@@ -304,26 +312,26 @@ export default function MapPage() {
               <img
                 src={newPlace.image}
                 alt={newPlace.name}
-                className="w-full h-56 object-cover rounded-2xl mb-8 shadow-md"
+                className="w-full h-64 object-cover rounded-2xl mb-8 shadow-lg"
               />
             ) : (
-              <div className="bg-gradient-to-br from-gray-100 to-gray-200 h-56 rounded-2xl mb-8 flex items-center justify-center">
+              <div className="bg-gradient-to-br from-gray-100 to-gray-200 h-64 rounded-2xl mb-8 flex items-center justify-center">
                 <p className="text-gray-500 text-lg">No photo available</p>
               </div>
             )}
 
-            <div className="space-y-8">
+            <div className="space-y-10">
               {/* Hot Decimal Slider */}
               <div>
-                <label className="block text-base font-semibold mb-4 text-center">LV Editor Rating</label>
-                <div className="text-center mb-6">
-                  <span className="text-7xl font-bold tracking-tight" style={{ color: getHotColor(rating) }}>
+                <label className="block text-lg font-semibold mb-5 text-center">LV Editor Rating</label>
+                <div className="text-center mb-8">
+                  <span className="text-8xl font-extrabold tracking-tight" style={{ color: getHotColor(rating) }}>
                     {rating.toFixed(1)}
                   </span>
-                  <span className="text-3xl text-gray-600 ml-2">/11</span>
+                  <span className="text-4xl text-gray-600 ml-3">/11</span>
                 </div>
 
-                <div className="relative px-4">
+                <div className="relative px-6">
                   <input
                     type="range"
                     min="0"
@@ -331,7 +339,7 @@ export default function MapPage() {
                     step="0.1"
                     value={rating}
                     onChange={(e) => setRating(parseFloat(e.target.value))}
-                    className="w-full h-10 bg-transparent cursor-pointer appearance-none focus:outline-none [&::-webkit-slider-runnable-track]:h-10 [&::-webkit-slider-runnable-track]:rounded-full [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:h-16 [&::-webkit-slider-thumb]:w-16 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:-mt-3 [&::-webkit-slider-thumb]:shadow-xl [&::-webkit-slider-thumb]:cursor-grab [&::-moz-range-track]:h-10 [&::-moz-range-track]:rounded-full [&::-moz-range-thumb]:h-16 [&::-moz-range-thumb]:w-16 [&::-moz-range-thumb]:rounded-full"
+                    className="w-full h-12 bg-transparent cursor-pointer appearance-none focus:outline-none [&::-webkit-slider-runnable-track]:h-12 [&::-webkit-slider-runnable-track]:rounded-full [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:h-20 [&::-webkit-slider-thumb]:w-20 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:-mt-4 [&::-webkit-slider-thumb]:shadow-2xl [&::-webkit-slider-thumb]:cursor-grab [&::-moz-range-track]:h-12 [&::-moz-range-track]:rounded-full [&::-moz-range-thumb]:h-20 [&::-moz-range-thumb]:w-20 [&::-moz-range-thumb]:rounded-full"
                     style={{
                       background: `linear-gradient(to right, 
                         #fcd34d 0%, 
@@ -346,15 +354,15 @@ export default function MapPage() {
                   <style jsx>{`
                     input[type="range"]::-webkit-slider-thumb {
                       background: ${getHotColor(rating)};
-                      box-shadow: 0 0 25px ${getHotColor(rating)}90;
+                      box-shadow: 0 0 30px ${getHotColor(rating)}a0;
                     }
                     input[type="range"]::-moz-range-thumb {
                       background: ${getHotColor(rating)};
-                      box-shadow: 0 0 25px ${getHotColor(rating)}90;
+                      box-shadow: 0 0 30px ${getHotColor(rating)}a0;
                     }
                   `}</style>
                   
-                  <div className="flex justify-between text-sm text-gray-500 mt-4 px-2">
+                  <div className="flex justify-between text-base text-gray-500 mt-5 px-4">
                     <span>0.0</span>
                     <span>5.5</span>
                     <span>11.0</span>
@@ -363,29 +371,29 @@ export default function MapPage() {
               </div>
 
               <input
-                placeholder="Cuisine (e.g., Mexican, Italian)"
+                placeholder="Cuisine (e.g., Mexican, Italian, fusion)"
                 value={cuisine}
                 onChange={(e) => setCuisine(e.target.value)}
-                className="w-full px-6 py-5 border border-gray-200 rounded-2xl focus:outline-none focus:ring-4 focus:ring-amber-300/30 text-lg"
+                className="w-full px-7 py-6 border border-gray-200/50 rounded-2xl bg-white/80 backdrop-blur-lg focus:outline-none focus:ring-4 focus:ring-amber-300/30 text-lg shadow-inner"
               />
 
               <input
-                placeholder="Area (e.g., North Park, Gaslamp)"
+                placeholder="Area (e.g., North Park, Gaslamp Quarter)"
                 value={area}
                 onChange={(e) => setArea(e.target.value)}
-                className="w-full px-6 py-5 border border-gray-200 rounded-2xl focus:outline-none focus:ring-4 focus:ring-amber-300/30 text-lg"
+                className="w-full px-7 py-6 border border-gray-200/50 rounded-2xl bg-white/80 backdrop-blur-lg focus:outline-none focus:ring-4 focus:ring-amber-300/30 text-lg shadow-inner"
               />
 
               <input
-                placeholder="Tags (comma separated: tacos, casual, rooftop)"
+                placeholder="Tags (comma separated: tacos, casual, rooftop, late-night)"
                 value={tags}
                 onChange={(e) => setTags(e.target.value)}
-                className="w-full px-6 py-5 border border-gray-200 rounded-2xl focus:outline-none focus:ring-4 focus:ring-amber-300/30 text-lg"
+                className="w-full px-7 py-6 border border-gray-200/50 rounded-2xl bg-white/80 backdrop-blur-lg focus:outline-none focus:ring-4 focus:ring-amber-300/30 text-lg shadow-inner"
               />
 
               <button
                 onClick={saveNewLocation}
-                className="w-full bg-gradient-to-r from-amber-600 to-amber-700 hover:from-amber-700 hover:to-amber-800 text-white font-bold py-5 rounded-2xl text-lg transition shadow-lg transform hover:scale-[1.02] duration-300"
+                className="w-full bg-gradient-to-r from-amber-600 to-amber-800 hover:from-amber-700 hover:to-amber-900 text-white font-bold py-6 rounded-2xl text-xl transition shadow-lg transform hover:scale-[1.02] duration-300"
               >
                 Save to Guide
               </button>
