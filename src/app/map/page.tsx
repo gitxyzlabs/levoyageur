@@ -3,8 +3,8 @@
 
 import { GoogleMap, Marker, InfoWindow, useJsApiLoader } from '@react-google-maps/api';
 import { StandaloneSearchBox } from '@react-google-maps/api';
-import { useState, useEffect, useCallback, useRef } from 'react';
-import { X, Search, Heart, Share2, Navigation, Menu } from 'lucide-react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { X, Search, Heart, Share2, Navigation, Menu, User } from 'lucide-react';
 
 const mapContainerStyle = {
   width: '100%',
