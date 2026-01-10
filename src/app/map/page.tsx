@@ -178,7 +178,7 @@ export default function MapPage() {
   };
 
   const renderStars = (rating: number | null) => {
-    if (rating == null) return 'No rating';
+    if (rating == null) return '—';
     const full = Math.floor(rating);
     const half = rating % 1 >= 0.5 ? 1 : 0;
     const empty = 5 - full - half;
