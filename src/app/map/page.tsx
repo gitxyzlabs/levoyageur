@@ -331,8 +331,8 @@ export default function MapPage() {
         </GoogleMap>
       </div>
 
-      {/* Search bar - top-left, 25px from top and left edges of the padded map */}
-      <div className="absolute top-[calc(50px+25px)] left-[calc(50px+25px)] z-10 w-96">
+      {/* Search bar - centered at top of the map */}
+      <div className="absolute top-4 left-1/2 -translate-x-1/2 z-10 w-[768px]">
         <div className="relative group">
           <StandaloneSearchBox onLoad={(ref) => setSearchBox(ref)} onPlacesChanged={onPlacesChanged}>
             <div className="relative">
@@ -346,7 +346,7 @@ export default function MapPage() {
                 value={searchValue}
                 onChange={(e) => setSearchValue(e.target.value)}
                 placeholder="Search places to add (tacos, sushi, rooftop bar...)"
-                className="w-full pl-16 pr-16 py-5 text-lg rounded-3xl bg-white/90 backdrop-blur-2xl border border-white/30 shadow-2xl focus:outline-none focus:ring-4 focus:ring-amber-400/40 focus:border-amber-400/50 text-gray-900 placeholder-gray-500 transition-all duration-300 transform group-focus-within:scale-[1.02]"
+                className="w-full pl-16 pr-16 py-10 text-lg rounded-3xl bg-white/90 backdrop-blur-2xl border border-white/30 shadow-2xl focus:outline-none focus:ring-4 focus:ring-amber-400/40 focus:border-amber-400/50 text-gray-900 placeholder-gray-500 transition-all duration-300 transform group-focus-within:scale-[1.02]"
               />
 
               {searchValue && (
