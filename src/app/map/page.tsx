@@ -9,6 +9,9 @@ import { X, Search, Heart, Share2, Navigation, Menu, User } from 'lucide-react';
 const mapContainerStyle = {
   width: '100%',
   height: '100vh',
+  paddingBottom: 'env(safe-area-inset-bottom)',
+  paddingLeft: 'env(safe-area-inset-left)',
+  paddingRight: 'env(safe-area-inset-right)',
 };
 
 const fallbackCenter = {
@@ -293,7 +296,7 @@ export default function MapPage() {
             position={{ lat: selected.lat, lng: selected.lng }}
             onCloseClick={() => setSelected(null)}
           >
-            <div className="w-96 bg-white/95 backdrop-blur-xl rounded-3xl shadow-2xl overflow-hidden border border-white/20">
+            <div className="w-96 bg-white rounded-2xl shadow-2xl overflow-hidden border border-gray-100">
               {/* Hero image */}
               {selected.image ? (
                 <img
@@ -340,17 +343,17 @@ export default function MapPage() {
 
                 {/* Action buttons */}
                 <div className="grid grid-cols-3 gap-4">
-                  <button className="flex flex-col items-center gap-2 p-4 bg-white/70 hover:bg-white/90 rounded-2xl transition backdrop-blur-sm">
+                  <button className="flex flex-col items-center gap-2 p-4 bg-amber-50 hover:bg-amber-100 rounded-xl transition">
                     <Heart size={28} className="text-amber-600" />
                     <span className="text-sm font-medium text-gray-800">Favorite</span>
                   </button>
 
-                  <button className="flex flex-col items-center gap-2 p-4 bg-white/70 hover:bg-white/90 rounded-2xl transition backdrop-blur-sm">
+                  <button className="flex flex-col items-center gap-2 p-4 bg-amber-50 hover:bg-amber-100 rounded-xl transition">
                     <Share2 size={28} className="text-amber-600" />
                     <span className="text-sm font-medium text-gray-800">Share</span>
                   </button>
 
-                  <button className="flex flex-col items-center gap-2 p-4 bg-white/70 hover:bg-white/90 rounded-2xl transition backdrop-blur-sm">
+                  <button className="flex flex-col items-center gap-2 p-4 bg-amber-50 hover:bg-amber-100 rounded-xl transition">
                     <Navigation size={28} className="text-amber-600" />
                     <span className="text-sm font-medium text-gray-800">Directions</span>
                   </button>
@@ -402,7 +405,7 @@ export default function MapPage() {
       {/* Add New Location Modal */}
       {showAddModal && newPlace && (
         <div className="absolute inset-0 bg-black/60 z-20 flex items-center justify-center p-4">
-          <div className="bg-white/95 backdrop-blur-xl rounded-3xl shadow-2xl max-w-lg w-full p-8 max-h-[90vh] overflow-y-auto border border-white/20">
+          <div className="bg-white rounded-3xl shadow-2xl max-w-lg w-full p-8 max-h-[90vh] overflow-y-auto border border-white/20">
             <div className="flex justify-between items-center mb-8">
               <h2 className="text-3xl font-serif font-bold text-gray-900">Add to Le Voyageur</h2>
               <button
