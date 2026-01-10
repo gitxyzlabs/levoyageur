@@ -8,10 +8,7 @@ import { X, Search, Heart, Share2, Navigation, Menu, User } from 'lucide-react';
 
 const mapContainerStyle = {
   width: '100%',
-  height: '100vh',
-  paddingBottom: 'env(safe-area-inset-bottom)',
-  paddingLeft: 'env(safe-area-inset-left)',
-  paddingRight: 'env(safe-area-inset-right)',
+  height: '100%',
 };
 
 const fallbackCenter = {
@@ -218,154 +215,135 @@ export default function MapPage() {
   if (!isLoaded) return <div className="flex h-screen items-center justify-center bg-gray-50 text-gray-700 text-xl font-medium">Loading map...</div>;
 
   return (
-    <div className="relative w-full h-screen overflow-hidden">
-      {/* Premium fixed top header */}
-      <div className="absolute top-0 left-0 right-0 z-30 px-6 pt-6 pb-4 bg-gradient-to-b from-white/95 to-transparent backdrop-blur-md border-b border-white/20 shadow-sm">
-        <div className="flex items-center justify-between max-w-5xl mx-auto">
-          {/* Logo */}
-          <h1 className="text-3xl md:text-4xl font-serif font-extrabold text-amber-900 tracking-tight drop-shadow-md">
-            Le Voyageur
-          </h1>
+    <div className="relative w-full h-screen overflow-hidden bg-gray-50">
+      {/* Map container with 100px padding on all sides */}
+      <div className="absolute inset-0 p-24">
+        <GoogleMap
+          mapContainerStyle={mapContainerStyle}
+          center={mapCenter}
+          zoom={14}
+          onLoad={(map) => {
+            mapRef.current = map;
+          }}
+        >
+          {/* Existing curated LV markers */}
+          {locations.map((loc) => (
+            <Marker
+              key={loc.id || loc.place_id}
+              position={{ lat: loc.lat, lng: loc.lng }}
+              onClick={() => {
+                setSelected(loc);
+                if (loc.place_id) fetchGoogleRating(loc.place_id);
+              }}
+              icon={{
+                path: google.maps.SymbolPath.CIRCLE,
+                fillColor: getMarkerColor(loc.editor_rating || 5),
+                fillOpacity: 1,
+                strokeColor: '#fff',
+                strokeWeight: 4,
+                scale: getMarkerScale(loc.editor_rating || 5),
+              }}
+              label={{
+                text: loc.editor_rating != null ? loc.editor_rating.toFixed(1) : '?',
+                color: 'white',
+                fontSize: '14px',
+                fontWeight: 'bold',
+              }}
+            />
+          ))}
 
-          {/* Login + Menu */}
-          <div className="flex items-center gap-4">
-            <button className="flex items-center gap-2 px-5 py-2.5 bg-white/80 backdrop-blur-sm border border-gray-200/50 rounded-full shadow-sm hover:bg-white/90 transition text-sm font-medium">
-              <User size={20} />
-              Sign in
-            </button>
-            <button className="p-3 rounded-full bg-white/80 backdrop-blur-sm border border-gray-200/50 shadow-sm hover:bg-white/90 transition">
-              <Menu size={26} className="text-gray-700" />
-            </button>
-          </div>
-        </div>
-      </div>
+          {/* Search result pins (blue) */}
+          {places.map((place, i) => (
+            <Marker
+              key={`search-${i}`}
+              position={{
+                lat: place.geometry.location.lat(),
+                lng: place.geometry.location.lng(),
+              }}
+              icon={{
+                url: 'http://maps.google.com/mapfiles/ms/micons/blue-dot.png',
+              }}
+              onClick={() => handleAddClick(place)}
+            />
+          ))}
 
-      {/* Map */}
-      <GoogleMap
-        mapContainerStyle={mapContainerStyle}
-        center={mapCenter}
-        zoom={14}
-        onLoad={(map) => {
-          mapRef.current = map;
-        }}
-      >
-        {/* Existing curated LV markers */}
-        {locations.map((loc) => (
-          <Marker
-            key={loc.id || loc.place_id}
-            position={{ lat: loc.lat, lng: loc.lng }}
-            onClick={() => {
-              setSelected(loc);
-              if (loc.place_id) fetchGoogleRating(loc.place_id);
-            }}
-            icon={{
-              path: google.maps.SymbolPath.CIRCLE,
-              fillColor: getMarkerColor(loc.editor_rating || 5),
-              fillOpacity: 1,
-              strokeColor: '#fff',
-              strokeWeight: 4,
-              scale: getMarkerScale(loc.editor_rating || 5),
-            }}
-            label={{
-              text: loc.editor_rating != null ? loc.editor_rating.toFixed(1) : '?',
-              color: 'white',
-              fontSize: '14px',
-              fontWeight: 'bold',
-            }}
-          />
-        ))}
+          {/* Premium Info Window / Action Menu */}
+          {selected && (
+            <InfoWindow
+              position={{ lat: selected.lat, lng: selected.lng }}
+              onCloseClick={() => setSelected(null)}
+            >
+              <div className="w-96 bg-white rounded-2xl shadow-2xl overflow-hidden border border-gray-100">
+                {/* Hero image */}
+                {selected.image ? (
+                  <img
+                    src={selected.image}
+                    alt={selected.name}
+                    className="w-full h-48 object-cover"
+                  />
+                ) : (
+                  <div className="w-full h-48 bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center">
+                    <p className="text-gray-500 font-medium">No photo available</p>
+                  </div>
+                )}
 
-        {/* Search result pins (blue) */}
-        {places.map((place, i) => (
-          <Marker
-            key={`search-${i}`}
-            position={{
-              lat: place.geometry.location.lat(),
-              lng: place.geometry.location.lng(),
-            }}
-            icon={{
-              url: 'http://maps.google.com/mapfiles/ms/micons/blue-dot.png',
-            }}
-            onClick={() => handleAddClick(place)}
-          />
-        ))}
+                {/* Content */}
+                <div className="p-6">
+                  <h3 className="text-2xl font-serif font-bold text-gray-900 mb-1">{selected.name}</h3>
+                  <p className="text-sm text-gray-600 mb-6">
+                    {selected.cuisine || 'Restaurant'} • {selected.area || 'San Diego'}
+                  </p>
 
-        {/* Premium Info Window / Action Menu */}
-        {selected && (
-          <InfoWindow
-            position={{ lat: selected.lat, lng: selected.lng }}
-            onCloseClick={() => setSelected(null)}
-          >
-            <div className="w-96 bg-white rounded-2xl shadow-2xl overflow-hidden border border-gray-100">
-              {/* Hero image */}
-              {selected.image ? (
-                <img
-                  src={selected.image}
-                  alt={selected.name}
-                  className="w-full h-48 object-cover"
-                />
-              ) : (
-                <div className="w-full h-48 bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center">
-                  <p className="text-gray-500 font-medium">No photo available</p>
-                </div>
-              )}
-
-              {/* Content */}
-              <div className="p-6">
-                <h3 className="text-2xl font-serif font-bold text-gray-900 mb-1">{selected.name}</h3>
-                <p className="text-sm text-gray-600 mb-6">
-                  {selected.cuisine || 'Restaurant'} • {selected.area || 'San Diego'}
-                </p>
-
-                {/* Ratings */}
-                <div className="flex items-center gap-8 mb-8">
-                  {/* LV Rating */}
-                  <div className="text-center">
-                    <div className="text-5xl font-extrabold text-amber-800">
-                      {selected.editor_rating != null ? selected.editor_rating.toFixed(1) : '—'}
+                  {/* Ratings */}
+                  <div className="flex items-center gap-8 mb-8">
+                    {/* LV Rating */}
+                    <div className="text-center">
+                      <div className="text-5xl font-extrabold text-amber-800">
+                        {selected.editor_rating != null ? selected.editor_rating.toFixed(1) : '—'}
+                      </div>
+                      <p className="text-sm text-amber-700 font-medium">LV Rating</p>
                     </div>
-                    <p className="text-sm text-amber-700 font-medium">LV Rating</p>
+
+                    {/* Google User Rating */}
+                    <div className="text-center">
+                      <div className="text-5xl font-extrabold text-gray-800">
+                        {selected.google_rating != null ? selected.google_rating.toFixed(1) : '—'}
+                      </div>
+                      <p className="text-sm text-gray-600 font-medium">
+                        User Rating ({selected.google_count ?? 0} reviews)
+                      </p>
+                      <div className="mt-1 text-amber-500 text-xl">
+                        {renderStars(selected.google_rating ?? null)}
+                      </div>
+                    </div>
                   </div>
 
-                  {/* Google User Rating */}
-                  <div className="text-center">
-                    <div className="text-5xl font-extrabold text-gray-800">
-                      {selected.google_rating != null ? selected.google_rating.toFixed(1) : '—'}
-                    </div>
-                    <p className="text-sm text-gray-600 font-medium">
-                      User Rating ({selected.google_count ?? 0} reviews)
-                    </p>
-                    <div className="mt-1 text-amber-500 text-xl">
-                      {renderStars(selected.google_rating ?? null)}
-                    </div>
+                  {/* Action buttons */}
+                  <div className="grid grid-cols-3 gap-4">
+                    <button className="flex flex-col items-center gap-2 p-4 bg-amber-50 hover:bg-amber-100 rounded-xl transition">
+                      <Heart size={28} className="text-amber-600" />
+                      <span className="text-sm font-medium text-gray-800">Favorite</span>
+                    </button>
+
+                    <button className="flex flex-col items-center gap-2 p-4 bg-amber-50 hover:bg-amber-100 rounded-xl transition">
+                      <Share2 size={28} className="text-amber-600" />
+                      <span className="text-sm font-medium text-gray-800">Share</span>
+                    </button>
+
+                    <button className="flex flex-col items-center gap-2 p-4 bg-amber-50 hover:bg-amber-100 rounded-xl transition">
+                      <Navigation size={28} className="text-amber-600" />
+                      <span className="text-sm font-medium text-gray-800">Directions</span>
+                    </button>
                   </div>
-                </div>
-
-                {/* Action buttons */}
-                <div className="grid grid-cols-3 gap-4">
-                  <button className="flex flex-col items-center gap-2 p-4 bg-amber-50 hover:bg-amber-100 rounded-xl transition">
-                    <Heart size={28} className="text-amber-600" />
-                    <span className="text-sm font-medium text-gray-800">Favorite</span>
-                  </button>
-
-                  <button className="flex flex-col items-center gap-2 p-4 bg-amber-50 hover:bg-amber-100 rounded-xl transition">
-                    <Share2 size={28} className="text-amber-600" />
-                    <span className="text-sm font-medium text-gray-800">Share</span>
-                  </button>
-
-                  <button className="flex flex-col items-center gap-2 p-4 bg-amber-50 hover:bg-amber-100 rounded-xl transition">
-                    <Navigation size={28} className="text-amber-600" />
-                    <span className="text-sm font-medium text-gray-800">Directions</span>
-                  </button>
                 </div>
               </div>
-            </div>
-          </InfoWindow>
-        )}
-      </GoogleMap>
+            </InfoWindow>
+          )}
+        </GoogleMap>
+      </div>
 
-      {/* Premium floating bottom-centered search bar */}
-      <div className="absolute bottom-[calc(5rem + env(safe-area-inset-bottom))] left-1/2 -translate-x-1/2 z-10 w-full max-w-xl px-8 pb-8">
+      {/* Premium floating top-left search bar with 50px padding */}
+      <div className="absolute top-[50px] left-[50px] z-10 w-96">
         <div className="relative group">
           <StandaloneSearchBox onLoad={(ref) => setSearchBox(ref)} onPlacesChanged={onPlacesChanged}>
             <div className="relative">
