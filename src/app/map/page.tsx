@@ -3,13 +3,8 @@
 
 import { GoogleMap, Marker, InfoWindow, useJsApiLoader } from '@react-google-maps/api';
 import { StandaloneSearchBox } from '@react-google-maps/api';
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { X, Search, Heart, Share2, Navigation, Menu, User } from 'lucide-react';
-
-const mapContainerStyle = {
-  width: '100%',
-  height: '100%',
-};
 
 const fallbackCenter = {
   lat: 32.7194,
@@ -215,11 +210,11 @@ export default function MapPage() {
   if (!isLoaded) return <div className="flex h-screen items-center justify-center bg-gray-50 text-gray-700 text-xl font-medium">Loading map...</div>;
 
   return (
-    <div className="relative w-full h-screen overflow-hidden bg-gray-50">
-      {/* Map container with 100px padding on all sides */}
-      <div className="absolute inset-0 p-24">
+    <div className="relative w-full h-screen overflow-hidden bg-white">
+      {/* Map container with 50px padding on all sides */}
+      <div className="absolute inset-[50px]">
         <GoogleMap
-          mapContainerStyle={mapContainerStyle}
+          mapContainerStyle={{ width: '100%', height: '100%' }}
           center={mapCenter}
           zoom={14}
           onLoad={(map) => {
@@ -267,14 +262,13 @@ export default function MapPage() {
             />
           ))}
 
-          {/* Premium Info Window / Action Menu */}
+          {/* Premium Info Window */}
           {selected && (
             <InfoWindow
               position={{ lat: selected.lat, lng: selected.lng }}
               onCloseClick={() => setSelected(null)}
             >
               <div className="w-96 bg-white rounded-2xl shadow-2xl overflow-hidden border border-gray-100">
-                {/* Hero image */}
                 {selected.image ? (
                   <img
                     src={selected.image}
@@ -287,16 +281,13 @@ export default function MapPage() {
                   </div>
                 )}
 
-                {/* Content */}
                 <div className="p-6">
                   <h3 className="text-2xl font-serif font-bold text-gray-900 mb-1">{selected.name}</h3>
                   <p className="text-sm text-gray-600 mb-6">
                     {selected.cuisine || 'Restaurant'} • {selected.area || 'San Diego'}
                   </p>
 
-                  {/* Ratings */}
                   <div className="flex items-center gap-8 mb-8">
-                    {/* LV Rating */}
                     <div className="text-center">
                       <div className="text-5xl font-extrabold text-amber-800">
                         {selected.editor_rating != null ? selected.editor_rating.toFixed(1) : '—'}
@@ -304,7 +295,6 @@ export default function MapPage() {
                       <p className="text-sm text-amber-700 font-medium">LV Rating</p>
                     </div>
 
-                    {/* Google User Rating */}
                     <div className="text-center">
                       <div className="text-5xl font-extrabold text-gray-800">
                         {selected.google_rating != null ? selected.google_rating.toFixed(1) : '—'}
@@ -318,7 +308,6 @@ export default function MapPage() {
                     </div>
                   </div>
 
-                  {/* Action buttons */}
                   <div className="grid grid-cols-3 gap-4">
                     <button className="flex flex-col items-center gap-2 p-4 bg-amber-50 hover:bg-amber-100 rounded-xl transition">
                       <Heart size={28} className="text-amber-600" />
@@ -342,17 +331,15 @@ export default function MapPage() {
         </GoogleMap>
       </div>
 
-      {/* Premium floating top-left search bar with 50px padding */}
-      <div className="absolute top-[50px] left-[50px] z-10 w-96">
+      {/* Search bar - top-left, 25px from top and left edges of the padded map */}
+      <div className="absolute top-[calc(50px+25px)] left-[calc(50px+25px)] z-10 w-96">
         <div className="relative group">
           <StandaloneSearchBox onLoad={(ref) => setSearchBox(ref)} onPlacesChanged={onPlacesChanged}>
             <div className="relative">
-              {/* Search Icon */}
               <div className="absolute inset-y-0 left-6 flex items-center pointer-events-none">
                 <Search className="h-6 w-6 text-gray-500 group-focus-within:text-amber-600 transition-colors duration-300" />
               </div>
 
-              {/* Input */}
               <input
                 ref={searchInputRef}
                 type="text"
@@ -362,7 +349,6 @@ export default function MapPage() {
                 className="w-full pl-16 pr-16 py-5 text-lg rounded-3xl bg-white/90 backdrop-blur-2xl border border-white/30 shadow-2xl focus:outline-none focus:ring-4 focus:ring-amber-400/40 focus:border-amber-400/50 text-gray-900 placeholder-gray-500 transition-all duration-300 transform group-focus-within:scale-[1.02]"
               />
 
-              {/* Clear button */}
               {searchValue && (
                 <button
                   onClick={() => {
