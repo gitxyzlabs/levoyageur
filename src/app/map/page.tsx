@@ -224,15 +224,10 @@ export default function MapPage() {
             Le Voyageur
           </h1>
 
-          {/* Login + Menu */}
-          <div className="flex items-center gap-4">
-            <button className="p-3 rounded-full bg-white/80 backdrop-blur-sm border border-gray-200/50 shadow-sm hover:bg-white/90 transition">
-              <Menu size={26} className="text-gray-700" />
-            </button>
-            <button className="flex items-center gap-2 px-5 py-2.5 bg-white/80 backdrop-blur-sm border border-gray-200/50 rounded-full shadow-sm hover:bg-white/90 transition text-sm font-medium">
-              Sign in with Google
-            </button>
-          </div>
+          {/* Menu button */}
+          <button className="p-3 rounded-full bg-white/80 backdrop-blur-sm border border-gray-200/50 shadow-sm hover:bg-white/90 transition">
+            <Menu size={26} className="text-gray-700" />
+          </button>
         </div>
       </div>
 
