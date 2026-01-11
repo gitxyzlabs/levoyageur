@@ -65,6 +65,7 @@ export default function App() {
   const [favoritesKey, setFavoritesKey] = useState(0);
   const [mapCenter, setMapCenter] = useState<{ lat: number; lng: number } | null>(null);
   const [mapZoom, setMapZoom] = useState(10);
+  const [selectedGooglePlace, setSelectedGooglePlace] = useState<google.maps.places.PlaceResult | null>(null);
 
   useEffect(() => {
     initializeApp();
@@ -371,6 +372,12 @@ export default function App() {
     console.log('User:', user);
     console.log('User role:', user?.role);
     
+    // Store the selected Google place to show in Map
+    setSelectedGooglePlace(place);
+    
+    // Clear the search results after selection
+    setGooglePlacesResults([]);
+    
     // Pan map to the selected place location
     if (place.geometry?.location) {
       const location = place.geometry.location;
@@ -388,10 +395,8 @@ export default function App() {
     if (isAuthenticated && user?.role === 'editor') {
       setSelectedPlace(place);
       setShowAddModal(true);
-    } else if (!isAuthenticated) {
-      toast.info('Sign in to add locations or view details');
     }
-    // If user is authenticated but not an editor, just pan to location (no error message)
+    // For everyone else (including non-authenticated), just show the info window via Map component
   };
 
   const handleSearchClear = () => {
@@ -700,6 +705,8 @@ export default function App() {
               onFavoriteToggle={() => setFavoritesKey(prev => prev + 1)}
               mapCenter={mapCenter}
               mapZoom={mapZoom}
+              selectedGooglePlace={selectedGooglePlace}
+              onGooglePlaceClose={() => setSelectedGooglePlace(null)}
             />
           </APIProvider>
         </div>

@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Map as GoogleMap, AdvancedMarker, useMap } from '@vis.gl/react-google-maps';
 import type { Location, User } from '../../utils/api';
 import { LocationInfoWindow } from './LocationInfoWindow';
+import { GooglePlaceInfoWindow } from './GooglePlaceInfoWindow';
 
 interface MapProps {
   locations: Location[];
@@ -15,6 +16,8 @@ interface MapProps {
   onFavoriteToggle?: () => void;
   mapCenter?: { lat: number; lng: number } | null;
   mapZoom?: number;
+  selectedGooglePlace?: google.maps.places.PlaceResult | null;
+  onGooglePlaceClose?: () => void;
 }
 
 // Helper functions for marker styling
@@ -47,7 +50,9 @@ export function Map({
   isAuthenticated,
   onFavoriteToggle,
   mapCenter,
-  mapZoom
+  mapZoom,
+  selectedGooglePlace,
+  onGooglePlaceClose
 }: MapProps) {
   const [selectedLocation, setSelectedLocation] = useState<Location | null>(null);
   const [googleRating, setGoogleRating] = useState<{ rating: number | null; count: number | null }>({ rating: null, count: null });
@@ -222,6 +227,17 @@ export function Map({
             user={user}
             isAuthenticated={isAuthenticated}
             onFavoriteToggle={onFavoriteToggle}
+          />
+        )}
+
+        {selectedGooglePlace && !selectedLocation && (
+          <GooglePlaceInfoWindow
+            place={selectedGooglePlace}
+            onClose={() => {
+              if (onGooglePlaceClose) {
+                onGooglePlaceClose();
+              }
+            }}
           />
         )}
       </GoogleMap>

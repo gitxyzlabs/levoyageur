@@ -11,14 +11,20 @@ interface UserProfileProps {
 }
 
 export function UserProfile({ user, onSignOut }: UserProfileProps) {
-  const [isOpen, setIsOpen] = useState(false);
-  const dropdownRef = useRef<HTMLDivElement>(null);
+  const [showMenu, setShowMenu] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  console.log('=== UserProfile Debug ===');
+  console.log('User object:', user);
+  console.log('User role:', user.role);
+  console.log('User ID:', user.id);
+  console.log('User email:', user.email);
 
   // Close dropdown when clicking outside
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
-        setIsOpen(false);
+      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
+        setShowMenu(false);
       }
     };
 
@@ -53,10 +59,10 @@ export function UserProfile({ user, onSignOut }: UserProfileProps) {
   };
 
   return (
-    <div className="relative" ref={dropdownRef}>
+    <div className="relative" ref={menuRef}>
       {/* Profile Button */}
       <button
-        onClick={() => setIsOpen(!isOpen)}
+        onClick={() => setShowMenu(!showMenu)}
         className="flex items-center gap-3 hover:opacity-80 transition-opacity"
       >
         {/* Avatar */}
@@ -75,12 +81,12 @@ export function UserProfile({ user, onSignOut }: UserProfileProps) {
           <span className="text-xs text-slate-500">{user.email}</span>
         </div>
 
-        <ChevronDown className={`h-4 w-4 text-slate-400 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
+        <ChevronDown className={`h-4 w-4 text-slate-400 transition-transform ${showMenu ? 'rotate-180' : ''}`} />
       </button>
 
       {/* Dropdown Menu */}
       <AnimatePresence>
-        {isOpen && (
+        {showMenu && (
           <motion.div
             initial={{ opacity: 0, y: -10, scale: 0.95 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
@@ -109,7 +115,7 @@ export function UserProfile({ user, onSignOut }: UserProfileProps) {
               <button
                 onClick={() => {
                   onSignOut();
-                  setIsOpen(false);
+                  setShowMenu(false);
                 }}
                 className="w-full flex items-center gap-3 px-3 py-2 text-sm text-red-600 hover:bg-red-50 rounded-lg transition-colors"
               >
