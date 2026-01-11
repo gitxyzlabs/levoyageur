@@ -84,10 +84,35 @@ app.get('/make-server-48182530/locations', async (c) => {
   try {
     const locations = await kv.getByPrefix('location:');
     console.log('GET /locations - Found locations:', locations.length);
-    return c.json(locations);
+    // Return in the format expected by the client: { locations: Location[] }
+    return c.json({ locations });
   } catch (error) {
     console.error('❌ Error in GET /locations:', error);
     return c.json({ error: 'Failed to fetch locations' }, 500);
+  }
+});
+
+// Get locations by tag (public - no auth required)
+app.get('/make-server-48182530/locations/tag/:tag', async (c) => {
+  console.log('📍 GET /locations/tag/:tag - Start');
+  const tag = c.req.param('tag');
+  console.log('Searching for tag:', tag);
+  
+  try {
+    const allLocations = await kv.getByPrefix('location:');
+    // Filter locations that have this tag (case-insensitive)
+    const filteredLocations = allLocations.filter((loc: any) => {
+      if (!loc.tags || !Array.isArray(loc.tags)) return false;
+      return loc.tags.some((t: string) => 
+        t.toLowerCase() === tag.toLowerCase()
+      );
+    });
+    
+    console.log('GET /locations/tag - Found locations:', filteredLocations.length);
+    return c.json({ locations: filteredLocations });
+  } catch (error) {
+    console.error('❌ Error in GET /locations/tag:', error);
+    return c.json({ error: 'Failed to fetch locations by tag' }, 500);
   }
 });
 
@@ -152,9 +177,20 @@ app.get('/make-server-48182530/favorites', verifyAuth, async (c) => {
   const userId = c.get('userId');
 
   try {
-    const favorites = await kv.getByPrefix(`favorite:${userId}:`);
-    console.log('GET /favorites - Found favorites:', favorites.length);
-    return c.json(favorites);
+    const favoriteRecords = await kv.getByPrefix(`favorite:${userId}:`);
+    console.log('GET /favorites - Found favorite records:', favoriteRecords.length);
+    
+    // Get the actual location data for each favorite
+    const favorites = [];
+    for (const fav of favoriteRecords) {
+      const location = await kv.get(`location:${fav.locationId}`);
+      if (location) {
+        favorites.push(location);
+      }
+    }
+    
+    console.log('GET /favorites - Resolved locations:', favorites.length);
+    return c.json({ favorites });
   } catch (error) {
     console.error('❌ Error in GET /favorites:', error);
     return c.json({ error: 'Failed to fetch favorites' }, 500);
@@ -336,6 +372,161 @@ app.post('/make-server-48182530/signup', async (c) => {
   } catch (error) {
     console.error('❌ Error in POST /signup:', error);
     return c.json({ error: 'Failed to create user' }, 500);
+  }
+});
+
+// Create OAuth user (called after OAuth sign-in)
+app.post('/make-server-48182530/create-oauth-user', verifyAuth, async (c) => {
+  console.log('📍 POST /create-oauth-user - Start');
+  const userId = c.get('userId');
+  const userEmail = c.get('userEmail');
+  const { id, email, name, role } = await c.req.json();
+
+  try {
+    // Check if user already exists
+    const existingUser = await kv.get(`user:${userId}`);
+    if (existingUser) {
+      console.log('User already exists:', userId);
+      return c.json({ user: existingUser });
+    }
+
+    // Create new user profile
+    const userProfile = {
+      id: userId,
+      email: email || userEmail,
+      name: name || userEmail?.split('@')[0] || 'User',
+      role: role || 'user',
+      createdAt: new Date().toISOString(),
+    };
+    await kv.set(`user:${userId}`, userProfile);
+
+    console.log('✅ OAuth user created:', userId);
+    return c.json({ user: userProfile });
+  } catch (error) {
+    console.error('❌ Error in POST /create-oauth-user:', error);
+    return c.json({ error: 'Failed to create OAuth user' }, 500);
+  }
+});
+
+// ============================================
+// ADMIN ROUTES
+// ============================================
+
+// Get all users (admin/editors)
+app.get('/make-server-48182530/admin/users', verifyAuth, async (c) => {
+  console.log('📍 GET /admin/users - Start');
+  const userId = c.get('userId');
+
+  try {
+    // Check if requesting user is an editor (we'll allow editors to see users for now)
+    const requestingUser = await kv.get(`user:${userId}`);
+    if (!requestingUser || requestingUser.role !== 'editor') {
+      return c.json({ error: 'Forbidden - Editor role required' }, 403);
+    }
+
+    const users = await kv.getByPrefix('user:');
+    console.log('GET /admin/users - Found users:', users.length);
+    return c.json({ users });
+  } catch (error) {
+    console.error('❌ Error in GET /admin/users:', error);
+    return c.json({ error: 'Failed to fetch users' }, 500);
+  }
+});
+
+// Update user role by admin
+app.put('/make-server-48182530/admin/users/:userId/role', verifyAuth, async (c) => {
+  console.log('📍 PUT /admin/users/:userId/role - Start');
+  const requestingUserId = c.get('userId');
+  const targetUserId = c.req.param('userId');
+  const { role } = await c.req.json();
+
+  if (!role || !['user', 'editor'].includes(role)) {
+    return c.json({ error: 'Invalid role. Must be "user" or "editor"' }, 400);
+  }
+
+  try {
+    // For now, allow any authenticated user to become an editor (as per the "Become Editor" flow)
+    // In production, you'd want stricter controls here
+    const targetUser = await kv.get(`user:${targetUserId}`);
+    if (!targetUser) {
+      return c.json({ error: 'User not found' }, 404);
+    }
+
+    const updatedUser = {
+      ...targetUser,
+      role,
+      updatedAt: new Date().toISOString(),
+    };
+    await kv.set(`user:${targetUserId}`, updatedUser);
+
+    console.log('✅ User role updated:', targetUserId, 'to', role);
+    return c.json({ user: updatedUser });
+  } catch (error) {
+    console.error('❌ Error in PUT /admin/users/:userId/role:', error);
+    return c.json({ error: 'Failed to update user role' }, 500);
+  }
+});
+
+// Seed database with sample data
+app.post('/make-server-48182530/seed', async (c) => {
+  console.log('📍 POST /seed - Start');
+  
+  try {
+    const sampleLocations = [
+      {
+        id: crypto.randomUUID(),
+        name: "Addison",
+        lat: 32.9530,
+        lng: -117.2394,
+        lvEditorsScore: 9.5,
+        lvCrowdsourceScore: 9.2,
+        googleRating: 4.8,
+        michelinScore: 0,
+        tags: ["fine dining", "french", "del mar"],
+        description: "Refined California-French cuisine in an elegant setting",
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      },
+      {
+        id: crypto.randomUUID(),
+        name: "Animae",
+        lat: 32.7142,
+        lng: -117.1625,
+        lvEditorsScore: 8.8,
+        lvCrowdsourceScore: 8.5,
+        googleRating: 4.6,
+        michelinScore: 0,
+        tags: ["asian fusion", "cocktails", "downtown"],
+        description: "Modern Asian fusion with creative cocktails",
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      },
+      {
+        id: crypto.randomUUID(),
+        name: "Born & Raised",
+        lat: 32.7165,
+        lng: -117.1611,
+        lvEditorsScore: 9.0,
+        lvCrowdsourceScore: 8.8,
+        googleRating: 4.7,
+        michelinScore: 0,
+        tags: ["steakhouse", "rooftop", "little italy"],
+        description: "Classic steakhouse with stunning rooftop views",
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      },
+    ];
+
+    // Save each location
+    for (const location of sampleLocations) {
+      await kv.set(`location:${location.id}`, location);
+    }
+
+    console.log('✅ Database seeded with', sampleLocations.length, 'locations');
+    return c.json({ success: true, locations: sampleLocations });
+  } catch (error) {
+    console.error('❌ Error in POST /seed:', error);
+    return c.json({ error: 'Failed to seed database' }, 500);
   }
 });
 

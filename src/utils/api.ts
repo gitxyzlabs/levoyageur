@@ -1,18 +1,10 @@
-import { supabase, supabaseUrl, publicAnonKey } from './supabase';
+import { createClient } from '@supabase/supabase-js';
+import { projectId, publicAnonKey } from '../../utils/supabase/info.tsx';
 
-// Re-export for convenience
-export { supabase };
+const supabaseUrl = `https://${projectId}.supabase.co`;
+export const supabase = createClient(supabaseUrl, publicAnonKey);
 
-// Use custom domain for API calls in production, Supabase URL in development
-const isProduction = window.location.hostname === 'lvofc.com';
-const API_BASE = isProduction 
-  ? 'https://lvofc.com/api'  // Custom domain API endpoint
-  : `${supabaseUrl}/functions/v1/make-server-48182530`; // Development endpoint
-
-console.log('=== API Configuration ===');
-console.log('Environment:', isProduction ? 'PRODUCTION (lvofc.com)' : 'DEVELOPMENT');
-console.log('API Base URL:', API_BASE);
-console.log('Hostname:', window.location.hostname);
+const API_BASE = `${supabaseUrl}/functions/v1/make-server-48182530`;
 
 export interface Location {
   id: string;
@@ -190,28 +182,39 @@ export const api = {
 
   // Locations
   getLocations: async (): Promise<{ locations: Location[] }> => {
-    // Public endpoint - use publicAnonKey for authorization
+    // Public endpoint - doesn't require auth
     const response = await fetch(`${API_BASE}/locations`, {
       headers: {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${publicAnonKey}`,
       },
     });
-    
+
     if (!response.ok) {
-      const errorText = await response.text();
-      console.error('Failed to load locations:', response.status, errorText);
-      throw new Error(`Failed to load locations: ${response.status} ${errorText}`);
+      const error = await response.json().catch(() => ({ error: response.statusText }));
+      console.error('❌ getLocations error:', error);
+      throw new Error(error.error || `HTTP error! status: ${response.status}`);
     }
-    
-    const data = await response.json();
-    console.log('✅ Locations loaded successfully:', data);
-    // Server returns array directly, wrap it for consistency
-    return { locations: Array.isArray(data) ? data : [] };
+
+    return response.json();
   },
 
   getLocationsByTag: async (tag: string): Promise<{ locations: Location[] }> => {
-    return fetchWithAuth(`${API_BASE}/locations/tag/${encodeURIComponent(tag)}`);
+    // Public endpoint - doesn't require auth
+    const response = await fetch(`${API_BASE}/locations/tag/${encodeURIComponent(tag)}`, {
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${publicAnonKey}`,
+      },
+    });
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ error: response.statusText }));
+      console.error('❌ getLocationsByTag error:', error);
+      throw new Error(error.error || `HTTP error! status: ${response.status}`);
+    }
+
+    return response.json();
   },
 
   addLocation: async (location: Omit<Location, 'id' | 'createdBy' | 'createdAt'>) => {

@@ -35,17 +35,30 @@ export function SearchAutocomplete({ onPlaceSelect, onTagSelect, onClear }: Sear
       // Fetch Google Places predictions using new AutocompleteSuggestion API
       if (places) {
         try {
-          const { AutocompleteSuggestion } = await google.maps.importLibrary("places") as google.maps.PlacesLibrary;
+          const { AutocompleteSuggestion } = places as any;
           
           const request = {
             input: searchValue,
-            includedPrimaryTypes: ['restaurant', 'cafe', 'bar', 'night_club', 'bakery', 'meal_takeaway', 'meal_delivery'],
+            includedPrimaryTypes: ['restaurant', 'cafe', 'bar', 'bakery', 'meal_takeaway', 'meal_delivery'],
           };
           
           const { suggestions } = await AutocompleteSuggestion.fetchAutocompleteSuggestions(request);
           
-          console.log('Google predictions (new API):', suggestions);
-          setGooglePredictions(suggestions?.slice(0, 5) || []);
+          if (suggestions && suggestions.length > 0) {
+            console.log('Google predictions:', suggestions);
+            // Convert new format to old format for compatibility
+            const predictions = suggestions.slice(0, 5).map((s: any) => ({
+              place_id: s.placePrediction?.placeId || s.placePrediction?.place,
+              description: s.placePrediction?.text?.text || '',
+              structured_formatting: {
+                main_text: s.placePrediction?.structuredFormat?.mainText?.text || '',
+                secondary_text: s.placePrediction?.structuredFormat?.secondaryText?.text || '',
+              }
+            }));
+            setGooglePredictions(predictions);
+          } else {
+            setGooglePredictions([]);
+          }
         } catch (error) {
           console.error('Error fetching autocomplete suggestions:', error);
           setGooglePredictions([]);
@@ -71,7 +84,7 @@ export function SearchAutocomplete({ onPlaceSelect, onTagSelect, onClear }: Sear
 
     const timeoutId = setTimeout(fetchSuggestions, 300);
     return () => clearTimeout(timeoutId);
-  }, [searchValue, places]);
+  }, [searchValue]);
 
   // Handle click outside to close dropdown
   useEffect(() => {
@@ -90,17 +103,15 @@ export function SearchAutocomplete({ onPlaceSelect, onTagSelect, onClear }: Sear
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  const handleGooglePlaceSelect = async (suggestion: any) => {
-    // New AutocompleteSuggestion API returns placePrediction property
-    const prediction = suggestion.placePrediction;
-    if (!prediction?.placeId) return;
+  const handleGooglePlaceSelect = async (prediction: google.maps.places.AutocompletePrediction) => {
+    if (!prediction.place_id) return;
 
     try {
-      // Use the new Place API to fetch details
+      // Use the new Place API instead of deprecated PlacesService
       const { Place } = await google.maps.importLibrary("places") as google.maps.PlacesLibrary;
       
       const place = new Place({
-        id: prediction.placeId,
+        id: prediction.place_id,
       });
 
       // Fetch the place details with the new API
@@ -116,7 +127,7 @@ export function SearchAutocomplete({ onPlaceSelect, onTagSelect, onClear }: Sear
 
       // Convert to PlaceResult format for compatibility
       const placeResult: google.maps.places.PlaceResult = {
-        name: place.displayName || prediction.text?.text,
+        name: place.displayName || prediction.structured_formatting.main_text,
         place_id: place.id,
         geometry: place.location ? {
           location: place.location,
@@ -128,20 +139,20 @@ export function SearchAutocomplete({ onPlaceSelect, onTagSelect, onClear }: Sear
       };
 
       onPlaceSelect(placeResult);
-      setSearchValue(prediction.text?.text || '');
+      setSearchValue(prediction.description);
       setShowDropdown(false);
     } catch (error) {
       console.error('Error fetching place details:', error);
       
       // Fallback: create a basic place result from prediction
       const fallbackResult: google.maps.places.PlaceResult = {
-        name: prediction.text?.text || '',
-        place_id: prediction.placeId,
-        formatted_address: prediction.text?.text,
+        name: prediction.structured_formatting.main_text,
+        place_id: prediction.place_id,
+        formatted_address: prediction.description,
       };
       
       onPlaceSelect(fallbackResult);
-      setSearchValue(prediction.text?.text || '');
+      setSearchValue(prediction.description);
       setShowDropdown(false);
     }
   };
@@ -262,30 +273,27 @@ export function SearchAutocomplete({ onPlaceSelect, onTagSelect, onClear }: Sear
                     Google Places
                   </div>
                 </div>
-                {googlePredictions.map((suggestion, index) => {
-                  const prediction = suggestion.placePrediction;
-                  return (
-                    <button
-                      key={prediction?.placeId || index}
-                      onClick={() => handleGooglePlaceSelect(suggestion)}
-                      className={`w-full px-4 py-3 flex items-center gap-3 hover:bg-slate-50 transition-colors text-left ${
-                        focusedIndex === index + supabaseTags.length ? 'bg-slate-50' : ''
-                      }`}
-                    >
-                      <div className="flex items-center justify-center w-8 h-8 rounded-full bg-slate-100 flex-shrink-0">
-                        <MapPin className="w-4 h-4 text-slate-600" />
+                {googlePredictions.map((prediction, index) => (
+                  <button
+                    key={prediction.place_id}
+                    onClick={() => handleGooglePlaceSelect(prediction)}
+                    className={`w-full px-4 py-3 flex items-center gap-3 hover:bg-slate-50 transition-colors text-left ${
+                      focusedIndex === index + supabaseTags.length ? 'bg-slate-50' : ''
+                    }`}
+                  >
+                    <div className="flex items-center justify-center w-8 h-8 rounded-full bg-slate-100 flex-shrink-0">
+                      <MapPin className="w-4 h-4 text-slate-600" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="font-medium text-gray-900 truncate">
+                        {prediction.structured_formatting.main_text}
                       </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="font-medium text-gray-900 truncate">
-                          {prediction?.text?.text || ''}
-                        </div>
-                        <div className="text-xs text-gray-500 truncate">
-                          {prediction?.structuredFormat?.secondaryText?.text || ''}
-                        </div>
+                      <div className="text-xs text-gray-500 truncate">
+                        {prediction.structured_formatting.secondary_text}
                       </div>
-                    </button>
-                  );
-                })}
+                    </div>
+                  </button>
+                ))}
               </div>
             )}
           </motion.div>

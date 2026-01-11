@@ -1,19 +1,57 @@
-import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
-import { APIProvider, Map, AdvancedMarker } from '@vis.gl/react-google-maps';
+import React, { useState, useEffect } from 'react';
+import { motion, AnimatePresence } from 'motion/react';
+import { APIProvider } from '@vis.gl/react-google-maps';
 import { toast, Toaster } from 'sonner';
-import { Search, MapPin, Star, TrendingUp, Menu, X, Heart, Plus, Users, Settings, LogOut } from 'lucide-react';
-import { api, setAccessToken, type Location, type User } from '../utils/api';
-import { supabase } from '../utils/supabase';
+import { 
+  LogIn, 
+  LogOut, 
+  Search, 
+  MapPin, 
+  Flame,
+  Sparkles,
+  ChevronLeft,
+  ChevronRight,
+  X
+} from 'lucide-react';
+
+import { Map } from './components/Map';
 import { Auth } from './components/Auth';
+import { EditorPanel } from './components/EditorPanel';
 import { AddLocationModal } from './components/AddLocationModal';
+import { SearchAutocomplete } from './components/SearchAutocomplete';
+import { UserProfile } from './components/UserProfile';
 import { AdminPanel } from './components/AdminPanel';
-import { AutocompleteInput } from './components/AutocompleteInput';
+import { Favorites } from './components/Favorites';
+
+import { Button } from './components/ui/button';
+import { Input } from './components/ui/input';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './components/ui/card';
+import { Badge } from './components/ui/badge';
+import { Switch } from './components/ui/switch';
+import { Label } from './components/ui/label';
+
+import { api, supabase } from '../utils/api';
+import type { Location as APILocation, User as APIUser } from '../utils/api';
+import { projectId, publicAnonKey } from '../../utils/supabase/info.tsx';
+import { setAccessToken } from '../utils/api';
+
+// Use types from API
+type Location = APILocation & {
+  place_id?: string;
+  image?: string;
+  cuisine?: string;
+  area?: string;
+};
+
+type User = APIUser;
 
 export default function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [user, setUser] = useState<User | null>(null);
   const [locations, setLocations] = useState<Location[]>([]);
-  const [heatMapLocations, setHeatMapLocations] = useState<Location[]>([]);
+  const [heatMapLocations, setHeatMapLocations] = useState<
+    Location[]
+  >([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [showHeatMap, setShowHeatMap] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -56,28 +94,17 @@ export default function App() {
       );
     }
     
-    // Listen for auth state changes (CRITICAL for OAuth!)
+    // Listen for auth state changes (important for OAuth!)
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-      console.log('🔐 Auth state changed:', event);
-      console.log('Session user:', session?.user?.email);
-      console.log('Session expires at:', session?.expires_at);
+      console.log('Auth state changed:', event, session?.user?.email);
       
       if (event === 'SIGNED_IN' && session) {
-        console.log('✅ User signed in via OAuth, loading user data...');
-        setAccessToken(session.access_token);
-        toast.success('Welcome back!');
+        console.log('User signed in via OAuth, loading user data...');
         await handleOAuthSignIn(session);
       } else if (event === 'SIGNED_OUT') {
-        console.log('🔓 User signed out');
+        console.log('User signed out');
         setIsAuthenticated(false);
         setUser(null);
-        setAccessToken(null);
-        toast.info('You have been signed out');
-      } else if (event === 'TOKEN_REFRESHED') {
-        console.log('🔄 Token refreshed');
-        if (session?.access_token) {
-          setAccessToken(session.access_token);
-        }
       }
     });
     
