@@ -254,6 +254,8 @@ export function Map({
                 onGooglePlaceClose();
               }
             }}
+            user={user}
+            isAuthenticated={isAuthenticated}
           />
         )}
       </GoogleMap>

@@ -1,10 +1,12 @@
 import { useState, useEffect } from 'react';
 import { InfoWindow } from '@vis.gl/react-google-maps';
-import { Award, Users, Star, ChevronLeft, ChevronRight, MapPin } from 'lucide-react';
+import { Award, Users, Star, ChevronLeft, ChevronRight, MapPin, Edit3 } from 'lucide-react';
 
 interface GooglePlaceInfoWindowProps {
   place: google.maps.places.PlaceResult;
   onClose: () => void;
+  user: { id: string; email: string; name: string; role: 'user' | 'editor' } | null;
+  isAuthenticated: boolean;
 }
 
 interface GooglePhoto {
@@ -15,7 +17,9 @@ interface GooglePhoto {
 
 export function GooglePlaceInfoWindow({ 
   place, 
-  onClose
+  onClose,
+  user,
+  isAuthenticated
 }: GooglePlaceInfoWindowProps) {
   const [photos, setPhotos] = useState<GooglePhoto[]>([]);
   const [currentPhotoIndex, setCurrentPhotoIndex] = useState(0);
@@ -23,6 +27,8 @@ export function GooglePlaceInfoWindow({
     rating: null, 
     count: null 
   });
+  const [showRatingSlider, setShowRatingSlider] = useState(false);
+  const [editorRating, setEditorRating] = useState(5.5);
 
   useEffect(() => {
     if (place.place_id) {
@@ -115,6 +121,11 @@ export function GooglePlaceInfoWindow({
               </p>
             )}
           </div>
+          {isAuthenticated && user?.role === 'editor' && (
+            <button className="text-gray-500 hover:text-gray-700">
+              <Edit3 className="w-4 h-4" />
+            </button>
+          )}
         </div>
 
         {/* Photo Carousel */}
@@ -190,13 +201,66 @@ export function GooglePlaceInfoWindow({
             </div>
           </div>
 
-          {/* Not in LV Database Notice */}
-          <div className="mt-4 p-3 bg-gray-50 rounded-lg border border-gray-200">
-            <p className="text-xs text-gray-600 text-center">
-              <Award className="w-4 h-4 inline mr-1" />
-              Not yet rated by LV
-            </p>
-          </div>
+          {/* Editor Rating Section - Only visible to editors */}
+          {isAuthenticated && user?.role === 'editor' && (
+            <div className="mt-4">
+              {!showRatingSlider ? (
+                <button
+                  onClick={() => setShowRatingSlider(true)}
+                  className="w-full p-3 bg-gradient-to-br from-amber-50 to-rose-50 hover:from-amber-100 hover:to-rose-100 rounded-lg border border-amber-200 transition-all"
+                >
+                  <p className="text-xs text-gray-700 text-center font-medium flex items-center justify-center gap-2">
+                    <Award className="w-4 h-4 text-amber-600" />
+                    Rate this location as LV Editor
+                  </p>
+                </button>
+              ) : (
+                <div className="p-4 bg-gradient-to-br from-amber-50 to-rose-50 rounded-lg border border-amber-200 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <p className="text-xs font-semibold text-gray-700 uppercase tracking-wide flex items-center gap-2">
+                      <Award className="w-4 h-4 text-amber-600" />
+                      LV Editor Score
+                    </p>
+                    <span className="text-lg font-bold text-amber-600">{editorRating.toFixed(1)}</span>
+                  </div>
+                  <input
+                    type="range"
+                    min="0"
+                    max="11"
+                    step="0.1"
+                    value={editorRating}
+                    onChange={(e) => setEditorRating(parseFloat(e.target.value))}
+                    className="w-full h-2 bg-gradient-to-r from-slate-200 via-amber-300 to-rose-400 rounded-lg appearance-none cursor-pointer accent-amber-600"
+                    style={{
+                      background: `linear-gradient(to right, #e2e8f0 0%, #fbbf24 ${(editorRating / 11) * 50}%, #fb7185 ${(editorRating / 11) * 100}%)`
+                    }}
+                  />
+                  <div className="flex justify-between text-xs text-gray-500">
+                    <span>0.0</span>
+                    <span>11.0</span>
+                  </div>
+                  <div className="flex gap-2 mt-2">
+                    <button
+                      onClick={() => {
+                        setShowRatingSlider(false);
+                        // TODO: Submit rating to database
+                        console.log('Rating:', editorRating);
+                      }}
+                      className="flex-1 px-3 py-2 bg-amber-600 hover:bg-amber-700 text-white text-xs font-medium rounded-lg transition-colors"
+                    >
+                      Submit Rating
+                    </button>
+                    <button
+                      onClick={() => setShowRatingSlider(false)}
+                      className="px-3 py-2 bg-gray-200 hover:bg-gray-300 text-gray-700 text-xs font-medium rounded-lg transition-colors"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
 
           {/* Types/Categories */}
           {place.types && place.types.length > 0 && (
