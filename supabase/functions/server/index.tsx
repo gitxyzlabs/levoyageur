@@ -46,12 +46,15 @@ async function verifyAuth(c: any, next: any) {
   const token = authHeader.replace('Bearer ', '');
   console.log('📍 Token extracted (first 20 chars):', token.substring(0, 20));
 
-  const supabase = getSupabaseAdmin();
+  // IMPORTANT: Use the ANON key client for verifying user JWTs, not admin client!
+  // OAuth JWTs need to be verified with the anon key, not service role key
+  const supabase = getSupabaseClient();
   const { data, error } = await supabase.auth.getUser(token);
   
   console.log('📍 getUser result - has user:', !!data?.user, 'has error:', !!error);
   if (error) {
     console.log('❌ getUser error:', error.message);
+    console.log('❌ Full error:', JSON.stringify(error));
   }
 
   if (error || !data.user) {
@@ -60,6 +63,7 @@ async function verifyAuth(c: any, next: any) {
   }
 
   console.log('✅ User verified:', data.user.id);
+  console.log('✅ User email:', data.user.email);
   c.set('userId', data.user.id);
   c.set('userEmail', data.user.email);
   await next();

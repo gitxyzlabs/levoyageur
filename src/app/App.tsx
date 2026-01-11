@@ -210,32 +210,19 @@ export default function App() {
 
   const handleOAuthSignIn = async (session: any) => {
     try {
+      setAccessToken(session.access_token);
+      
       // Try to get user data from backend
-      const { user: userData } = await api.getCurrentUser();
-      console.log('User data loaded from backend:', userData);
+      const userData = await api.getCurrentUser();
+      console.log('✅ User data loaded from backend after OAuth:', userData);
       setUser(userData);
       setIsAuthenticated(true);
+      toast.success(`Welcome back, ${userData.name}!`);
     } catch (error: any) {
-      // If user doesn't exist in backend (OAuth first-time login), create them
-      if (error.message.includes('User not found') || error.message.includes('Unauthorized')) {
-        console.log('User not found in backend, creating new user record...');
-        
-        // Create user record for OAuth users
-        const newUser = {
-          id: session.user.id,
-          email: session.user.email || '',
-          name: session.user.user_metadata?.full_name || session.user.user_metadata?.name || session.user.email?.split('@')[0] || 'User',
-          role: 'user' as const,
-        };
-        
-        await api.createOAuthUser(newUser);
-        console.log('Created new user:', newUser);
-        setUser(newUser);
-        setIsAuthenticated(true);
-        toast.success(`Welcome, ${newUser.name}!`);
-      } else {
-        throw error;
-      }
+      console.error('Error in handleOAuthSignIn:', error);
+      // The /user endpoint auto-creates users, so if we get here, something is wrong
+      toast.error('Authentication failed. Please try again.');
+      await api.signOut();
     }
   };
 
