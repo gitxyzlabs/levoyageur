@@ -63,21 +63,32 @@ export default function App() {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(true);
   const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
   const [favoritesKey, setFavoritesKey] = useState(0);
+  const [mapCenter, setMapCenter] = useState<{ lat: number; lng: number } | null>(null);
+  const [mapZoom, setMapZoom] = useState(10);
 
   useEffect(() => {
     initializeApp();
     
-    // Get user's geolocation
+    // Get user's geolocation and center map on it
     if (navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
         (position) => {
-          setUserLocation({
+          const userPos = {
             lat: position.coords.latitude,
             lng: position.coords.longitude,
-          });
+          };
+          setUserLocation(userPos);
+          // Center map on user's location
+          setMapCenter(userPos);
+          setMapZoom(13); // Good zoom level to see nearby locations
+          console.log('✅ Centered map on user location:', userPos);
         },
         (error) => {
           console.log('Geolocation error:', error);
+          // Fallback to San Diego if geolocation is denied
+          const fallbackLocation = { lat: 32.7157, lng: -117.1611 };
+          setMapCenter(fallbackLocation);
+          console.log('⚠️ Using fallback location (San Diego)');
         }
       );
     }
@@ -170,6 +181,9 @@ export default function App() {
           // Try to get user data from backend
           const { user: userData } = await api.getCurrentUser();
           console.log('User data loaded from backend:', userData);
+          console.log('User role from backend:', userData.role);
+          console.log('User ID:', userData.id);
+          console.log('User email:', userData.email);
           setUser(userData);
           setIsAuthenticated(true);
         } catch (error: any) {
@@ -353,14 +367,31 @@ export default function App() {
     console.log('Place ID:', place.place_id);
     console.log('Place name:', place.name);
     console.log('Place geometry:', place.geometry);
+    console.log('Is authenticated:', isAuthenticated);
+    console.log('User:', user);
+    console.log('User role:', user?.role);
+    
+    // Pan map to the selected place location
+    if (place.geometry?.location) {
+      const location = place.geometry.location;
+      const lat = typeof location.lat === 'function' ? location.lat() : location.lat;
+      const lng = typeof location.lng === 'function' ? location.lng() : location.lng;
+      
+      console.log('Panning to:', { lat, lng });
+      
+      // Store the location to pan the map
+      setMapCenter({ lat, lng });
+      setMapZoom(15); // Zoom in close
+    }
     
     // Open the add location modal for editors
     if (isAuthenticated && user?.role === 'editor') {
       setSelectedPlace(place);
       setShowAddModal(true);
-    } else {
-      toast.info('Sign in as an editor to add this location to Le Voyageur');
+    } else if (!isAuthenticated) {
+      toast.info('Sign in to add locations or view details');
     }
+    // If user is authenticated but not an editor, just pan to location (no error message)
   };
 
   const handleSearchClear = () => {
@@ -667,6 +698,8 @@ export default function App() {
               user={user}
               isAuthenticated={isAuthenticated}
               onFavoriteToggle={() => setFavoritesKey(prev => prev + 1)}
+              mapCenter={mapCenter}
+              mapZoom={mapZoom}
             />
           </APIProvider>
         </div>

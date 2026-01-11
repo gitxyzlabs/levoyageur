@@ -13,6 +13,8 @@ interface MapProps {
   user: User | null;
   isAuthenticated: boolean;
   onFavoriteToggle?: () => void;
+  mapCenter?: { lat: number; lng: number } | null;
+  mapZoom?: number;
 }
 
 // Helper functions for marker styling
@@ -43,13 +45,27 @@ export function Map({
   onLocationClick,
   user,
   isAuthenticated,
-  onFavoriteToggle
+  onFavoriteToggle,
+  mapCenter,
+  mapZoom
 }: MapProps) {
   const [selectedLocation, setSelectedLocation] = useState<Location | null>(null);
   const [googleRating, setGoogleRating] = useState<{ rating: number | null; count: number | null }>({ rating: null, count: null });
   const map = useMap();
 
   const displayLocations = showHeatMap && heatMapData ? heatMapData : locations;
+
+  // Pan to new center when mapCenter changes
+  useEffect(() => {
+    if (!map || !mapCenter) return;
+    
+    console.log('Panning map to new center:', mapCenter);
+    map.panTo(mapCenter);
+    
+    if (mapZoom) {
+      map.setZoom(mapZoom);
+    }
+  }, [map, mapCenter, mapZoom]);
 
   // Auto-fit bounds when locations change
   useEffect(() => {
@@ -135,8 +151,8 @@ export function Map({
   return (
     <div className="size-full">
       <GoogleMap
-        defaultZoom={13}
-        defaultCenter={{ lat: 32.7157, lng: -117.1611 }}
+        defaultZoom={mapZoom ?? 13}
+        defaultCenter={mapCenter ?? { lat: 32.7157, lng: -117.1611 }}
         className="size-full"
         mapId="le-voyageur-luxury-map"
         options={{
