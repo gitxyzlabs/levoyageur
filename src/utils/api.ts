@@ -39,9 +39,16 @@ export const setAccessToken = (token: string | null) => {
 export const getAccessToken = () => accessToken;
 
 const fetchWithAuth = async (url: string, options: RequestInit = {}) => {
+  const currentToken = accessToken || publicAnonKey;
+  
+  console.log('=== fetchWithAuth Debug ===');
+  console.log('URL:', url);
+  console.log('Using token type:', accessToken ? 'ACCESS_TOKEN' : 'ANON_KEY');
+  console.log('Token (first 20 chars):', currentToken?.substring(0, 20));
+  
   const headers = {
     'Content-Type': 'application/json',
-    'Authorization': `Bearer ${accessToken || publicAnonKey}`,
+    'Authorization': `Bearer ${currentToken}`,
     ...options.headers,
   };
 
@@ -52,6 +59,7 @@ const fetchWithAuth = async (url: string, options: RequestInit = {}) => {
 
   if (!response.ok) {
     const error = await response.json().catch(() => ({ error: response.statusText }));
+    console.error('❌ fetchWithAuth error:', error);
     throw new Error(error.error || `HTTP error! status: ${response.status}`);
   }
 
@@ -123,16 +131,18 @@ export const api = {
       throw error;
     }
     
-    console.log('getSession result:', {
-      hasSession: !!data.session,
-      userId: data.session?.user?.id,
-      email: data.session?.user?.email,
-      hasAccessToken: !!data.session?.access_token,
-    });
+    console.log('=== getSession Debug ===');
+    console.log('Has session:', !!data.session);
+    console.log('User ID:', data.session?.user?.id);
+    console.log('Email:', data.session?.user?.email);
+    console.log('Has access_token:', !!data.session?.access_token);
+    console.log('Access token length:', data.session?.access_token?.length || 0);
+    console.log('Access token (first 20 chars):', data.session?.access_token?.substring(0, 20));
     
     if (data.session?.access_token) {
       setAccessToken(data.session.access_token);
-      console.log('Access token set from session');
+      console.log('✅ Access token saved to memory');
+      console.log('🔍 Current accessToken in memory:', accessToken?.substring(0, 20));
     }
     
     return data.session;
