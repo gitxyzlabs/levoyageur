@@ -274,7 +274,18 @@ app.put("/make-server-48182530/admin/users/:userId/role", async (c) => {
   }
   
   // Check if user is an editor (only editors can modify roles)
-  if (!await isEditor(authUser.id)) {
+  // BUT: If there are no editors yet, allow the first user to promote themselves
+  const isCurrentUserEditor = await isEditor(authUser.id);
+  const { count: editorCount } = await supabase
+    .from('user_metadata')
+    .select('*', { count: 'exact', head: true })
+    .eq('role', 'editor');
+  
+  const noEditorsExist = editorCount === 0;
+  const isSelfPromotion = authUser.id === userId;
+  
+  // Allow if: current user is already an editor, OR no editors exist and user is promoting themselves
+  if (!isCurrentUserEditor && !(noEditorsExist && isSelfPromotion)) {
     return c.json({ error: 'Forbidden: Only editors can modify user roles' }, 403);
   }
   

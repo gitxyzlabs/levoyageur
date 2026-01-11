@@ -419,12 +419,15 @@ export default function App() {
 
   const handleBecomeEditor = async () => {
     try {
-      const { user: updatedUser } =
-        await api.updateUserRole("editor");
+      // Call the admin endpoint to promote the current user
+      const { user: updatedUser } = await api.updateUserRoleByAdmin(user!.id, "editor");
       setUser(updatedUser);
-      toast.success("You are now an editor!");
+      toast.success("You are now an editor! Refresh the page to see editor features.");
+      // Reload the page to update the UI
+      window.location.reload();
     } catch (error: any) {
-      toast.error("Failed to update role");
+      console.error('Failed to become editor:', error);
+      toast.error("Failed to update role: " + error.message);
     }
   };
 
@@ -583,6 +586,30 @@ export default function App() {
                 user={user}
                 userLocation={userLocation}
               />
+            )}
+
+            {/* Become Editor Button - Only show for non-editor authenticated users */}
+            {isAuthenticated && user && user.role !== 'editor' && (
+              <Card className="bg-gradient-to-br from-amber-50 to-amber-100 border-amber-300">
+                <CardHeader>
+                  <CardTitle className="text-lg flex items-center gap-2">
+                    <Sparkles className="h-5 w-5 text-amber-600" />
+                    Become an Editor
+                  </CardTitle>
+                  <CardDescription>
+                    Upgrade your account to add and manage locations
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <Button 
+                    onClick={handleBecomeEditor}
+                    className="w-full gap-2 bg-gradient-to-r from-amber-500 to-rose-500 hover:from-amber-600 hover:to-rose-600"
+                  >
+                    <Sparkles className="h-4 w-4" />
+                    Become Editor
+                  </Button>
+                </CardContent>
+              </Card>
             )}
 
             {/* Login prompt for non-authenticated users */}
