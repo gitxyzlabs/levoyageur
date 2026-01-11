@@ -61,6 +61,24 @@ export default function App() {
 
   useEffect(() => {
     initializeApp();
+    
+    // Listen for auth state changes (important for OAuth!)
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      console.log('Auth state changed:', event, session?.user?.email);
+      
+      if (event === 'SIGNED_IN' && session) {
+        console.log('User signed in via OAuth, loading user data...');
+        await handleOAuthSignIn(session);
+      } else if (event === 'SIGNED_OUT') {
+        console.log('User signed out');
+        setIsAuthenticated(false);
+        setUser(null);
+      }
+    });
+    
+    return () => {
+      subscription.unsubscribe();
+    };
   }, []);
 
   const initializeApp = async () => {
@@ -156,6 +174,37 @@ export default function App() {
       }
     } catch (error) {
       console.error("Error during initialization:", error);
+    }
+  };
+
+  const handleOAuthSignIn = async (session: any) => {
+    try {
+      // Try to get user data from backend
+      const { user: userData } = await api.getCurrentUser();
+      console.log('User data loaded from backend:', userData);
+      setUser(userData);
+      setIsAuthenticated(true);
+    } catch (error: any) {
+      // If user doesn't exist in backend (OAuth first-time login), create them
+      if (error.message.includes('User not found') || error.message.includes('Unauthorized')) {
+        console.log('User not found in backend, creating new user record...');
+        
+        // Create user record for OAuth users
+        const newUser = {
+          id: session.user.id,
+          email: session.user.email || '',
+          name: session.user.user_metadata?.full_name || session.user.user_metadata?.name || session.user.email?.split('@')[0] || 'User',
+          role: 'user' as const,
+        };
+        
+        await api.createOAuthUser(newUser);
+        console.log('Created new user:', newUser);
+        setUser(newUser);
+        setIsAuthenticated(true);
+        toast.success(`Welcome, ${newUser.name}!`);
+      } else {
+        throw error;
+      }
     }
   };
 

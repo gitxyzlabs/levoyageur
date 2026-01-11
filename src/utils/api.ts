@@ -118,10 +118,21 @@ export const api = {
 
   getSession: async () => {
     const { data, error } = await supabase.auth.getSession();
-    if (error) throw error;
+    if (error) {
+      console.error('Error getting session:', error);
+      throw error;
+    }
+    
+    console.log('getSession result:', {
+      hasSession: !!data.session,
+      userId: data.session?.user?.id,
+      email: data.session?.user?.email,
+      hasAccessToken: !!data.session?.access_token,
+    });
     
     if (data.session?.access_token) {
       setAccessToken(data.session.access_token);
+      console.log('Access token set from session');
     }
     
     return data.session;
