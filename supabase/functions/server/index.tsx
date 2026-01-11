@@ -196,12 +196,20 @@ app.get("/make-server-48182530/user", async (c) => {
     return c.json({ error: 'Unauthorized' }, 401);
   }
   
+  console.log('🔍 GET /user - Auth user ID:', authUser.id);
+  console.log('🔍 GET /user - Auth user email:', authUser.email);
+  
   // Get user metadata from database
   const metadata = await getUserMetadata(authUser.id);
   
+  console.log('🔍 GET /user - Metadata from DB:', metadata);
+  
   if (!metadata) {
+    console.log('❌ GET /user - No metadata found for user:', authUser.id);
     return c.json({ error: 'User metadata not found' }, 404);
   }
+  
+  console.log('🔍 GET /user - Role from metadata:', metadata.role);
   
   // Combine auth data with metadata
   const user = {
@@ -210,6 +218,8 @@ app.get("/make-server-48182530/user", async (c) => {
     name: metadata.name,
     role: metadata.role,
   };
+  
+  console.log('✅ GET /user - Returning user:', user);
   
   return c.json({ user });
 });
