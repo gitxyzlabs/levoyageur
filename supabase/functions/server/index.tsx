@@ -2,87 +2,75 @@ import { Hono } from "npm:hono";
 import { cors } from "npm:hono/cors";
 import { logger } from "npm:hono/logger";
 import { createClient } from "npm:@supabase/supabase-js@2";
+import * as kv from "./kv_store.tsx";
 
 const app = new Hono();
 
 // Enable logger
 app.use('*', logger(console.log));
 
-// Enable CORS for all routes and methods
-app.use(
-  "/*",
-  cors({
-    origin: "*",
-    allowHeaders: ["Content-Type", "Authorization"],
-    allowMethods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-    exposeHeaders: ["Content-Length"],
-    maxAge: 600,
-  }),
-);
+// Enable CORS
+app.use('*', cors({
+  origin: '*',
+  allowMethods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowHeaders: ['Content-Type', 'Authorization'],
+}));
 
-// Helper function to create Supabase client (for database operations)
-const getSupabaseClient = () => {
+// Get Supabase admin client for server-side operations
+function getSupabaseAdmin() {
   return createClient(
-    Deno.env.get('SUPABASE_URL') ?? '',
-    Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
+    Deno.env.get('SUPABASE_URL')!,
+    Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
   );
-};
+}
 
-// Helper function to create Supabase client for auth validation
-const getAuthClient = () => {
+// Get Supabase client for auth operations
+function getSupabaseClient() {
   return createClient(
-    Deno.env.get('SUPABASE_URL') ?? '',
-    Deno.env.get('SUPABASE_ANON_KEY') ?? '',
+    Deno.env.get('SUPABASE_URL')!,
+    Deno.env.get('SUPABASE_ANON_KEY')!
   );
-};
+}
 
-// Helper function to verify user authentication
-const verifyAuth = async (request: Request) => {
-  const accessToken = request.headers.get('Authorization')?.split(' ')[1];
-  if (!accessToken) {
-    return null;
+// Middleware to verify JWT and extract user ID
+async function verifyAuth(c: any, next: any) {
+  console.log('📍 verifyAuth middleware called');
+  const authHeader = c.req.header('Authorization');
+  console.log('📍 Authorization header present:', !!authHeader);
+  
+  if (!authHeader) {
+    console.log('❌ No Authorization header');
+    return c.json({ error: 'Missing Authorization header' }, 401);
   }
-  
-  const supabase = getAuthClient();
-  const { data: { user }, error } = await supabase.auth.getUser(accessToken);
-  
-  if (error || !user) {
-    return null;
-  }
-  
-  return user;
-};
 
-// Helper function to get user metadata from database
-const getUserMetadata = async (userId: string) => {
-  const supabase = getSupabaseClient();
-  const { data, error } = await supabase
-    .from('user_metadata')
-    .select('*')
-    .eq('user_id', userId)
-    .maybeSingle();
+  const token = authHeader.replace('Bearer ', '');
+  console.log('📍 Token extracted (first 20 chars):', token.substring(0, 20));
+
+  const supabase = getSupabaseAdmin();
+  const { data, error } = await supabase.auth.getUser(token);
   
+  console.log('📍 getUser result - has user:', !!data?.user, 'has error:', !!error);
   if (error) {
-    console.error('Error fetching user metadata:', error);
-    return null;
+    console.log('❌ getUser error:', error.message);
   }
-  
-  return data;
-};
 
-// Helper function to check if user is an editor
-const isEditor = async (userId: string): Promise<boolean> => {
-  const metadata = await getUserMetadata(userId);
-  return metadata?.role === 'editor';
-};
+  if (error || !data.user) {
+    console.log('❌ Authorization error during JWT verification:', error?.message || 'No user found');
+    return c.json({ error: 'Unauthorized', details: error?.message }, 401);
+  }
 
-// Health check endpoint
-app.get("/make-server-48182530/health", (c) => {
-  return c.json({ status: "ok" });
-});
+  console.log('✅ User verified:', data.user.id);
+  c.set('userId', data.user.id);
+  c.set('userEmail', data.user.email);
+  await next();
+}
+
+// ============================================
+// PUBLIC ROUTES (No Auth Required)
+// ============================================
 
 // Get Google Maps API key
-app.get("/make-server-48182530/config/google-maps-key", (c) => {
+app.get('/make-server-48182530/config/google-maps-key', (c) => {
   const apiKey = Deno.env.get('GOOGLE_MAPS_API_KEY');
   if (!apiKey) {
     return c.json({ error: 'Google Maps API key not configured' }, 500);
@@ -90,930 +78,274 @@ app.get("/make-server-48182530/config/google-maps-key", (c) => {
   return c.json({ apiKey });
 });
 
-// Sign up endpoint
-app.post("/make-server-48182530/signup", async (c) => {
-  const { email, password, name } = await c.req.json();
-  
-  const supabase = getSupabaseClient();
-  
-  // Create auth user
-  const { data, error } = await supabase.auth.admin.createUser({
-    email,
-    password,
-    user_metadata: { name },
-    // Automatically confirm the user's email since an email server hasn't been configured.
-    email_confirm: true
-  });
-  
-  if (error) {
-    console.error('Error creating auth user:', error);
-    return c.json({ error: error.message }, 400);
-  }
-  
-  // Check if this is the first user ever - if so, make them an editor
-  const { count } = await supabase
-    .from('user_metadata')
-    .select('*', { count: 'exact', head: true });
-  
-  const isFirstUser = count === 0;
-  const role = isFirstUser ? 'editor' : 'user';
-  
-  if (isFirstUser) {
-    console.log('🎉 First user detected! Automatically granting editor role.');
-  }
-  
-  // Store user metadata in database
-  const { error: metadataError } = await supabase
-    .from('user_metadata')
-    .insert({
-      user_id: data.user.id,
-      email,
-      name,
-      role,
-    });
-  
-  if (metadataError) {
-    console.error('Error creating user metadata:', metadataError);
-    // Note: Auth user is already created, so we don't roll back
-  }
-  
-  console.log(`User ${email} created with role: ${role}`);
-  
-  return c.json({ user: data.user });
-});
-
-// Create OAuth user endpoint (called when user logs in via OAuth for the first time)
-app.post("/make-server-48182530/create-oauth-user", async (c) => {
-  const userData = await c.req.json();
-  
-  console.log('Creating OAuth user:', userData);
-  
-  const supabase = getSupabaseClient();
-  
-  // Check if user metadata already exists
-  const existing = await getUserMetadata(userData.id);
-  if (existing) {
-    console.log('User metadata already exists, skipping creation');
-    return c.json({ success: true, user: { ...userData, role: existing.role } });
-  }
-  
-  // Check if this is the first user ever - if so, make them an editor
-  const { count } = await supabase
-    .from('user_metadata')
-    .select('*', { count: 'exact', head: true });
-  
-  const isFirstUser = count === 0;
-  const role = isFirstUser ? 'editor' : 'user';
-  
-  if (isFirstUser) {
-    console.log('🎉 First user detected! Automatically granting editor role.');
-  }
-  
-  // Store user metadata in database
-  const { error } = await supabase
-    .from('user_metadata')
-    .insert({
-      user_id: userData.id,
-      email: userData.email,
-      name: userData.name,
-      role,
-    });
-  
-  if (error) {
-    console.error('Error creating OAuth user metadata:', error);
-    return c.json({ error: error.message }, 500);
-  }
-  
-  console.log(`OAuth user created successfully with role: ${role}`);
-  
-  return c.json({ success: true, user: { ...userData, role } });
-});
-
-// Get current user endpoint
-// Version 1.1 - Enhanced logging for debugging 401 errors
-app.get("/make-server-48182530/user", async (c) => {
-  const accessToken = c.req.header('Authorization')?.split(' ')[1];
-  
-  console.log('📍 GET /user - Request received');
-  console.log('📍 Access token present:', !!accessToken);
-  console.log('📍 Access token length:', accessToken?.length || 0);
-  console.log('📍 Access token (first 20):', accessToken?.substring(0, 20));
-  console.log('📍 Is anon key?:', accessToken === Deno.env.get('SUPABASE_ANON_KEY'));
-  
-  if (!accessToken || accessToken === Deno.env.get('SUPABASE_ANON_KEY')) {
-    console.log('❌ GET /user - Rejected: No access token or using anon key');
-    return c.json({ error: 'Unauthorized' }, 401);
-  }
-  
-  const supabase = getAuthClient();
-  console.log('📍 Calling supabase.auth.getUser()...');
-  const { data: { user: authUser }, error: authError } = await supabase.auth.getUser(accessToken);
-  
-  if (authError) {
-    console.error('❌ GET /user - Auth error:', authError);
-    console.error('❌ Auth error message:', authError.message);
-    console.error('❌ Auth error status:', authError.status);
-    return c.json({ error: 'Unauthorized', details: authError.message }, 401);
-  }
-  
-  if (!authUser) {
-    console.error('❌ GET /user - No auth user returned');
-    return c.json({ error: 'Unauthorized' }, 401);
-  }
-  
-  console.log('🔍 GET /user - Auth user ID:', authUser.id);
-  console.log('🔍 GET /user - Auth user email:', authUser.email);
-  
-  // Get user metadata from database
-  let metadata = await getUserMetadata(authUser.id);
-  
-  console.log('🔍 GET /user - Metadata from DB:', metadata);
-  
-  // If no metadata exists, create it (this handles legacy users or signup failures)
-  if (!metadata) {
-    console.log('⚠️ GET /user - No metadata found, creating new entry...');
-    
-    // Check if this should be the first editor
-    const { count } = await supabase
-      .from('user_metadata')
-      .select('*', { count: 'exact', head: true });
-    
-    const isFirstUser = count === 0;
-    const role = isFirstUser ? 'editor' : 'user';
-    
-    if (isFirstUser) {
-      console.log('🎉 First user detected! Automatically granting editor role.');
-    }
-    
-    // Create metadata entry
-    const { error: insertError } = await supabase
-      .from('user_metadata')
-      .insert({
-        user_id: authUser.id,
-        email: authUser.email,
-        name: authUser.user_metadata?.name || authUser.email?.split('@')[0] || 'User',
-        role,
-      });
-    
-    if (insertError) {
-      console.error('❌ GET /user - Error creating metadata:', insertError);
-      return c.json({ error: 'Failed to create user metadata' }, 500);
-    }
-    
-    // Fetch the newly created metadata
-    metadata = await getUserMetadata(authUser.id);
-    console.log('✅ GET /user - Created new metadata:', metadata);
-  }
-  
-  if (!metadata) {
-    console.log('❌ GET /user - Still no metadata after creation attempt');
-    return c.json({ error: 'User metadata not found' }, 404);
-  }
-  
-  console.log('🔍 GET /user - Role from metadata:', metadata.role);
-  
-  // Combine auth data with metadata
-  const user = {
-    id: authUser.id,
-    email: authUser.email,
-    name: metadata.name,
-    role: metadata.role,
-  };
-  
-  console.log('✅ GET /user - Returning user:', user);
-  
-  return c.json({ user });
-});
-
-// Admin: Get all users
-app.get("/make-server-48182530/admin/users", async (c) => {
-  const accessToken = c.req.header('Authorization')?.split(' ')[1];
-  
-  if (!accessToken || accessToken === Deno.env.get('SUPABASE_ANON_KEY')) {
-    return c.json({ error: 'Unauthorized' }, 401);
-  }
-  
-  const authClient = getAuthClient();
-  const { data: { user: authUser }, error: authError } = await authClient.auth.getUser(accessToken);
-  
-  if (authError || !authUser) {
-    return c.json({ error: 'Unauthorized' }, 401);
-  }
-  
-  // Check if user is an editor (only editors can access admin panel)
-  if (!await isEditor(authUser.id)) {
-    return c.json({ error: 'Forbidden: Only editors can access this endpoint' }, 403);
-  }
-  
-  // Get all users from user_metadata table using service role client for database query
-  const supabase = getSupabaseClient();
-  const { data: allUsers, error } = await supabase
-    .from('user_metadata')
-    .select('*')
-    .order('created_at', { ascending: false });
-  
-  if (error) {
-    console.error('Error fetching users:', error);
-    return c.json({ error: error.message }, 500);
-  }
-  
-  // Transform to match expected format
-  const transformedUsers = allUsers?.map(user => ({
-    id: user.user_id,
-    email: user.email,
-    name: user.name,
-    role: user.role,
-  })) || [];
-  
-  return c.json({ users: transformedUsers });
-});
-
-// Admin: Update user role
-app.put("/make-server-48182530/admin/users/:userId/role", async (c) => {
-  const accessToken = c.req.header('Authorization')?.split(' ')[1];
-  const userId = c.req.param('userId');
-  const { role } = await c.req.json();
-  
-  if (!accessToken || accessToken === Deno.env.get('SUPABASE_ANON_KEY')) {
-    return c.json({ error: 'Unauthorized' }, 401);
-  }
-  
-  const supabase = getAuthClient();
-  const { data: { user: authUser }, error: authError } = await supabase.auth.getUser(accessToken);
-  
-  if (authError || !authUser) {
-    return c.json({ error: 'Unauthorized' }, 401);
-  }
-  
-  // Check if user is an editor (only editors can modify roles)
-  // BUT: If there are no editors yet, allow the first user to promote themselves
-  const isCurrentUserEditor = await isEditor(authUser.id);
-  const { count: editorCount } = await supabase
-    .from('user_metadata')
-    .select('*', { count: 'exact', head: true })
-    .eq('role', 'editor');
-  
-  const noEditorsExist = editorCount === 0;
-  const isSelfPromotion = authUser.id === userId;
-  
-  // Allow if: current user is already an editor, OR no editors exist and user is promoting themselves
-  if (!isCurrentUserEditor && !(noEditorsExist && isSelfPromotion)) {
-    return c.json({ error: 'Forbidden: Only editors can modify user roles' }, 403);
-  }
-  
-  // Validate role
-  if (role !== 'user' && role !== 'editor') {
-    return c.json({ error: 'Invalid role. Must be "user" or "editor"' }, 400);
-  }
-  
-  // Update user role in database
-  const { data: updatedUser, error } = await supabase
-    .from('user_metadata')
-    .update({ role, updated_at: new Date().toISOString() })
-    .eq('user_id', userId)
-    .select()
-    .single();
-  
-  if (error) {
-    console.error('Error updating user role:', error);
-    return c.json({ error: error.message }, 500);
-  }
-  
-  if (!updatedUser) {
-    return c.json({ error: 'User not found' }, 404);
-  }
-  
-  console.log(`Updated user ${userId} role to: ${role}`);
-  
-  // Return transformed user
-  const transformedUser = {
-    id: updatedUser.user_id,
-    email: updatedUser.email,
-    name: updatedUser.name,
-    role: updatedUser.role,
-  };
-  
-  return c.json({ user: transformedUser });
-});
-
-// Get all locations
-app.get("/make-server-48182530/locations", async (c) => {
+// Get all locations (public - no auth required)
+app.get('/make-server-48182530/locations', async (c) => {
+  console.log('📍 GET /locations - Start');
   try {
-    const supabase = getSupabaseClient();
-    const { data: locations, error } = await supabase
-      .from('locations')
-      .select('*')
-      .order('created_at', { ascending: false });
-    
-    if (error) {
-      console.error('Error fetching locations from Supabase:', error);
-      return c.json({ error: error.message }, 500);
-    }
-    
-    console.log('GET /locations - Found locations:', locations?.length || 0);
-    
-    // Transform snake_case to camelCase for frontend
-    const transformedLocations = locations?.map(loc => ({
-      id: loc.id,
-      name: loc.name,
-      lat: loc.lat,
-      lng: loc.lng,
-      lvEditorsScore: loc.lv_editors_score,
-      lvCrowdsourceScore: loc.lv_crowdsource_score,
-      googleRating: loc.google_rating,
-      michelinScore: loc.michelin_score,
-      tags: loc.tags,
-      description: loc.description,
-      place_id: loc.place_id,
-      image: loc.image,
-      cuisine: loc.cuisine,
-      area: loc.area,
-      createdBy: loc.created_by,
-      createdAt: loc.created_at,
-    })) || [];
-    
-    return c.json({ locations: transformedLocations });
-  } catch (error: any) {
-    console.error('Error in /locations endpoint:', error);
-    return c.json({ error: error.message }, 500);
+    const locations = await kv.getByPrefix('location:');
+    console.log('GET /locations - Found locations:', locations.length);
+    return c.json(locations);
+  } catch (error) {
+    console.error('❌ Error in GET /locations:', error);
+    return c.json({ error: 'Failed to fetch locations' }, 500);
   }
 });
 
-// Get locations by tag (for heat map)
-app.get("/make-server-48182530/locations/tag/:tag", async (c) => {
+// ============================================
+// AUTHENTICATED ROUTES
+// ============================================
+
+// Get current user info
+app.get('/make-server-48182530/user', verifyAuth, async (c) => {
+  console.log('📍 GET /user - Start');
+  const userId = c.get('userId');
+  const userEmail = c.get('userEmail');
+  console.log('📍 User ID from context:', userId);
+
   try {
-    const tag = c.req.param('tag');
-    const supabase = getSupabaseClient();
+    // Get user profile from KV store
+    const userProfile = await kv.get(`user:${userId}`);
+    console.log('📍 User profile from KV:', userProfile);
     
-    console.log('Searching for locations with tag:', tag);
-    
-    const { data: locations, error } = await supabase
-      .from('locations')
-      .select('*')
-      .contains('tags', [tag.toLowerCase()]);
-    
-    if (error) {
-      console.error('Error fetching locations by tag:', error);
-      return c.json({ error: error.message }, 500);
+    if (!userProfile) {
+      // Create default user profile
+      const defaultProfile = {
+        id: userId,
+        email: userEmail,
+        role: 'user',
+        name: userEmail?.split('@')[0] || 'User',
+        createdAt: new Date().toISOString(),
+      };
+      console.log('📍 Creating default profile:', defaultProfile);
+      await kv.set(`user:${userId}`, defaultProfile);
+      return c.json(defaultProfile);
     }
-    
-    console.log(`Found ${locations?.length || 0} locations with tag: ${tag}`);
-    
-    // Transform snake_case to camelCase for frontend
-    const transformedLocations = locations?.map(loc => ({
-      id: loc.id,
-      name: loc.name,
-      lat: loc.lat,
-      lng: loc.lng,
-      lvEditorsScore: loc.lv_editors_score,
-      lvCrowdsourceScore: loc.lv_crowdsource_score,
-      googleRating: loc.google_rating,
-      michelinScore: loc.michelin_score,
-      tags: loc.tags,
-      description: loc.description,
-      place_id: loc.place_id,
-      image: loc.image,
-      cuisine: loc.cuisine,
-      area: loc.area,
-      createdBy: loc.created_by,
-      createdAt: loc.created_at,
-    })) || [];
-    
-    return c.json({ locations: transformedLocations });
-  } catch (error: any) {
-    console.error('Error in /locations/tag endpoint:', error);
-    return c.json({ error: error.message }, 500);
+
+    return c.json(userProfile);
+  } catch (error) {
+    console.error('❌ Error in GET /user:', error);
+    return c.json({ error: 'Failed to fetch user data' }, 500);
   }
 });
 
-// Add location (editor only)
-app.post("/make-server-48182530/locations", async (c) => {
-  const user = await verifyAuth(c.req.raw);
-  
-  if (!user) {
-    return c.json({ error: 'Unauthorized - Please log in' }, 401);
-  }
-  
-  // Check if user is an editor
-  if (!await isEditor(user.id)) {
-    return c.json({ error: 'Forbidden - Editor access required' }, 403);
-  }
-  
-  const locationData = await c.req.json();
-  
-  // Sanitize place_id - ensure it's either a valid string or null
-  let placeId = locationData.place_id;
-  if (placeId === 'undefined' || placeId === 'null' || placeId === '' || !placeId) {
-    placeId = null;
-  } else if (typeof placeId === 'string') {
-    placeId = placeId.trim();
-  }
-  
-  console.log('=== Adding Location ===');
-  console.log('Name:', locationData.name);
-  console.log('Editor:', user.email);
-  console.log('Original place_id:', locationData.place_id);
-  console.log('Sanitized place_id:', placeId);
-  
+// Update user profile
+app.put('/make-server-48182530/user', verifyAuth, async (c) => {
+  console.log('📍 PUT /user - Start');
+  const userId = c.get('userId');
+  const updates = await c.req.json();
+
   try {
-    const supabase = getSupabaseClient();
-    
-    const { data: location, error } = await supabase
-      .from('locations')
-      .insert({
-        name: locationData.name,
-        lat: locationData.lat,
-        lng: locationData.lng,
-        lv_editors_score: locationData.lvEditorsScore,
-        lv_crowdsource_score: locationData.lvCrowdsourceScore || 0,
-        google_rating: locationData.googleRating || 0,
-        michelin_score: locationData.michelinScore || 0,
-        tags: locationData.tags || [],
-        description: locationData.description,
-        place_id: placeId,
-        image: locationData.image,
-        cuisine: locationData.cuisine,
-        area: locationData.area,
-        created_by: user.id,
-      })
-      .select()
-      .single();
-    
-    if (error) {
-      console.error('Error inserting location:', error);
-      return c.json({ error: error.message }, 500);
-    }
-    
-    console.log('✅ Location saved successfully with place_id:', location.place_id);
-    
-    // Transform snake_case to camelCase for frontend
-    const transformedLocation = {
-      id: location.id,
-      name: location.name,
-      lat: location.lat,
-      lng: location.lng,
-      lvEditorsScore: location.lv_editors_score,
-      lvCrowdsourceScore: location.lv_crowdsource_score,
-      googleRating: location.google_rating,
-      michelinScore: location.michelin_score,
-      tags: location.tags,
-      description: location.description,
-      place_id: location.place_id,
-      image: location.image,
-      cuisine: location.cuisine,
-      area: location.area,
-      createdBy: location.created_by,
-      createdAt: location.created_at,
+    const existingUser = await kv.get(`user:${userId}`);
+    const updatedUser = { ...existingUser, ...updates, id: userId };
+    await kv.set(`user:${userId}`, updatedUser);
+    console.log('✅ User updated:', userId);
+    return c.json(updatedUser);
+  } catch (error) {
+    console.error('❌ Error in PUT /user:', error);
+    return c.json({ error: 'Failed to update user' }, 500);
+  }
+});
+
+// Get user's favorites
+app.get('/make-server-48182530/favorites', verifyAuth, async (c) => {
+  console.log('📍 GET /favorites - Start');
+  const userId = c.get('userId');
+
+  try {
+    const favorites = await kv.getByPrefix(`favorite:${userId}:`);
+    console.log('GET /favorites - Found favorites:', favorites.length);
+    return c.json(favorites);
+  } catch (error) {
+    console.error('❌ Error in GET /favorites:', error);
+    return c.json({ error: 'Failed to fetch favorites' }, 500);
+  }
+});
+
+// Add a favorite
+app.post('/make-server-48182530/favorites', verifyAuth, async (c) => {
+  console.log('📍 POST /favorites - Start');
+  const userId = c.get('userId');
+  const { locationId } = await c.req.json();
+
+  if (!locationId) {
+    return c.json({ error: 'locationId is required' }, 400);
+  }
+
+  try {
+    const favoriteKey = `favorite:${userId}:${locationId}`;
+    const favorite = {
+      userId,
+      locationId,
+      createdAt: new Date().toISOString(),
     };
-    
-    return c.json({ location: transformedLocation });
-  } catch (error: any) {
-    console.error('Error in add location endpoint:', error);
-    return c.json({ error: error.message }, 500);
+    await kv.set(favoriteKey, favorite);
+    console.log('✅ Favorite added:', favoriteKey);
+    return c.json(favorite);
+  } catch (error) {
+    console.error('❌ Error in POST /favorites:', error);
+    return c.json({ error: 'Failed to add favorite' }, 500);
   }
 });
 
-// Update location (editor only)
-app.put("/make-server-48182530/locations/:id", async (c) => {
-  const user = await verifyAuth(c.req.raw);
-  
-  if (!user) {
-    return c.json({ error: 'Unauthorized - Please log in' }, 401);
+// Remove a favorite
+app.delete('/make-server-48182530/favorites/:locationId', verifyAuth, async (c) => {
+  console.log('📍 DELETE /favorites/:locationId - Start');
+  const userId = c.get('userId');
+  const locationId = c.req.param('locationId');
+
+  try {
+    const favoriteKey = `favorite:${userId}:${locationId}`;
+    await kv.del(favoriteKey);
+    console.log('✅ Favorite removed:', favoriteKey);
+    return c.json({ success: true });
+  } catch (error) {
+    console.error('❌ Error in DELETE /favorites:', error);
+    return c.json({ error: 'Failed to remove favorite' }, 500);
   }
+});
+
+// ============================================
+// EDITOR-ONLY ROUTES
+// ============================================
+
+// Middleware to verify editor role
+async function verifyEditor(c: any, next: any) {
+  const userId = c.get('userId');
   
-  // Check if user is an editor
-  if (!await isEditor(user.id)) {
-    return c.json({ error: 'Forbidden - Editor access required' }, 403);
+  try {
+    const user = await kv.get(`user:${userId}`);
+    if (!user || user.role !== 'editor') {
+      console.log('❌ User is not an editor:', userId);
+      return c.json({ error: 'Forbidden - Editor role required' }, 403);
+    }
+    await next();
+  } catch (error) {
+    console.error('❌ Error in verifyEditor:', error);
+    return c.json({ error: 'Failed to verify editor role' }, 500);
   }
-  
+}
+
+// Create a new location (editors only)
+app.post('/make-server-48182530/locations', verifyAuth, verifyEditor, async (c) => {
+  console.log('📍 POST /locations - Start');
+  const location = await c.req.json();
+
+  if (!location.name || !location.lat || !location.lng) {
+    return c.json({ error: 'name, lat, and lng are required' }, 400);
+  }
+
+  try {
+    const locationId = crypto.randomUUID();
+    const newLocation = {
+      ...location,
+      id: locationId,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+    await kv.set(`location:${locationId}`, newLocation);
+    console.log('✅ Location created:', locationId);
+    return c.json(newLocation);
+  } catch (error) {
+    console.error('❌ Error in POST /locations:', error);
+    return c.json({ error: 'Failed to create location' }, 500);
+  }
+});
+
+// Update a location (editors only)
+app.put('/make-server-48182530/locations/:id', verifyAuth, verifyEditor, async (c) => {
+  console.log('📍 PUT /locations/:id - Start');
   const locationId = c.req.param('id');
   const updates = await c.req.json();
-  
-  console.log('=== Updating Location ===');
-  console.log('Location ID:', locationId);
-  console.log('Editor:', user.email);
-  
+
   try {
-    const supabase = getSupabaseClient();
-    
-    // Transform camelCase to snake_case for database
-    const dbUpdates: any = {
-      updated_by: user.id,
-      updated_at: new Date().toISOString(),
+    const existingLocation = await kv.get(`location:${locationId}`);
+    if (!existingLocation) {
+      return c.json({ error: 'Location not found' }, 404);
+    }
+
+    const updatedLocation = {
+      ...existingLocation,
+      ...updates,
+      id: locationId,
+      updatedAt: new Date().toISOString(),
     };
-    
-    if (updates.name !== undefined) dbUpdates.name = updates.name;
-    if (updates.lat !== undefined) dbUpdates.lat = updates.lat;
-    if (updates.lng !== undefined) dbUpdates.lng = updates.lng;
-    if (updates.lvEditorsScore !== undefined) dbUpdates.lv_editors_score = updates.lvEditorsScore;
-    if (updates.lvCrowdsourceScore !== undefined) dbUpdates.lv_crowdsource_score = updates.lvCrowdsourceScore;
-    if (updates.googleRating !== undefined) dbUpdates.google_rating = updates.googleRating;
-    if (updates.michelinScore !== undefined) dbUpdates.michelin_score = updates.michelinScore;
-    if (updates.tags !== undefined) dbUpdates.tags = updates.tags;
-    if (updates.description !== undefined) dbUpdates.description = updates.description;
-    if (updates.place_id !== undefined) dbUpdates.place_id = updates.place_id;
-    if (updates.image !== undefined) dbUpdates.image = updates.image;
-    if (updates.cuisine !== undefined) dbUpdates.cuisine = updates.cuisine;
-    if (updates.area !== undefined) dbUpdates.area = updates.area;
-    
-    const { data: location, error } = await supabase
-      .from('locations')
-      .update(dbUpdates)
-      .eq('id', locationId)
-      .select()
-      .single();
-    
-    if (error) {
-      console.error('Error updating location:', error);
-      return c.json({ error: error.message }, 500);
-    }
-    
-    console.log('✅ Location updated successfully');
-    
-    // Transform snake_case to camelCase for frontend
-    const transformedLocation = {
-      id: location.id,
-      name: location.name,
-      lat: location.lat,
-      lng: location.lng,
-      lvEditorsScore: location.lv_editors_score,
-      lvCrowdsourceScore: location.lv_crowdsource_score,
-      googleRating: location.google_rating,
-      michelinScore: location.michelin_score,
-      tags: location.tags,
-      description: location.description,
-      place_id: location.place_id,
-      image: location.image,
-      cuisine: location.cuisine,
-      area: location.area,
-      createdBy: location.created_by,
-      createdAt: location.created_at,
-      updatedBy: location.updated_by,
-      updatedAt: location.updated_at,
-    };
-    
-    return c.json({ location: transformedLocation });
-  } catch (error: any) {
-    console.error('Error in update location endpoint:', error);
-    return c.json({ error: error.message }, 500);
-  }
-});
-
-// Delete location (editor only)
-app.delete("/make-server-48182530/locations/:id", async (c) => {
-  const user = await verifyAuth(c.req.raw);
-  
-  if (!user) {
-    return c.json({ error: 'Unauthorized - Please log in' }, 401);
-  }
-  
-  // Check if user is an editor
-  if (!await isEditor(user.id)) {
-    return c.json({ error: 'Forbidden - Editor access required' }, 403);
-  }
-  
-  const locationId = c.req.param('id');
-  
-  console.log('=== Deleting Location ===');
-  console.log('Location ID:', locationId);
-  console.log('Editor:', user.email);
-  
-  try {
-    const supabase = getSupabaseClient();
-    
-    const { error } = await supabase
-      .from('locations')
-      .delete()
-      .eq('id', locationId);
-    
-    if (error) {
-      console.error('Error deleting location:', error);
-      return c.json({ error: error.message }, 500);
-    }
-    
-    console.log('✅ Location deleted successfully');
-    
-    return c.json({ success: true });
-  } catch (error: any) {
-    console.error('Error in delete location endpoint:', error);
-    return c.json({ error: error.message }, 500);
-  }
-});
-
-// Favorites endpoints
-app.get("/make-server-48182530/favorites", async (c) => {
-  const accessToken = c.req.header('Authorization')?.split(' ')[1];
-  
-  if (!accessToken || accessToken === Deno.env.get('SUPABASE_ANON_KEY')) {
-    return c.json({ error: 'Unauthorized' }, 401);
-  }
-  
-  const supabase = getAuthClient();
-  const { data: { user }, error: authError } = await supabase.auth.getUser(accessToken);
-  
-  if (authError || !user) {
-    return c.json({ error: 'Unauthorized' }, 401);
-  }
-  
-  try {
-    // Get favorites with location details
-    const { data: favorites, error } = await supabase
-      .from('favorites')
-      .select(`
-        location_id,
-        locations (*)
-      `)
-      .eq('user_id', user.id);
-    
-    if (error) {
-      console.error('Error fetching favorites:', error);
-      return c.json({ error: error.message }, 500);
-    }
-    
-    // Transform to match expected format
-    const transformedFavorites = favorites?.map(fav => {
-      const loc = fav.locations as any;
-      return {
-        id: loc.id,
-        name: loc.name,
-        lat: loc.lat,
-        lng: loc.lng,
-        lvEditorsScore: loc.lv_editors_score,
-        lvCrowdsourceScore: loc.lv_crowdsource_score,
-        googleRating: loc.google_rating,
-        michelinScore: loc.michelin_score,
-        tags: loc.tags,
-        description: loc.description,
-        place_id: loc.place_id,
-        image: loc.image,
-        cuisine: loc.cuisine,
-        area: loc.area,
-      };
-    }) || [];
-    
-    return c.json({ favorites: transformedFavorites });
-  } catch (error: any) {
-    console.error('Error in /favorites endpoint:', error);
-    return c.json({ error: error.message }, 500);
-  }
-});
-
-app.post("/make-server-48182530/favorites/:locationId", async (c) => {
-  const accessToken = c.req.header('Authorization')?.split(' ')[1];
-  const locationId = c.req.param('locationId');
-  
-  if (!accessToken || accessToken === Deno.env.get('SUPABASE_ANON_KEY')) {
-    return c.json({ error: 'Unauthorized' }, 401);
-  }
-  
-  const supabase = getAuthClient();
-  const { data: { user }, error: authError } = await supabase.auth.getUser(accessToken);
-  
-  if (authError || !user) {
-    return c.json({ error: 'Unauthorized' }, 401);
-  }
-  
-  try {
-    const { error } = await supabase
-      .from('favorites')
-      .insert({
-        user_id: user.id,
-        location_id: locationId,
-      });
-    
-    if (error) {
-      // Ignore duplicate errors (already favorited)
-      if (error.code === '23505') {
-        return c.json({ success: true });
-      }
-      console.error('Error adding favorite:', error);
-      return c.json({ error: error.message }, 500);
-    }
-    
-    console.log(`✅ User ${user.email} favorited location ${locationId}`);
-    
-    return c.json({ success: true });
-  } catch (error: any) {
-    console.error('Error in add favorite endpoint:', error);
-    return c.json({ error: error.message }, 500);
-  }
-});
-
-app.delete("/make-server-48182530/favorites/:locationId", async (c) => {
-  const accessToken = c.req.header('Authorization')?.split(' ')[1];
-  const locationId = c.req.param('locationId');
-  
-  if (!accessToken || accessToken === Deno.env.get('SUPABASE_ANON_KEY')) {
-    return c.json({ error: 'Unauthorized' }, 401);
-  }
-  
-  const supabase = getAuthClient();
-  const { data: { user }, error: authError } = await supabase.auth.getUser(accessToken);
-  
-  if (authError || !user) {
-    return c.json({ error: 'Unauthorized' }, 401);
-  }
-  
-  try {
-    const { error } = await supabase
-      .from('favorites')
-      .delete()
-      .eq('user_id', user.id)
-      .eq('location_id', locationId);
-    
-    if (error) {
-      console.error('Error removing favorite:', error);
-      return c.json({ error: error.message }, 500);
-    }
-    
-    console.log(`✅ User ${user.email} unfavorited location ${locationId}`);
-    
-    return c.json({ success: true });
-  } catch (error: any) {
-    console.error('Error in remove favorite endpoint:', error);
-    return c.json({ error: error.message }, 500);
-  }
-});
-
-// Ratings endpoints
-app.get("/make-server-48182530/ratings/:locationId", async (c) => {
-  const accessToken = c.req.header('Authorization')?.split(' ')[1];
-  const locationId = c.req.param('locationId');
-  
-  if (!accessToken || accessToken === Deno.env.get('SUPABASE_ANON_KEY')) {
-    return c.json({ rating: null });
-  }
-  
-  const supabase = getAuthClient();
-  const { data: { user }, error: authError } = await supabase.auth.getUser(accessToken);
-  
-  if (authError || !user) {
-    return c.json({ rating: null });
-  }
-  
-  try {
-    const { data, error } = await supabase
-      .from('user_ratings')
-      .select('rating')
-      .eq('user_id', user.id)
-      .eq('location_id', locationId)
-      .maybeSingle();
-    
-    if (error) {
-      console.error('Error fetching rating:', error);
-      return c.json({ rating: null });
-    }
-    
-    return c.json({ rating: data?.rating || null });
-  } catch (error: any) {
-    console.error('Error in get rating endpoint:', error);
-    return c.json({ rating: null });
-  }
-});
-
-app.post("/make-server-48182530/ratings/:locationId", async (c) => {
-  const accessToken = c.req.header('Authorization')?.split(' ')[1];
-  const locationId = c.req.param('locationId');
-  const { rating } = await c.req.json();
-  
-  if (!accessToken || accessToken === Deno.env.get('SUPABASE_ANON_KEY')) {
-    return c.json({ error: 'Unauthorized' }, 401);
-  }
-  
-  const supabase = getAuthClient();
-  const { data: { user }, error: authError } = await supabase.auth.getUser(accessToken);
-  
-  if (authError || !user) {
-    return c.json({ error: 'Unauthorized' }, 401);
-  }
-  
-  // Validate rating (0.0-10.0 for users)
-  if (rating < 0 || rating > 10) {
-    return c.json({ error: 'Rating must be between 0.0 and 10.0' }, 400);
-  }
-  
-  try {
-    // Upsert rating (insert or update)
-    const { error } = await supabase
-      .from('user_ratings')
-      .upsert({
-        user_id: user.id,
-        location_id: locationId,
-        rating: rating,
-      }, {
-        onConflict: 'user_id,location_id'
-      });
-    
-    if (error) {
-      console.error('Error saving rating:', error);
-      return c.json({ error: error.message }, 500);
-    }
-    
-    console.log(`✅ User ${user.email} rated location ${locationId}: ${rating}`);
-    
-    return c.json({ success: true, rating });
-  } catch (error: any) {
-    console.error('Error in save rating endpoint:', error);
-    return c.json({ error: error.message }, 500);
-  }
-});
-
-app.get("/make-server-48182530/ratings/:locationId/count", async (c) => {
-  const locationId = c.req.param('locationId');
-  
-  try {
-    const supabase = getSupabaseClient();
-    
-    const { count, error } = await supabase
-      .from('user_ratings')
-      .select('*', { count: 'exact', head: true })
-      .eq('location_id', locationId);
-    
-    if (error) {
-      console.error('Error counting ratings:', error);
-      return c.json({ count: 0 });
-    }
-    
-    return c.json({ count: count || 0 });
-  } catch (error: any) {
-    console.error('Error in rating count endpoint:', error);
-    return c.json({ count: 0 });
-  }
-});
-
-// Google Places API endpoint
-app.get("/make-server-48182530/google/place/:placeId", async (c) => {
-  const placeId = c.req.param('placeId');
-  const apiKey = Deno.env.get('GOOGLE_MAPS_API_KEY');
-  
-  console.log('Fetching Google place details for place_id:', placeId);
-  
-  if (!placeId || placeId === 'undefined' || placeId === 'null') {
-    console.error('Invalid place_id:', placeId);
-    return c.json({ error: 'Invalid place_id parameter' }, 400);
-  }
-  
-  if (!apiKey) {
-    console.error('Google Maps API key not configured');
-    return c.json({ error: 'Google Maps API key not configured' }, 500);
-  }
-  
-  try {
-    const url = `https://maps.googleapis.com/maps/api/place/details/json?place_id=${encodeURIComponent(placeId)}&fields=rating,user_ratings_total,photos&key=${apiKey}`;
-    console.log('Fetching from URL:', url.replace(apiKey, 'API_KEY_HIDDEN'));
-    
-    const response = await fetch(url);
-    
-    const data = await response.json();
-    
-    console.log('Google Places API response status:', data.status);
-    
-    if (data.status !== 'OK') {
-      console.error('Google Places API error:', data.status, data.error_message);
-      // Return empty data instead of error to prevent InfoWindow from breaking
-      return c.json({
-        details: {
-          rating: null,
-          user_ratings_total: null,
-          photos: [],
-        },
-      });
-    }
-    
-    // Transform photos to just include photo_reference
-    const photos = data.result?.photos?.map((photo: any) => ({
-      photoReference: photo.photo_reference,
-      width: photo.width,
-      height: photo.height,
-    })) || [];
-    
-    console.log('✅ Successfully fetched place details. Photos count:', photos.length);
-    
-    return c.json({
-      details: {
-        rating: data.result?.rating || null,
-        user_ratings_total: data.result?.user_ratings_total || null,
-        photos,
-      },
-    });
+    await kv.set(`location:${locationId}`, updatedLocation);
+    console.log('✅ Location updated:', locationId);
+    return c.json(updatedLocation);
   } catch (error) {
-    console.error('Error fetching Google place details:', error);
-    // Return empty data instead of error to prevent InfoWindow from breaking
-    return c.json({
-      details: {
-        rating: null,
-        user_ratings_total: null,
-        photos: [],
-      },
-    });
+    console.error('❌ Error in PUT /locations:', error);
+    return c.json({ error: 'Failed to update location' }, 500);
   }
 });
 
-// Catch-all route for any unmatched paths
-app.all('*', (c) => {
-  console.log('❌ Unmatched route:', c.req.path);
-  console.log('Method:', c.req.method);
-  return c.json({ error: 'Requested path is invalid' }, 404);
+// Delete a location (editors only)
+app.delete('/make-server-48182530/locations/:id', verifyAuth, verifyEditor, async (c) => {
+  console.log('📍 DELETE /locations/:id - Start');
+  const locationId = c.req.param('id');
+
+  try {
+    await kv.del(`location:${locationId}`);
+    console.log('✅ Location deleted:', locationId);
+    return c.json({ success: true });
+  } catch (error) {
+    console.error('❌ Error in DELETE /locations:', error);
+    return c.json({ error: 'Failed to delete location' }, 500);
+  }
 });
 
+// ============================================
+// AUTH ROUTES
+// ============================================
+
+// Sign up
+app.post('/make-server-48182530/signup', async (c) => {
+  console.log('📍 POST /signup - Start');
+  const { email, password, name } = await c.req.json();
+
+  if (!email || !password) {
+    return c.json({ error: 'email and password are required' }, 400);
+  }
+
+  try {
+    const supabase = getSupabaseAdmin();
+    const { data, error } = await supabase.auth.admin.createUser({
+      email,
+      password,
+      user_metadata: { name: name || email.split('@')[0] },
+      // Automatically confirm the user's email since an email server hasn't been configured.
+      email_confirm: true
+    });
+
+    if (error) {
+      console.error('❌ Signup error:', error);
+      return c.json({ error: error.message }, 400);
+    }
+
+    // Create user profile in KV store
+    const userProfile = {
+      id: data.user.id,
+      email: data.user.email,
+      role: 'user',
+      name: name || email.split('@')[0],
+      createdAt: new Date().toISOString(),
+    };
+    await kv.set(`user:${data.user.id}`, userProfile);
+
+    console.log('✅ User created:', data.user.id);
+    return c.json({ user: userProfile });
+  } catch (error) {
+    console.error('❌ Error in POST /signup:', error);
+    return c.json({ error: 'Failed to create user' }, 500);
+  }
+});
+
+// Catch-all for unmatched routes
+app.all('*', (c) => {
+  console.log('❌ 404 - Route not found:', c.req.url);
+  return c.json({ error: 'Not Found' }, 404);
+});
+
+// Start the server with JWT validation DISABLED
+// This allows us to manually verify OAuth JWTs in our middleware
+console.log('🚀 Server starting with manual JWT verification');
 Deno.serve(app.fetch);
