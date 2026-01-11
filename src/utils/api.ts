@@ -4,7 +4,16 @@ import { projectId, publicAnonKey } from '../../utils/supabase/info';
 const supabaseUrl = `https://${projectId}.supabase.co`;
 export const supabase = createClient(supabaseUrl, publicAnonKey);
 
-const API_BASE = `${supabaseUrl}/functions/v1/make-server-48182530`;
+// Use custom domain for API calls in production, Supabase URL in development
+const isProduction = window.location.hostname === 'lvofc.com';
+const API_BASE = isProduction 
+  ? 'https://lvofc.com/api'  // Custom domain API endpoint
+  : `${supabaseUrl}/functions/v1/make-server-48182530`; // Development endpoint
+
+console.log('=== API Configuration ===');
+console.log('Environment:', isProduction ? 'PRODUCTION (lvofc.com)' : 'DEVELOPMENT');
+console.log('API Base URL:', API_BASE);
+console.log('Hostname:', window.location.hostname);
 
 export interface Location {
   id: string;
@@ -182,7 +191,23 @@ export const api = {
 
   // Locations
   getLocations: async (): Promise<{ locations: Location[] }> => {
-    return fetchWithAuth(`${API_BASE}/locations`);
+    // Public endpoint - no auth required
+    const response = await fetch(`${API_BASE}/locations`, {
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
+    
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('Failed to load locations:', response.status, errorText);
+      throw new Error(`Failed to load locations: ${response.status} ${errorText}`);
+    }
+    
+    const data = await response.json();
+    console.log('✅ Locations loaded successfully:', data);
+    // Server returns array directly, wrap it for consistency
+    return { locations: Array.isArray(data) ? data : [] };
   },
 
   getLocationsByTag: async (tag: string): Promise<{ locations: Location[] }> => {

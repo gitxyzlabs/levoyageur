@@ -94,17 +94,28 @@ export default function App() {
       );
     }
     
-    // Listen for auth state changes (important for OAuth!)
+    // Listen for auth state changes (CRITICAL for OAuth!)
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-      console.log('Auth state changed:', event, session?.user?.email);
+      console.log('🔐 Auth state changed:', event);
+      console.log('Session user:', session?.user?.email);
+      console.log('Session expires at:', session?.expires_at);
       
       if (event === 'SIGNED_IN' && session) {
-        console.log('User signed in via OAuth, loading user data...');
+        console.log('✅ User signed in via OAuth, loading user data...');
+        setAccessToken(session.access_token);
+        toast.success('Welcome back!');
         await handleOAuthSignIn(session);
       } else if (event === 'SIGNED_OUT') {
-        console.log('User signed out');
+        console.log('🔓 User signed out');
         setIsAuthenticated(false);
         setUser(null);
+        setAccessToken(null);
+        toast.info('You have been signed out');
+      } else if (event === 'TOKEN_REFRESHED') {
+        console.log('🔄 Token refreshed');
+        if (session?.access_token) {
+          setAccessToken(session.access_token);
+        }
       }
     });
     

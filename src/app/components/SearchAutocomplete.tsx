@@ -21,19 +21,6 @@ export function SearchAutocomplete({ onPlaceSelect, onTagSelect, onClear }: Sear
   const inputRef = useRef<HTMLInputElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const places = useMapsLibrary('places');
-  const autocompleteService = useRef<google.maps.places.AutocompleteService | null>(null);
-  const placesService = useRef<google.maps.places.PlacesService | null>(null);
-
-  // Initialize Google Places services
-  useEffect(() => {
-    if (!places) return;
-    
-    autocompleteService.current = new places.AutocompleteService();
-    
-    // Create a dummy div for PlacesService (it requires a map or div element)
-    const div = document.createElement('div');
-    placesService.current = new places.PlacesService(div);
-  }, [places]);
 
   // Fetch suggestions when search value changes
   useEffect(() => {
@@ -45,22 +32,24 @@ export function SearchAutocomplete({ onPlaceSelect, onTagSelect, onClear }: Sear
     }
 
     const fetchSuggestions = async () => {
-      // Fetch Google Places predictions
-      if (autocompleteService.current) {
-        autocompleteService.current.getPlacePredictions(
-          {
+      // Fetch Google Places predictions using new AutocompleteSuggestion API
+      if (places) {
+        try {
+          const { AutocompleteSuggestion } = await google.maps.importLibrary("places") as google.maps.PlacesLibrary;
+          
+          const request = {
             input: searchValue,
-            types: ['establishment'],
-          },
-          (predictions, status) => {
-            if (status === google.maps.places.PlacesServiceStatus.OK && predictions) {
-              console.log('Google predictions:', predictions);
-              setGooglePredictions(predictions.slice(0, 5));
-            } else {
-              setGooglePredictions([]);
-            }
-          }
-        );
+            includedPrimaryTypes: ['restaurant', 'cafe', 'bar', 'night_club', 'bakery', 'meal_takeaway', 'meal_delivery'],
+          };
+          
+          const { suggestions } = await AutocompleteSuggestion.fetchAutocompleteSuggestions(request);
+          
+          console.log('Google predictions (new API):', suggestions);
+          setGooglePredictions(suggestions?.slice(0, 5) || []);
+        } catch (error) {
+          console.error('Error fetching autocomplete suggestions:', error);
+          setGooglePredictions([]);
+        }
       }
 
       // Fetch Supabase tags
@@ -82,7 +71,7 @@ export function SearchAutocomplete({ onPlaceSelect, onTagSelect, onClear }: Sear
 
     const timeoutId = setTimeout(fetchSuggestions, 300);
     return () => clearTimeout(timeoutId);
-  }, [searchValue]);
+  }, [searchValue, places]);
 
   // Handle click outside to close dropdown
   useEffect(() => {
@@ -101,15 +90,17 @@ export function SearchAutocomplete({ onPlaceSelect, onTagSelect, onClear }: Sear
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  const handleGooglePlaceSelect = async (prediction: google.maps.places.AutocompletePrediction) => {
-    if (!prediction.place_id) return;
+  const handleGooglePlaceSelect = async (suggestion: any) => {
+    // New AutocompleteSuggestion API returns placePrediction property
+    const prediction = suggestion.placePrediction;
+    if (!prediction?.placeId) return;
 
     try {
-      // Use the new Place API instead of deprecated PlacesService
+      // Use the new Place API to fetch details
       const { Place } = await google.maps.importLibrary("places") as google.maps.PlacesLibrary;
       
       const place = new Place({
-        id: prediction.place_id,
+        id: prediction.placeId,
       });
 
       // Fetch the place details with the new API
@@ -125,7 +116,7 @@ export function SearchAutocomplete({ onPlaceSelect, onTagSelect, onClear }: Sear
 
       // Convert to PlaceResult format for compatibility
       const placeResult: google.maps.places.PlaceResult = {
-        name: place.displayName || prediction.structured_formatting.main_text,
+        name: place.displayName || prediction.text?.text,
         place_id: place.id,
         geometry: place.location ? {
           location: place.location,
@@ -137,20 +128,20 @@ export function SearchAutocomplete({ onPlaceSelect, onTagSelect, onClear }: Sear
       };
 
       onPlaceSelect(placeResult);
-      setSearchValue(prediction.description);
+      setSearchValue(prediction.text?.text || '');
       setShowDropdown(false);
     } catch (error) {
       console.error('Error fetching place details:', error);
       
       // Fallback: create a basic place result from prediction
       const fallbackResult: google.maps.places.PlaceResult = {
-        name: prediction.structured_formatting.main_text,
-        place_id: prediction.place_id,
-        formatted_address: prediction.description,
+        name: prediction.text?.text || '',
+        place_id: prediction.placeId,
+        formatted_address: prediction.text?.text,
       };
       
       onPlaceSelect(fallbackResult);
-      setSearchValue(prediction.description);
+      setSearchValue(prediction.text?.text || '');
       setShowDropdown(false);
     }
   };
@@ -271,27 +262,30 @@ export function SearchAutocomplete({ onPlaceSelect, onTagSelect, onClear }: Sear
                     Google Places
                   </div>
                 </div>
-                {googlePredictions.map((prediction, index) => (
-                  <button
-                    key={prediction.place_id}
-                    onClick={() => handleGooglePlaceSelect(prediction)}
-                    className={`w-full px-4 py-3 flex items-center gap-3 hover:bg-slate-50 transition-colors text-left ${
-                      focusedIndex === index + supabaseTags.length ? 'bg-slate-50' : ''
-                    }`}
-                  >
-                    <div className="flex items-center justify-center w-8 h-8 rounded-full bg-slate-100 flex-shrink-0">
-                      <MapPin className="w-4 h-4 text-slate-600" />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="font-medium text-gray-900 truncate">
-                        {prediction.structured_formatting.main_text}
+                {googlePredictions.map((suggestion, index) => {
+                  const prediction = suggestion.placePrediction;
+                  return (
+                    <button
+                      key={prediction?.placeId || index}
+                      onClick={() => handleGooglePlaceSelect(suggestion)}
+                      className={`w-full px-4 py-3 flex items-center gap-3 hover:bg-slate-50 transition-colors text-left ${
+                        focusedIndex === index + supabaseTags.length ? 'bg-slate-50' : ''
+                      }`}
+                    >
+                      <div className="flex items-center justify-center w-8 h-8 rounded-full bg-slate-100 flex-shrink-0">
+                        <MapPin className="w-4 h-4 text-slate-600" />
                       </div>
-                      <div className="text-xs text-gray-500 truncate">
-                        {prediction.structured_formatting.secondary_text}
+                      <div className="flex-1 min-w-0">
+                        <div className="font-medium text-gray-900 truncate">
+                          {prediction?.text?.text || ''}
+                        </div>
+                        <div className="text-xs text-gray-500 truncate">
+                          {prediction?.structuredFormat?.secondaryText?.text || ''}
+                        </div>
                       </div>
-                    </div>
-                  </button>
-                ))}
+                    </button>
+                  );
+                })}
               </div>
             )}
           </motion.div>
