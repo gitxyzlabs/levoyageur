@@ -88,6 +88,25 @@ app.post("/make-server-48182530/signup", async (c) => {
   return c.json({ user: data.user });
 });
 
+// Create OAuth user endpoint (called when user logs in via OAuth for the first time)
+app.post("/make-server-48182530/create-oauth-user", async (c) => {
+  const userData = await c.req.json();
+  
+  console.log('Creating OAuth user:', userData);
+  
+  // Store user data in KV store
+  await kv.set(`user:${userData.id}`, {
+    id: userData.id,
+    email: userData.email,
+    name: userData.name,
+    role: userData.role || 'user',
+  });
+  
+  console.log('OAuth user created successfully');
+  
+  return c.json({ success: true, user: userData });
+});
+
 // Get current user endpoint
 app.get("/make-server-48182530/user", async (c) => {
   const user = await verifyAuth(c.req.raw);
@@ -350,6 +369,13 @@ app.post("/make-server-48182530/seed", async (c) => {
     message: `Seeded ${sampleLocations.length} locations`,
     locations: sampleLocations 
   });
+});
+
+// Catch-all route for any unmatched paths
+app.all('*', (c) => {
+  console.log('Unmatched route:', c.req.path);
+  console.log('Method:', c.req.method);
+  return c.json({ error: 'requested path is invalid' }, 404);
 });
 
 Deno.serve(app.fetch);

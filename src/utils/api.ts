@@ -67,6 +67,13 @@ export const api = {
     });
   },
 
+  createOAuthUser: async (user: User) => {
+    return fetchWithAuth(`${API_BASE}/create-oauth-user`, {
+      method: 'POST',
+      body: JSON.stringify(user),
+    });
+  },
+
   signIn: async (email: string, password: string) => {
     const { data, error } = await supabase.auth.signInWithPassword({
       email,
@@ -80,14 +87,26 @@ export const api = {
   },
 
   signInWithOAuth: async (provider: 'google' | 'apple' | 'twitter') => {
+    // Always redirect back to the current origin (lvofc.com in production, localhost in dev)
+    const redirectTo = window.location.origin;
+    
+    console.log('=== OAuth Debug ===');
+    console.log('Current URL:', window.location.href);
+    console.log('Redirect after auth:', redirectTo);
+    
     const { data, error } = await supabase.auth.signInWithOAuth({
       provider,
       options: {
-        redirectTo: `${window.location.origin}`,
+        redirectTo: redirectTo,
       },
     });
 
-    if (error) throw error;
+    if (error) {
+      console.error('OAuth error:', error);
+      throw error;
+    }
+    
+    console.log('OAuth initiated, redirecting to provider...');
     return data;
   },
 

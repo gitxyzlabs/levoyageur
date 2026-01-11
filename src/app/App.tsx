@@ -19,6 +19,7 @@ import { Auth } from './components/Auth';
 import { EditorPanel } from './components/EditorPanel';
 import { AddLocationModal } from './components/AddLocationModal';
 import { SearchAutocomplete } from './components/SearchAutocomplete';
+import { UserProfile } from './components/UserProfile';
 
 import { Button } from './components/ui/button';
 import { Input } from './components/ui/input';
@@ -115,11 +116,43 @@ export default function App() {
       await loadLocations();
       
       // Check if user is logged in (optional)
+      console.log('Checking for active session...');
       const session = await api.getSession();
+      
       if (session) {
-        const { user: userData } = await api.getCurrentUser();
-        setUser(userData);
-        setIsAuthenticated(true);
+        console.log('Session found! User ID:', session.user.id);
+        console.log('User email:', session.user.email);
+        
+        try {
+          // Try to get user data from backend
+          const { user: userData } = await api.getCurrentUser();
+          console.log('User data loaded from backend:', userData);
+          setUser(userData);
+          setIsAuthenticated(true);
+        } catch (error: any) {
+          // If user doesn't exist in backend (OAuth first-time login), create them
+          if (error.message.includes('User not found') || error.message.includes('Unauthorized')) {
+            console.log('User not found in backend, creating new user record...');
+            
+            // Create user record for OAuth users
+            const newUser = {
+              id: session.user.id,
+              email: session.user.email || '',
+              name: session.user.user_metadata?.full_name || session.user.user_metadata?.name || session.user.email?.split('@')[0] || 'User',
+              role: 'user' as const,
+            };
+            
+            await api.createOAuthUser(newUser);
+            console.log('Created new user:', newUser);
+            setUser(newUser);
+            setIsAuthenticated(true);
+            toast.success(`Welcome, ${newUser.name}!`);
+          } else {
+            throw error;
+          }
+        }
+      } else {
+        console.log('No active session found');
       }
     } catch (error) {
       console.error("Error during initialization:", error);
@@ -353,43 +386,15 @@ export default function App() {
             <h1 className="text-2xl font-light tracking-wider">
               LE VOYAGEUR
             </h1>
-            {user && (
-              <Badge
-                variant={
-                  user?.role === "editor" ? "default" : "outline"
-                }
-              >
-                {user?.role === "editor" ? "Editor" : "Traveler"}
-              </Badge>
-            )}
           </div>
 
           <div className="flex items-center gap-4">
             {isAuthenticated && user ? (
-              <>
-                <div className="text-sm text-right hidden md:block">
-                  <p className="font-medium">{user.name}</p>
-                  <p className="text-muted-foreground">
-                    {user.email}
-                  </p>
-                </div>
-                {user.role !== "editor" && (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={handleBecomeEditor}
-                  >
-                    Become Editor
-                  </Button>
-                )}
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={handleSignOut}
-                >
-                  <LogOut className="h-5 w-5" />
-                </Button>
-              </>
+              <UserProfile 
+                user={user} 
+                onSignOut={handleSignOut}
+                onBecomeEditor={user.role !== 'editor' ? handleBecomeEditor : undefined}
+              />
             ) : (
               <Button
                 variant="default"
