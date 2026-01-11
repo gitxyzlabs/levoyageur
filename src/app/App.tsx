@@ -174,9 +174,13 @@ export default function App() {
       if (session) {
         console.log('Session found! User ID:', session.user.id);
         console.log('User email:', session.user.email);
+        console.log('Access token available:', !!session.access_token);
         
         // IMPORTANT: Set the access token first before making any API calls
         setAccessToken(session.access_token);
+        
+        // Wait a tiny bit to ensure token is set
+        await new Promise(resolve => setTimeout(resolve, 100));
         
         try {
           // Try to get user data from backend
@@ -189,26 +193,12 @@ export default function App() {
           setUser(userData);
           setIsAuthenticated(true);
         } catch (error: any) {
-          // If user doesn't exist in backend (OAuth first-time login), create them
-          if (error.message.includes('User not found') || error.message.includes('Unauthorized')) {
-            console.log('User not found in backend, creating new user record...');
-            
-            // Create user record for OAuth users
-            const newUser = {
-              id: session.user.id,
-              email: session.user.email || '',
-              name: session.user.user_metadata?.full_name || session.user.user_metadata?.name || session.user.email?.split('@')[0] || 'User',
-              role: 'user' as const,
-            };
-            
-            await api.createOAuthUser(newUser);
-            console.log('Created new user:', newUser);
-            setUser(newUser);
-            setIsAuthenticated(true);
-            toast.success(`Welcome, ${newUser.name}!`);
-          } else {
-            throw error;
-          }
+          console.error('❌ Error loading user from backend:', error);
+          console.error('Error message:', error.message);
+          
+          // If user doesn't exist in backend, the backend will auto-create
+          // So if we still get an error, something else is wrong
+          toast.error('Failed to load user data. Please try signing out and back in.');
         }
       } else {
         console.log('No active session found');
