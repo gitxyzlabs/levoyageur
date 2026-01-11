@@ -20,11 +20,19 @@ app.use(
   }),
 );
 
-// Helper function to create Supabase client
+// Helper function to create Supabase client (for database operations)
 const getSupabaseClient = () => {
   return createClient(
     Deno.env.get('SUPABASE_URL') ?? '',
     Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
+  );
+};
+
+// Helper function to create Supabase client for auth validation
+const getAuthClient = () => {
+  return createClient(
+    Deno.env.get('SUPABASE_URL') ?? '',
+    Deno.env.get('SUPABASE_ANON_KEY') ?? '',
   );
 };
 
@@ -35,7 +43,7 @@ const verifyAuth = async (request: Request) => {
     return null;
   }
   
-  const supabase = getSupabaseClient();
+  const supabase = getAuthClient();
   const { data: { user }, error } = await supabase.auth.getUser(accessToken);
   
   if (error || !user) {
@@ -197,7 +205,7 @@ app.get("/make-server-48182530/user", async (c) => {
     return c.json({ error: 'Unauthorized' }, 401);
   }
   
-  const supabase = getSupabaseClient();
+  const supabase = getAuthClient();
   console.log('📍 Calling supabase.auth.getUser()...');
   const { data: { user: authUser }, error: authError } = await supabase.auth.getUser(accessToken);
   
@@ -285,8 +293,8 @@ app.get("/make-server-48182530/admin/users", async (c) => {
     return c.json({ error: 'Unauthorized' }, 401);
   }
   
-  const supabase = getSupabaseClient();
-  const { data: { user: authUser }, error: authError } = await supabase.auth.getUser(accessToken);
+  const authClient = getAuthClient();
+  const { data: { user: authUser }, error: authError } = await authClient.auth.getUser(accessToken);
   
   if (authError || !authUser) {
     return c.json({ error: 'Unauthorized' }, 401);
@@ -297,7 +305,8 @@ app.get("/make-server-48182530/admin/users", async (c) => {
     return c.json({ error: 'Forbidden: Only editors can access this endpoint' }, 403);
   }
   
-  // Get all users from user_metadata table
+  // Get all users from user_metadata table using service role client for database query
+  const supabase = getSupabaseClient();
   const { data: allUsers, error } = await supabase
     .from('user_metadata')
     .select('*')
@@ -329,7 +338,7 @@ app.put("/make-server-48182530/admin/users/:userId/role", async (c) => {
     return c.json({ error: 'Unauthorized' }, 401);
   }
   
-  const supabase = getSupabaseClient();
+  const supabase = getAuthClient();
   const { data: { user: authUser }, error: authError } = await supabase.auth.getUser(accessToken);
   
   if (authError || !authUser) {
@@ -699,7 +708,7 @@ app.get("/make-server-48182530/favorites", async (c) => {
     return c.json({ error: 'Unauthorized' }, 401);
   }
   
-  const supabase = getSupabaseClient();
+  const supabase = getAuthClient();
   const { data: { user }, error: authError } = await supabase.auth.getUser(accessToken);
   
   if (authError || !user) {
@@ -757,7 +766,7 @@ app.post("/make-server-48182530/favorites/:locationId", async (c) => {
     return c.json({ error: 'Unauthorized' }, 401);
   }
   
-  const supabase = getSupabaseClient();
+  const supabase = getAuthClient();
   const { data: { user }, error: authError } = await supabase.auth.getUser(accessToken);
   
   if (authError || !user) {
@@ -798,7 +807,7 @@ app.delete("/make-server-48182530/favorites/:locationId", async (c) => {
     return c.json({ error: 'Unauthorized' }, 401);
   }
   
-  const supabase = getSupabaseClient();
+  const supabase = getAuthClient();
   const { data: { user }, error: authError } = await supabase.auth.getUser(accessToken);
   
   if (authError || !user) {
@@ -835,7 +844,7 @@ app.get("/make-server-48182530/ratings/:locationId", async (c) => {
     return c.json({ rating: null });
   }
   
-  const supabase = getSupabaseClient();
+  const supabase = getAuthClient();
   const { data: { user }, error: authError } = await supabase.auth.getUser(accessToken);
   
   if (authError || !user) {
@@ -871,7 +880,7 @@ app.post("/make-server-48182530/ratings/:locationId", async (c) => {
     return c.json({ error: 'Unauthorized' }, 401);
   }
   
-  const supabase = getSupabaseClient();
+  const supabase = getAuthClient();
   const { data: { user }, error: authError } = await supabase.auth.getUser(accessToken);
   
   if (authError || !user) {
