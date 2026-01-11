@@ -200,12 +200,48 @@ app.get("/make-server-48182530/user", async (c) => {
   console.log('🔍 GET /user - Auth user email:', authUser.email);
   
   // Get user metadata from database
-  const metadata = await getUserMetadata(authUser.id);
+  let metadata = await getUserMetadata(authUser.id);
   
   console.log('🔍 GET /user - Metadata from DB:', metadata);
   
+  // If no metadata exists, create it (this handles legacy users or signup failures)
   if (!metadata) {
-    console.log('❌ GET /user - No metadata found for user:', authUser.id);
+    console.log('⚠️ GET /user - No metadata found, creating new entry...');
+    
+    // Check if this should be the first editor
+    const { count } = await supabase
+      .from('user_metadata')
+      .select('*', { count: 'exact', head: true });
+    
+    const isFirstUser = count === 0;
+    const role = isFirstUser ? 'editor' : 'user';
+    
+    if (isFirstUser) {
+      console.log('🎉 First user detected! Automatically granting editor role.');
+    }
+    
+    // Create metadata entry
+    const { error: insertError } = await supabase
+      .from('user_metadata')
+      .insert({
+        user_id: authUser.id,
+        email: authUser.email,
+        name: authUser.user_metadata?.name || authUser.email?.split('@')[0] || 'User',
+        role,
+      });
+    
+    if (insertError) {
+      console.error('❌ GET /user - Error creating metadata:', insertError);
+      return c.json({ error: 'Failed to create user metadata' }, 500);
+    }
+    
+    // Fetch the newly created metadata
+    metadata = await getUserMetadata(authUser.id);
+    console.log('✅ GET /user - Created new metadata:', metadata);
+  }
+  
+  if (!metadata) {
+    console.log('❌ GET /user - Still no metadata after creation attempt');
     return c.json({ error: 'User metadata not found' }, 404);
   }
   
