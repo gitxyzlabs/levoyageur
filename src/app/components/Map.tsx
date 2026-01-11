@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
-import { Map as GoogleMap, AdvancedMarker, InfoWindow, useMap } from '@vis.gl/react-google-maps';
-import type { Location } from '../../utils/api';
-import { Star, Award, Users } from 'lucide-react';
+import { Map as GoogleMap, AdvancedMarker, useMap } from '@vis.gl/react-google-maps';
+import type { Location, User } from '../../utils/api';
+import { LocationInfoWindow } from './LocationInfoWindow';
 
 interface MapProps {
   locations: Location[];
@@ -10,6 +10,9 @@ interface MapProps {
   googleMapsApiKey: string;
   onLocationClick?: (location: Location) => void;
   onAddLocationRequest?: (place: any) => void;
+  user: User | null;
+  isAuthenticated: boolean;
+  onFavoriteToggle?: () => void;
 }
 
 // Helper functions for marker styling
@@ -32,7 +35,16 @@ const getRatingLabel = (rating: number) => {
   return 'Good';
 };
 
-export function Map({ locations, heatMapData, showHeatMap, googleMapsApiKey, onLocationClick }: MapProps) {
+export function Map({ 
+  locations, 
+  heatMapData, 
+  showHeatMap, 
+  googleMapsApiKey, 
+  onLocationClick,
+  user,
+  isAuthenticated,
+  onFavoriteToggle
+}: MapProps) {
   const [selectedLocation, setSelectedLocation] = useState<Location | null>(null);
   const [googleRating, setGoogleRating] = useState<{ rating: number | null; count: number | null }>({ rating: null, count: null });
   const map = useMap();
@@ -71,24 +83,33 @@ export function Map({ locations, heatMapData, showHeatMap, googleMapsApiKey, onL
     setSelectedLocation(location);
     setGoogleRating({ rating: null, count: null });
     
-    // Fetch Google rating if place_id exists
+    // Fetch Google rating if place_id exists and is valid
     if (location.place_id && window.google && map) {
-      try {
-        const service = new google.maps.places.PlacesService(map);
-        
-        service.getDetails(
-          { placeId: location.place_id, fields: ['rating', 'user_ratings_total'] },
-          (place, status) => {
-            if (status === google.maps.places.PlacesServiceStatus.OK && place) {
-              setGoogleRating({
-                rating: place.rating ?? null,
-                count: place.user_ratings_total ?? null,
-              });
-            }
-          }
-        );
-      } catch (error) {
-        console.error('Error fetching Google place details:', error);
+      // Validate place_id format
+      if (typeof location.place_id !== 'string' || location.place_id.trim() === '' ||
+          location.place_id === 'undefined' || location.place_id === 'null') {
+        console.log('Invalid place_id format for location:', location.name);
+      } else {
+        try {
+          // Use the new Place API instead of deprecated PlacesService
+          const { Place } = await google.maps.importLibrary("places") as google.maps.PlacesLibrary;
+          
+          const place = new Place({
+            id: location.place_id,
+          });
+
+          // Fetch the place details with the new API
+          await place.fetchFields({
+            fields: ['rating', 'userRatingCount'],
+          });
+
+          setGoogleRating({
+            rating: place.rating ?? null,
+            count: place.userRatingCount ?? null,
+          });
+        } catch (error) {
+          console.error('Error fetching Google place details:', error);
+        }
       }
     }
     
@@ -176,106 +197,16 @@ export function Map({ locations, heatMapData, showHeatMap, googleMapsApiKey, onL
         })}
 
         {selectedLocation && (
-          <InfoWindow
-            position={{ lat: selectedLocation.lat, lng: selectedLocation.lng }}
-            onCloseClick={() => {
+          <LocationInfoWindow
+            location={selectedLocation}
+            onClose={() => {
               setSelectedLocation(null);
               setGoogleRating({ rating: null, count: null });
             }}
-            headerDisabled
-          >
-            <div className="p-4 max-w-sm">
-              <div className="flex items-start justify-between mb-3">
-                <div className="flex-1">
-                  <h3 className="font-bold text-lg text-gray-900 mb-1">{selectedLocation.name}</h3>
-                  {selectedLocation.description && (
-                    <p className="text-xs text-gray-600">{selectedLocation.description}</p>
-                  )}
-                </div>
-                {(selectedLocation.lvEditorsScore ?? 0) >= 9.5 && (
-                  <Award className="text-amber-500 ml-2 flex-shrink-0" size={24} />
-                )}
-              </div>
-
-              {/* Rating Display */}
-              <div className="grid grid-cols-2 gap-3 mb-4 p-3 bg-gradient-to-r from-amber-50 to-rose-50 rounded-lg">
-                <div className="text-center">
-                  <div className="text-3xl font-extrabold bg-gradient-to-r from-amber-600 to-rose-600 bg-clip-text text-transparent">
-                    {selectedLocation.lvEditorsScore?.toFixed(1) ?? '—'}
-                  </div>
-                  <p className="text-xs text-amber-700 font-semibold mt-1">
-                    {selectedLocation.lvEditorsScore ? getRatingLabel(selectedLocation.lvEditorsScore) : 'LV Rating'}
-                  </p>
-                </div>
-                <div className="text-center border-l border-gray-200 pl-3">
-                  <div className="text-3xl font-extrabold text-gray-800">
-                    {googleRating.rating?.toFixed(1) ?? '—'}
-                  </div>
-                  <div className="mt-1">
-                    {renderStars(googleRating.rating)}
-                  </div>
-                  <p className="text-xs text-gray-600 font-medium mt-1">
-                    {googleRating.count ? `${googleRating.count} reviews` : 'Google'}
-                  </p>
-                </div>
-              </div>
-
-              {/* All Scores */}
-              <div className="space-y-2 mb-4">
-                <div className="flex items-center justify-between text-sm">
-                  <div className="flex items-center gap-2">
-                    <Award className="w-4 h-4 text-amber-600" />
-                    <span className="text-gray-600">LV Editors</span>
-                  </div>
-                  <div className="flex items-center gap-1">
-                    <Star className="w-4 h-4 fill-amber-400 text-amber-400" />
-                    <span className="font-semibold">{selectedLocation.lvEditorsScore?.toFixed(1) ?? '—'}</span>
-                  </div>
-                </div>
-
-                <div className="flex items-center justify-between text-sm">
-                  <div className="flex items-center gap-2">
-                    <Users className="w-4 h-4 text-blue-600" />
-                    <span className="text-gray-600">LV Community</span>
-                  </div>
-                  <div className="flex items-center gap-1">
-                    <Star className="w-4 h-4 fill-blue-400 text-blue-400" />
-                    <span className="font-semibold">{selectedLocation.lvCrowdsourceScore?.toFixed(1) ?? '—'}</span>
-                  </div>
-                </div>
-
-                <div className="flex items-center justify-between text-sm">
-                  <span className="text-gray-600">Google Rating</span>
-                  <div className="flex items-center gap-1">
-                    <Star className="w-4 h-4 fill-yellow-400 text-yellow-400" />
-                    <span className="font-semibold">{selectedLocation.googleRating?.toFixed(1) ?? '—'}</span>
-                  </div>
-                </div>
-
-                <div className="flex items-center justify-between text-sm">
-                  <span className="text-gray-600">Michelin Score</span>
-                  <div className="flex items-center gap-1">
-                    <Star className="w-4 h-4 fill-red-400 text-red-400" />
-                    <span className="font-semibold">{selectedLocation.michelinScore?.toFixed(1) ?? '—'}</span>
-                  </div>
-                </div>
-              </div>
-
-              {/* Tags */}
-              {selectedLocation.tags && selectedLocation.tags.length > 0 && (
-                <div className="flex flex-wrap gap-1 pt-3 border-t border-gray-200">
-                  {selectedLocation.tags.map((tag, idx) => (
-                    <span
-                      key={idx}
-                      className="px-2 py-1 text-xs bg-gradient-to-r from-amber-100 to-rose-100 text-gray-700 font-medium rounded-full"
-                    >
-                      {tag}
-                    </span>
-                  ))}
-                </div>
-              )}
-            </div>
-          </InfoWindow>
+            user={user}
+            isAuthenticated={isAuthenticated}
+            onFavoriteToggle={onFavoriteToggle}
+          />
         )}
       </GoogleMap>
     </div>

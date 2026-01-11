@@ -23,14 +23,7 @@ interface AddLocationModalProps {
     tags: string[];
     description?: string;
   }) => void;
-  initialPlace?: {
-    name: string;
-    lat: number;
-    lng: number;
-    place_id?: string;
-    image?: string | null;
-    vicinity?: string;
-  };
+  initialPlace?: any; // Changed to any to accept google.maps.places.PlaceResult
   onLocationAdded: () => void;
   selectedPlace?: any;
 }
@@ -64,10 +57,22 @@ export function AddLocationModal({ isOpen, onClose, onSave, initialPlace, onLoca
   const handleSave = () => {
     if (!name || !initialPlace) return;
 
+    console.log('=== AddLocationModal Save Debug ===');
+    console.log('initialPlace:', initialPlace);
+    console.log('place_id:', initialPlace.place_id);
+    console.log('geometry:', initialPlace.geometry);
+    
+    // Extract lat/lng from Google Place geometry
+    const lat = initialPlace.geometry?.location?.lat() || initialPlace.lat;
+    const lng = initialPlace.geometry?.location?.lng() || initialPlace.lng;
+    
+    console.log('Extracted lat:', lat);
+    console.log('Extracted lng:', lng);
+
     onSave({
       name,
-      lat: initialPlace.lat,
-      lng: initialPlace.lng,
+      lat,
+      lng,
       place_id: initialPlace.place_id || null,
       image: initialPlace.image || null,
       lvEditorsScore: rating,

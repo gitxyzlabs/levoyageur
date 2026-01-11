@@ -6,7 +6,7 @@ import { LVIcon } from './LVIcon';
 import { api } from '../../utils/api';
 
 interface SearchAutocompleteProps {
-  onPlaceSelect: (place: google.maps.places.PlaceResult) => void;
+  onPlaceSelect: (place: any) => void; // Updated type
   onTagSelect: (tag: string) => void;
   onClear?: () => void;
 }
@@ -14,7 +14,7 @@ interface SearchAutocompleteProps {
 export function SearchAutocomplete({ onPlaceSelect, onTagSelect, onClear }: SearchAutocompleteProps) {
   const [searchValue, setSearchValue] = useState('');
   const [showDropdown, setShowDropdown] = useState(false);
-  const [googlePredictions, setGooglePredictions] = useState<google.maps.places.AutocompletePrediction[]>([]);
+  const [googlePredictions, setGooglePredictions] = useState<any[]>([]);
   const [supabaseTags, setSupabaseTags] = useState<string[]>([]);
   const [focusedIndex, setFocusedIndex] = useState(-1);
   
@@ -54,6 +54,7 @@ export function SearchAutocomplete({ onPlaceSelect, onTagSelect, onClear }: Sear
           },
           (predictions, status) => {
             if (status === google.maps.places.PlacesServiceStatus.OK && predictions) {
+              console.log('Google predictions:', predictions);
               setGooglePredictions(predictions.slice(0, 5));
             } else {
               setGooglePredictions([]);
@@ -100,22 +101,58 @@ export function SearchAutocomplete({ onPlaceSelect, onTagSelect, onClear }: Sear
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  const handleGooglePlaceSelect = (prediction: google.maps.places.AutocompletePrediction) => {
-    if (!placesService.current) return;
+  const handleGooglePlaceSelect = async (prediction: google.maps.places.AutocompletePrediction) => {
+    if (!prediction.place_id) return;
 
-    placesService.current.getDetails(
-      {
-        placeId: prediction.place_id,
-        fields: ['name', 'geometry', 'formatted_address', 'place_id', 'rating', 'photos', 'types'],
-      },
-      (place, status) => {
-        if (status === google.maps.places.PlacesServiceStatus.OK && place) {
-          onPlaceSelect(place);
-          setSearchValue(prediction.description);
-          setShowDropdown(false);
-        }
-      }
-    );
+    try {
+      // Use the new Place API instead of deprecated PlacesService
+      const { Place } = await google.maps.importLibrary("places") as google.maps.PlacesLibrary;
+      
+      const place = new Place({
+        id: prediction.place_id,
+      });
+
+      // Fetch the place details with the new API
+      await place.fetchFields({
+        fields: ['displayName', 'location', 'formattedAddress', 'id', 'rating', 'photos', 'types'],
+      });
+
+      console.log('=== Fetched Place Details ===');
+      console.log('Place:', place);
+      console.log('Place ID:', place.id);
+      console.log('Display Name:', place.displayName);
+      console.log('Location:', place.location);
+
+      // Convert to PlaceResult format for compatibility
+      const placeResult: google.maps.places.PlaceResult = {
+        name: place.displayName || prediction.structured_formatting.main_text,
+        place_id: place.id,
+        geometry: place.location ? {
+          location: place.location,
+        } as google.maps.places.PlaceGeometry : undefined,
+        formatted_address: place.formattedAddress,
+        rating: place.rating,
+        photos: place.photos,
+        types: place.types,
+      };
+
+      onPlaceSelect(placeResult);
+      setSearchValue(prediction.description);
+      setShowDropdown(false);
+    } catch (error) {
+      console.error('Error fetching place details:', error);
+      
+      // Fallback: create a basic place result from prediction
+      const fallbackResult: google.maps.places.PlaceResult = {
+        name: prediction.structured_formatting.main_text,
+        place_id: prediction.place_id,
+        formatted_address: prediction.description,
+      };
+      
+      onPlaceSelect(fallbackResult);
+      setSearchValue(prediction.description);
+      setShowDropdown(false);
+    }
   };
 
   const handleTagSelect = (tag: string) => {

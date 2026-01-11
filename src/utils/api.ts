@@ -150,6 +150,18 @@ export const api = {
     });
   },
 
+  // Admin endpoints
+  getAllUsers: async (): Promise<{ users: User[] }> => {
+    return fetchWithAuth(`${API_BASE}/admin/users`);
+  },
+
+  updateUserRoleByAdmin: async (userId: string, role: 'user' | 'editor') => {
+    return fetchWithAuth(`${API_BASE}/admin/users/${userId}/role`, {
+      method: 'PUT',
+      body: JSON.stringify({ role }),
+    });
+  },
+
   // Locations
   getLocations: async (): Promise<{ locations: Location[] }> => {
     return fetchWithAuth(`${API_BASE}/locations`);
@@ -182,5 +194,43 @@ export const api = {
   // Guides
   getCityGuide: async (cityId: string) => {
     return fetchWithAuth(`${API_BASE}/guides/${cityId}`);
+  },
+
+  // Favorites
+  getFavorites: async (): Promise<{ favorites: Location[] }> => {
+    return fetchWithAuth(`${API_BASE}/favorites`);
+  },
+
+  addFavorite: async (locationId: string) => {
+    return fetchWithAuth(`${API_BASE}/favorites/${locationId}`, {
+      method: 'POST',
+    });
+  },
+
+  removeFavorite: async (locationId: string) => {
+    return fetchWithAuth(`${API_BASE}/favorites/${locationId}`, {
+      method: 'DELETE',
+    });
+  },
+
+  // User Ratings
+  getUserRating: async (locationId: string): Promise<{ rating: number | null }> => {
+    return fetchWithAuth(`${API_BASE}/ratings/${locationId}`);
+  },
+
+  setUserRating: async (locationId: string, rating: number) => {
+    return fetchWithAuth(`${API_BASE}/ratings/${locationId}`, {
+      method: 'POST',
+      body: JSON.stringify({ rating }),
+    });
+  },
+
+  getCommunityRatingCount: async (locationId: string): Promise<{ count: number }> => {
+    return fetchWithAuth(`${API_BASE}/ratings/${locationId}/count`);
+  },
+
+  // Google Places
+  getGooglePlaceDetails: async (placeId: string) => {
+    return fetchWithAuth(`${API_BASE}/google/place/${encodeURIComponent(placeId)}`);
   },
 };

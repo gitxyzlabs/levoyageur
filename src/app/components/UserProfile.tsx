@@ -8,10 +8,9 @@ import type { User as UserType } from '../../utils/api';
 interface UserProfileProps {
   user: UserType;
   onSignOut: () => void;
-  onBecomeEditor?: () => void;
 }
 
-export function UserProfile({ user, onSignOut, onBecomeEditor }: UserProfileProps) {
+export function UserProfile({ user, onSignOut }: UserProfileProps) {
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
@@ -107,19 +106,6 @@ export function UserProfile({ user, onSignOut, onBecomeEditor }: UserProfileProp
 
             {/* Menu Items */}
             <div className="p-2">
-              {user.role !== 'editor' && onBecomeEditor && (
-                <button
-                  onClick={() => {
-                    onBecomeEditor();
-                    setIsOpen(false);
-                  }}
-                  className="w-full flex items-center gap-3 px-3 py-2 text-sm text-slate-700 hover:bg-slate-50 rounded-lg transition-colors"
-                >
-                  <Sparkles className="h-4 w-4 text-amber-500" />
-                  Become an Editor
-                </button>
-              )}
-              
               <button
                 onClick={() => {
                   onSignOut();

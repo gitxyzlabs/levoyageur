@@ -20,6 +20,8 @@ import { EditorPanel } from './components/EditorPanel';
 import { AddLocationModal } from './components/AddLocationModal';
 import { SearchAutocomplete } from './components/SearchAutocomplete';
 import { UserProfile } from './components/UserProfile';
+import { AdminPanel } from './components/AdminPanel';
+import { Favorites } from './components/Favorites';
 
 import { Button } from './components/ui/button';
 import { Input } from './components/ui/input';
@@ -58,9 +60,26 @@ export default function App() {
   const [googlePlacesResults, setGooglePlacesResults] = useState<google.maps.places.PlaceResult[]>([]);
   const [googleMapsApiKey, setGoogleMapsApiKey] = useState<string>("");
   const [sidebarCollapsed, setSidebarCollapsed] = useState(true);
+  const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
+  const [favoritesKey, setFavoritesKey] = useState(0);
 
   useEffect(() => {
     initializeApp();
+    
+    // Get user's geolocation
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          setUserLocation({
+            lat: position.coords.latitude,
+            lng: position.coords.longitude,
+          });
+        },
+        (error) => {
+          console.log('Geolocation error:', error);
+        }
+      );
+    }
     
     // Listen for auth state changes (important for OAuth!)
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
@@ -89,6 +108,7 @@ export default function App() {
       if (envApiKey) {
         // Use API key from .env.local
         setGoogleMapsApiKey(envApiKey);
+        (window as any).GOOGLE_MAPS_API_KEY = envApiKey;
         console.log("=== Google Maps Debug ===");
         console.log("API Key loaded from .env.local: ✅ Yes");
         console.log("API Key (first 10 chars):", envApiKey.substring(0, 10) + "...");
@@ -110,6 +130,7 @@ export default function App() {
         if (response.ok) {
           const { apiKey } = await response.json();
           setGoogleMapsApiKey(apiKey);
+          (window as any).GOOGLE_MAPS_API_KEY = apiKey;
           console.log("API Key loaded from server: ✅ Yes");
           console.log("API Key (first 10 chars):", apiKey.substring(0, 10) + "...");
           console.log("API Key length:", apiKey.length);
@@ -241,6 +262,10 @@ export default function App() {
       return;
     }
 
+    console.log('=== handleAddLocationClick Debug ===');
+    console.log('locationData received:', locationData);
+    console.log('place_id:', locationData.place_id);
+
     try {
       const newLocation = {
         name: locationData.name,
@@ -257,6 +282,8 @@ export default function App() {
         cuisine: locationData.cuisine,
         area: locationData.area,
       };
+
+      console.log('Sending to API:', newLocation);
 
       await api.addLocation(newLocation);
       toast.success(`Added ${locationData.name} to the collection!`);
@@ -317,7 +344,12 @@ export default function App() {
   };
 
   const handlePlaceSelect = (place: google.maps.places.PlaceResult) => {
+    console.log('=== Selected Place Debug ===');
     console.log('Selected place:', place);
+    console.log('Place ID:', place.place_id);
+    console.log('Place name:', place.name);
+    console.log('Place geometry:', place.geometry);
+    
     // Open the add location modal for editors
     if (isAuthenticated && user?.role === 'editor') {
       setSelectedPlace(place);
@@ -442,7 +474,6 @@ export default function App() {
               <UserProfile 
                 user={user} 
                 onSignOut={handleSignOut}
-                onBecomeEditor={user.role !== 'editor' ? handleBecomeEditor : undefined}
               />
             ) : (
               <Button
@@ -494,10 +525,22 @@ export default function App() {
 
             {/* Editor Panel - Only show if user is logged in and is an editor */}
             {isAuthenticated && user?.role === "editor" && (
-              <EditorPanel
-                onLocationAdded={loadLocations}
-                locations={locations}
-                onLocationDeleted={loadLocations}
+              <>
+                <AdminPanel currentUser={user} />
+                <EditorPanel
+                  onLocationAdded={loadLocations}
+                  locations={locations}
+                  onLocationDeleted={loadLocations}
+                />
+              </>
+            )}
+
+            {/* Favorites - Only show for logged-in users */}
+            {isAuthenticated && user && (
+              <Favorites
+                key={favoritesKey}
+                user={user}
+                userLocation={userLocation}
               />
             )}
 
@@ -617,6 +660,9 @@ export default function App() {
               heatMapData={heatMapLocations}
               showHeatMap={showHeatMap}
               googleMapsApiKey={googleMapsApiKey}
+              user={user}
+              isAuthenticated={isAuthenticated}
+              onFavoriteToggle={() => setFavoritesKey(prev => prev + 1)}
             />
           </APIProvider>
         </div>

@@ -94,49 +94,118 @@ app.post("/make-server-48182530/create-oauth-user", async (c) => {
   
   console.log('Creating OAuth user:', userData);
   
+  // Check if this is the FIRST user ever created - make them an editor automatically
+  const allUsers = await kv.getByPrefix('user:');
+  const isFirstUser = allUsers.length === 0;
+  
+  const role = isFirstUser ? 'editor' : (userData.role || 'user');
+  
+  if (isFirstUser) {
+    console.log('🎉 First user detected! Automatically granting editor role.');
+  }
+  
   // Store user data in KV store
   await kv.set(`user:${userData.id}`, {
     id: userData.id,
     email: userData.email,
     name: userData.name,
-    role: userData.role || 'user',
+    role: role,
   });
   
-  console.log('OAuth user created successfully');
+  console.log(`OAuth user created successfully with role: ${role}`);
   
-  return c.json({ success: true, user: userData });
+  return c.json({ success: true, user: { ...userData, role } });
 });
 
 // Get current user endpoint
 app.get("/make-server-48182530/user", async (c) => {
-  const user = await verifyAuth(c.req.raw);
+  const accessToken = c.req.header('Authorization')?.split(' ')[1];
   
-  if (!user) {
+  if (!accessToken || accessToken === Deno.env.get('SUPABASE_ANON_KEY')) {
     return c.json({ error: 'Unauthorized' }, 401);
   }
   
-  const userData = await kv.get(`user:${user.id}`);
+  const supabase = getSupabaseClient();
+  const { data: { user: authUser }, error: authError } = await supabase.auth.getUser(accessToken);
   
-  return c.json({ user: userData });
-});
-
-// Update user role (only for development/testing - in production this should be secured)
-app.post("/make-server-48182530/user/role", async (c) => {
-  const user = await verifyAuth(c.req.raw);
-  
-  if (!user) {
+  if (authError || !authUser) {
     return c.json({ error: 'Unauthorized' }, 401);
   }
   
-  const { role } = await c.req.json();
+  const userData = await kv.get(`user:${authUser.id}`);
   
-  const userData = await kv.get(`user:${user.id}`);
   if (!userData) {
     return c.json({ error: 'User not found' }, 404);
   }
   
-  const updatedUser = { ...userData, role };
-  await kv.set(`user:${user.id}`, updatedUser);
+  return c.json({ user: userData });
+});
+
+// Admin: Get all users
+app.get("/make-server-48182530/admin/users", async (c) => {
+  const accessToken = c.req.header('Authorization')?.split(' ')[1];
+  
+  if (!accessToken || accessToken === Deno.env.get('SUPABASE_ANON_KEY')) {
+    return c.json({ error: 'Unauthorized' }, 401);
+  }
+  
+  const supabase = getSupabaseClient();
+  const { data: { user: authUser }, error: authError } = await supabase.auth.getUser(accessToken);
+  
+  if (authError || !authUser) {
+    return c.json({ error: 'Unauthorized' }, 401);
+  }
+  
+  // Check if user is an editor (only editors can access admin panel)
+  const currentUser = await kv.get(`user:${authUser.id}`);
+  
+  if (!currentUser || currentUser.role !== 'editor') {
+    return c.json({ error: 'Forbidden: Only editors can access this endpoint' }, 403);
+  }
+  
+  // Get all users
+  const allUsers = await kv.getByPrefix('user:');
+  
+  return c.json({ users: allUsers });
+});
+
+// Admin: Update user role
+app.put("/make-server-48182530/admin/users/:userId/role", async (c) => {
+  const accessToken = c.req.header('Authorization')?.split(' ')[1];
+  const userId = c.req.param('userId');
+  const { role } = await c.req.json();
+  
+  if (!accessToken || accessToken === Deno.env.get('SUPABASE_ANON_KEY')) {
+    return c.json({ error: 'Unauthorized' }, 401);
+  }
+  
+  const supabase = getSupabaseClient();
+  const { data: { user: authUser }, error: authError } = await supabase.auth.getUser(accessToken);
+  
+  if (authError || !authUser) {
+    return c.json({ error: 'Unauthorized' }, 401);
+  }
+  
+  // Check if user is an editor (only editors can modify roles)
+  const currentUser = await kv.get(`user:${authUser.id}`);
+  
+  if (!currentUser || currentUser.role !== 'editor') {
+    return c.json({ error: 'Forbidden: Only editors can modify user roles' }, 403);
+  }
+  
+  // Get target user and update role
+  const targetUser = await kv.get(`user:${userId}`);
+  
+  if (!targetUser) {
+    return c.json({ error: 'User not found' }, 404);
+  }
+  
+  const updatedUser = {
+    ...targetUser,
+    role,
+  };
+  
+  await kv.set(`user:${userId}`, updatedUser);
   
   return c.json({ user: updatedUser });
 });
@@ -181,14 +250,30 @@ app.post("/make-server-48182530/locations", async (c) => {
   const locationData = await c.req.json();
   const locationId = crypto.randomUUID();
   
+  // Sanitize place_id - ensure it's either a valid string or null
+  let placeId = locationData.place_id;
+  if (placeId === 'undefined' || placeId === 'null' || placeId === '' || !placeId) {
+    placeId = null;
+  } else if (typeof placeId === 'string') {
+    placeId = placeId.trim();
+  }
+  
+  console.log('=== Adding Location ===');
+  console.log('Name:', locationData.name);
+  console.log('Original place_id:', locationData.place_id);
+  console.log('Sanitized place_id:', placeId);
+  
   const location = {
     id: locationId,
     ...locationData,
+    place_id: placeId, // Use sanitized place_id
     createdBy: user.id,
     createdAt: new Date().toISOString(),
   };
   
   await kv.set(`location:${locationId}`, location);
+  
+  console.log('Location saved successfully with place_id:', location.place_id);
   
   return c.json({ location });
 });
@@ -258,6 +343,212 @@ app.get("/make-server-48182530/guides/:cityId", async (c) => {
   }
   
   return c.json({ guide });
+});
+
+// Favorites endpoints
+app.get("/make-server-48182530/favorites", async (c) => {
+  const accessToken = c.req.header('Authorization')?.split(' ')[1];
+  
+  if (!accessToken || accessToken === Deno.env.get('SUPABASE_ANON_KEY')) {
+    return c.json({ error: 'Unauthorized' }, 401);
+  }
+  
+  const supabase = getSupabaseClient();
+  const { data: { user }, error } = await supabase.auth.getUser(accessToken);
+  
+  if (error || !user) {
+    return c.json({ error: 'Unauthorized' }, 401);
+  }
+  
+  const favoriteIds = await kv.get(`favorites:${user.id}`) || [];
+  const favorites = await kv.mget(favoriteIds.map((id: string) => `location:${id}`));
+  
+  return c.json({ favorites: favorites.filter(Boolean) });
+});
+
+app.post("/make-server-48182530/favorites/:locationId", async (c) => {
+  const accessToken = c.req.header('Authorization')?.split(' ')[1];
+  const locationId = c.req.param('locationId');
+  
+  if (!accessToken || accessToken === Deno.env.get('SUPABASE_ANON_KEY')) {
+    return c.json({ error: 'Unauthorized' }, 401);
+  }
+  
+  const supabase = getSupabaseClient();
+  const { data: { user }, error } = await supabase.auth.getUser(accessToken);
+  
+  if (error || !user) {
+    return c.json({ error: 'Unauthorized' }, 401);
+  }
+  
+  const favoriteIds = await kv.get(`favorites:${user.id}`) || [];
+  if (!favoriteIds.includes(locationId)) {
+    favoriteIds.push(locationId);
+    await kv.set(`favorites:${user.id}`, favoriteIds);
+  }
+  
+  return c.json({ success: true });
+});
+
+app.delete("/make-server-48182530/favorites/:locationId", async (c) => {
+  const accessToken = c.req.header('Authorization')?.split(' ')[1];
+  const locationId = c.req.param('locationId');
+  
+  if (!accessToken || accessToken === Deno.env.get('SUPABASE_ANON_KEY')) {
+    return c.json({ error: 'Unauthorized' }, 401);
+  }
+  
+  const supabase = getSupabaseClient();
+  const { data: { user }, error } = await supabase.auth.getUser(accessToken);
+  
+  if (error || !user) {
+    return c.json({ error: 'Unauthorized' }, 401);
+  }
+  
+  const favoriteIds = await kv.get(`favorites:${user.id}`) || [];
+  const updatedFavorites = favoriteIds.filter((id: string) => id !== locationId);
+  await kv.set(`favorites:${user.id}`, updatedFavorites);
+  
+  return c.json({ success: true });
+});
+
+// Ratings endpoints
+app.get("/make-server-48182530/ratings/:locationId", async (c) => {
+  const accessToken = c.req.header('Authorization')?.split(' ')[1];
+  const locationId = c.req.param('locationId');
+  
+  if (!accessToken || accessToken === Deno.env.get('SUPABASE_ANON_KEY')) {
+    return c.json({ rating: null });
+  }
+  
+  const supabase = getSupabaseClient();
+  const { data: { user }, error } = await supabase.auth.getUser(accessToken);
+  
+  if (error || !user) {
+    return c.json({ rating: null });
+  }
+  
+  const rating = await kv.get(`rating:${user.id}:${locationId}`);
+  return c.json({ rating: rating || null });
+});
+
+app.post("/make-server-48182530/ratings/:locationId", async (c) => {
+  const accessToken = c.req.header('Authorization')?.split(' ')[1];
+  const locationId = c.req.param('locationId');
+  const { rating } = await c.req.json();
+  
+  if (!accessToken || accessToken === Deno.env.get('SUPABASE_ANON_KEY')) {
+    return c.json({ error: 'Unauthorized' }, 401);
+  }
+  
+  const supabase = getSupabaseClient();
+  const { data: { user }, error } = await supabase.auth.getUser(accessToken);
+  
+  if (error || !user) {
+    return c.json({ error: 'Unauthorized' }, 401);
+  }
+  
+  // Store user's rating
+  await kv.set(`rating:${user.id}:${locationId}`, rating);
+  
+  // Update location's crowdsource score
+  const location = await kv.get(`location:${locationId}`);
+  if (location) {
+    // Get all ratings for this location
+    const allRatings = await kv.getByPrefix(`rating:`);
+    const locationRatings = allRatings
+      .map((r: any) => r)
+      .filter((r: any) => typeof r === 'number'); // Only count actual ratings for this location
+    
+    // Calculate average (simplified - in production you'd want a better tracking system)
+    if (locationRatings.length > 0) {
+      const avg = locationRatings.reduce((sum: number, r: number) => sum + r, 0) / locationRatings.length;
+      location.lvCrowdsourceScore = avg;
+      await kv.set(`location:${locationId}`, location);
+    }
+  }
+  
+  return c.json({ success: true, rating });
+});
+
+app.get("/make-server-48182530/ratings/:locationId/count", async (c) => {
+  const locationId = c.req.param('locationId');
+  
+  // Get all ratings that match this location pattern
+  const allRatings = await kv.getByPrefix(`rating:`);
+  const locationRatings = allRatings.filter((key: string) => 
+    key.endsWith(`:${locationId}`)
+  );
+  
+  return c.json({ count: locationRatings.length });
+});
+
+// Google Places API endpoint
+app.get("/make-server-48182530/google/place/:placeId", async (c) => {
+  const placeId = c.req.param('placeId');
+  const apiKey = Deno.env.get('GOOGLE_MAPS_API_KEY');
+  
+  console.log('Fetching Google place details for place_id:', placeId);
+  
+  if (!placeId || placeId === 'undefined' || placeId === 'null') {
+    console.error('Invalid place_id:', placeId);
+    return c.json({ error: 'Invalid place_id parameter' }, 400);
+  }
+  
+  if (!apiKey) {
+    console.error('Google Maps API key not configured');
+    return c.json({ error: 'Google Maps API key not configured' }, 500);
+  }
+  
+  try {
+    const url = `https://maps.googleapis.com/maps/api/place/details/json?place_id=${encodeURIComponent(placeId)}&fields=rating,user_ratings_total,photos&key=${apiKey}`;
+    console.log('Fetching from URL:', url.replace(apiKey, 'API_KEY_HIDDEN'));
+    
+    const response = await fetch(url);
+    
+    const data = await response.json();
+    
+    console.log('Google Places API response status:', data.status);
+    
+    if (data.status !== 'OK') {
+      console.error('Google Places API error:', data.status, data.error_message);
+      // Return empty data instead of error to prevent InfoWindow from breaking
+      return c.json({
+        details: {
+          rating: null,
+          user_ratings_total: null,
+          photos: [],
+        },
+      });
+    }
+    
+    // Transform photos to just include photo_reference
+    const photos = data.result?.photos?.map((photo: any) => ({
+      photoReference: photo.photo_reference,
+      width: photo.width,
+      height: photo.height,
+    })) || [];
+    
+    console.log('Successfully fetched place details. Photos count:', photos.length);
+    
+    return c.json({
+      details: {
+        rating: data.result?.rating || null,
+        user_ratings_total: data.result?.user_ratings_total || null,
+        photos,
+      },
+    });
+  } catch (error) {
+    console.error('Error fetching Google place details:', error);
+    // Return empty data instead of error to prevent InfoWindow from breaking
+    return c.json({
+      details: {
+        rating: null,
+        user_ratings_total: null,
+        photos: [],
+      },
+    });
+  }
 });
 
 // Seed database with sample data (for development)
