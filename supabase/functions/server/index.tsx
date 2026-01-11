@@ -35,6 +35,9 @@ function getSupabaseClient() {
 // Middleware to verify JWT and extract user ID
 async function verifyAuth(c: any, next: any) {
   console.log('📍 verifyAuth middleware called');
+  console.log('📍 Request URL:', c.req.url);
+  console.log('📍 Request method:', c.req.method);
+  
   const authHeader = c.req.header('Authorization');
   console.log('📍 Authorization header present:', !!authHeader);
   
@@ -45,10 +48,13 @@ async function verifyAuth(c: any, next: any) {
 
   const token = authHeader.replace('Bearer ', '');
   console.log('📍 Token extracted (first 20 chars):', token.substring(0, 20));
+  console.log('📍 Token length:', token.length);
 
   // IMPORTANT: Use the ANON key client for verifying user JWTs, not admin client!
   // OAuth JWTs need to be verified with the anon key, not service role key
   const supabase = getSupabaseClient();
+  console.log('📍 Using anon key client for JWT verification');
+  
   const { data, error } = await supabase.auth.getUser(token);
   
   console.log('📍 getUser result - has user:', !!data?.user, 'has error:', !!error);
@@ -56,14 +62,17 @@ async function verifyAuth(c: any, next: any) {
     console.log('❌ getUser error:', error.message);
     console.log('❌ Full error:', JSON.stringify(error));
   }
+  if (data?.user) {
+    console.log('✅ User found - ID:', data.user.id);
+    console.log('✅ User email:', data.user.email);
+  }
 
   if (error || !data.user) {
     console.log('❌ Authorization error during JWT verification:', error?.message || 'No user found');
     return c.json({ error: 'Unauthorized', details: error?.message }, 401);
   }
 
-  console.log('✅ User verified:', data.user.id);
-  console.log('✅ User email:', data.user.email);
+  console.log('✅ User verified successfully:', data.user.id);
   c.set('userId', data.user.id);
   c.set('userEmail', data.user.email);
   await next();

@@ -210,19 +210,62 @@ export default function App() {
 
   const handleOAuthSignIn = async (session: any) => {
     try {
+      console.log('🔐 Starting OAuth sign-in flow...');
+      console.log('📧 User email:', session.user.email);
+      console.log('🆔 User ID:', session.user.id);
+      
       setAccessToken(session.access_token);
       
+      // Small delay to ensure token is set
+      await new Promise(resolve => setTimeout(resolve, 100));
+      
+      console.log('📡 Fetching user profile from server...');
+      
       // Try to get user data from backend
-      const userData = await api.getCurrentUser();
-      console.log('✅ User data loaded from backend after OAuth:', userData);
+      const response = await fetch(
+        `https://${projectId}.supabase.co/functions/v1/make-server-48182530/user`,
+        {
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${session.access_token}`,
+          },
+        }
+      );
+      
+      console.log('📡 Server response status:', response.status);
+      
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('❌ Server returned error:', errorText);
+        
+        // Show helpful error message
+        toast.error(
+          'Server authentication failed. The backend may need to be redeployed. Check console for details.',
+          { duration: 5000 }
+        );
+        
+        // Don't sign out - let user stay "semi-authenticated" to view public content
+        console.log('⚠️ Keeping user session but not marking as fully authenticated');
+        return;
+      }
+      
+      const userData = await response.json();
+      console.log('✅ User profile loaded:', userData);
+      
       setUser(userData);
       setIsAuthenticated(true);
       toast.success(`Welcome back, ${userData.name}!`);
     } catch (error: any) {
-      console.error('Error in handleOAuthSignIn:', error);
-      // The /user endpoint auto-creates users, so if we get here, something is wrong
-      toast.error('Authentication failed. Please try again.');
-      await api.signOut();
+      console.error('❌ Error in handleOAuthSignIn:', error);
+      
+      // Show helpful error message
+      toast.error(
+        'Unable to load user profile. You may need to deploy the latest server code to Supabase.',
+        { duration: 6000 }
+      );
+      
+      // Don't auto sign-out - let the user manually sign out if needed
+      console.log('⚠️ Not auto-signing out due to error. User can manually sign out.');
     }
   };
 
