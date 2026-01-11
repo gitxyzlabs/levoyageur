@@ -39,11 +39,14 @@ export const setAccessToken = (token: string | null) => {
 export const getAccessToken = () => accessToken;
 
 const fetchWithAuth = async (url: string, options: RequestInit = {}) => {
-  const currentToken = accessToken || publicAnonKey;
+  // Always get the latest session token instead of using cached variable
+  const { data: { session } } = await supabase.auth.getSession();
+  const currentToken = session?.access_token || publicAnonKey;
   
   console.log('=== fetchWithAuth Debug ===');
   console.log('URL:', url);
-  console.log('Using token type:', accessToken ? 'ACCESS_TOKEN' : 'ANON_KEY');
+  console.log('Has session:', !!session);
+  console.log('Using token type:', session?.access_token ? 'ACCESS_TOKEN' : 'ANON_KEY');
   console.log('Token (first 20 chars):', currentToken?.substring(0, 20));
   
   const headers = {

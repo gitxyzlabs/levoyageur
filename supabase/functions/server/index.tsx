@@ -182,17 +182,34 @@ app.post("/make-server-48182530/create-oauth-user", async (c) => {
 });
 
 // Get current user endpoint
+// Version 1.1 - Enhanced logging for debugging 401 errors
 app.get("/make-server-48182530/user", async (c) => {
   const accessToken = c.req.header('Authorization')?.split(' ')[1];
   
+  console.log('📍 GET /user - Request received');
+  console.log('📍 Access token present:', !!accessToken);
+  console.log('📍 Access token length:', accessToken?.length || 0);
+  console.log('📍 Access token (first 20):', accessToken?.substring(0, 20));
+  console.log('📍 Is anon key?:', accessToken === Deno.env.get('SUPABASE_ANON_KEY'));
+  
   if (!accessToken || accessToken === Deno.env.get('SUPABASE_ANON_KEY')) {
+    console.log('❌ GET /user - Rejected: No access token or using anon key');
     return c.json({ error: 'Unauthorized' }, 401);
   }
   
   const supabase = getSupabaseClient();
+  console.log('📍 Calling supabase.auth.getUser()...');
   const { data: { user: authUser }, error: authError } = await supabase.auth.getUser(accessToken);
   
-  if (authError || !authUser) {
+  if (authError) {
+    console.error('❌ GET /user - Auth error:', authError);
+    console.error('❌ Auth error message:', authError.message);
+    console.error('❌ Auth error status:', authError.status);
+    return c.json({ error: 'Unauthorized', details: authError.message }, 401);
+  }
+  
+  if (!authUser) {
+    console.error('❌ GET /user - No auth user returned');
     return c.json({ error: 'Unauthorized' }, 401);
   }
   
