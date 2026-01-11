@@ -185,6 +185,7 @@ export default function App() {
           console.log('User role from backend:', userData.role);
           console.log('User ID:', userData.id);
           console.log('User email:', userData.email);
+          console.log('🔍 ROLE CHECK - Is user an editor?', userData.role === 'editor');
           setUser(userData);
           setIsAuthenticated(true);
         } catch (error: any) {
