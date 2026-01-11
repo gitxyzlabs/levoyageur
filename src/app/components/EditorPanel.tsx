@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { api, Location } from '../../lib/api';
+import { api } from '../../utils/api';
+import type { Location } from '../../utils/api';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Label } from './ui/label';

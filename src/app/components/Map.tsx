@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Map as GoogleMap, AdvancedMarker, InfoWindow, useMap } from '@vis.gl/react-google-maps';
-import { Location } from '../../lib/api';
+import type { Location } from '../../utils/api';
 import { Star, Award, Users } from 'lucide-react';
 
 interface MapProps {

@@ -1,16 +1,41 @@
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
+import { APIProvider } from '@vis.gl/react-google-maps';
+import { toast, Toaster } from 'sonner';
+import { 
+  LogIn, 
+  LogOut, 
+  Search, 
+  MapPin, 
+  Flame,
+  Sparkles
+} from 'lucide-react';
 
-// Google Maps API Key
-// IMPORTANT: Replace the API key below with your actual Google Maps API key
-const GOOGLE_MAPS_API_KEY = "YOUR_GOOGLE_MAPS_API_KEY_HERE"; // ← Paste your API key here!
+import { Map } from './components/Map';
+import { Auth } from './components/Auth';
+import { EditorPanel } from './components/EditorPanel';
+import { AddLocationModal } from './components/AddLocationModal';
 
-// Debug: Log API key status
-console.log("=== Google Maps Debug ===");
-console.log("API Key loaded:", GOOGLE_MAPS_API_KEY && GOOGLE_MAPS_API_KEY !== "YOUR_GOOGLE_MAPS_API_KEY_HERE" ? "✅ Yes" : "❌ No - Please replace YOUR_GOOGLE_MAPS_API_KEY_HERE with your actual key");
-if (GOOGLE_MAPS_API_KEY && GOOGLE_MAPS_API_KEY !== "YOUR_GOOGLE_MAPS_API_KEY_HERE") {
-  console.log("API Key (first 10 chars):", GOOGLE_MAPS_API_KEY.substring(0, 10) + "...");
-  console.log("API Key length:", GOOGLE_MAPS_API_KEY.length);
-}
+import { Button } from './components/ui/button';
+import { Input } from './components/ui/input';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './components/ui/card';
+import { Badge } from './components/ui/badge';
+import { Switch } from './components/ui/switch';
+import { Label } from './components/ui/label';
+
+import { api, supabase } from '../utils/api';
+import type { Location as APILocation, User as APIUser } from '../utils/api';
+import { projectId, publicAnonKey } from '../../utils/supabase/info';
+
+// Use types from API
+type Location = APILocation & {
+  place_id?: string;
+  image?: string;
+  cuisine?: string;
+  area?: string;
+};
+
+type User = APIUser;
 
 export default function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -27,15 +52,59 @@ export default function App() {
   const [selectedPlace, setSelectedPlace] = useState<any>(null);
   const [showLegend, setShowLegend] = useState(true);
   const [googlePlacesResults, setGooglePlacesResults] = useState<google.maps.places.PlaceResult[]>([]);
-
-  // Initialize Supabase on mount
-  useEffect(() => {
-    initializeSupabase(projectId, publicAnonKey);
-  }, []);
+  const [googleMapsApiKey, setGoogleMapsApiKey] = useState<string>("");
 
   useEffect(() => {
-    checkAuthAndLoadData();
+    initializeApp();
   }, []);
+
+  const initializeApp = async () => {
+    try {
+      // First try to load API key from .env.local (Vite environment variable)
+      const envApiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
+      
+      if (envApiKey) {
+        // Use API key from .env.local
+        setGoogleMapsApiKey(envApiKey);
+        console.log("=== Google Maps Debug ===");
+        console.log("API Key loaded from .env.local: ✅ Yes");
+        console.log("API Key (first 10 chars):", envApiKey.substring(0, 10) + "...");
+        console.log("API Key length:", envApiKey.length);
+      } else {
+        // Fallback: Fetch from server (for Figma Make environment)
+        console.log("=== Google Maps Debug ===");
+        console.log("No API key in .env.local, fetching from server...");
+        
+        const response = await fetch(
+          `https://${projectId}.supabase.co/functions/v1/make-server-48182530/config/google-maps-key`,
+          {
+            headers: {
+              'Authorization': `Bearer ${publicAnonKey}`,
+            },
+          }
+        );
+        
+        if (response.ok) {
+          const { apiKey } = await response.json();
+          setGoogleMapsApiKey(apiKey);
+          console.log("API Key loaded from server: ✅ Yes");
+          console.log("API Key (first 10 chars):", apiKey.substring(0, 10) + "...");
+          console.log("API Key length:", apiKey.length);
+        } else {
+          console.error("❌ Failed to load Google Maps API key from server");
+          console.error("Please add VITE_GOOGLE_MAPS_API_KEY to .env.local file");
+          toast.error("Google Maps API key not configured. Please add it to .env.local");
+        }
+      }
+
+      // Then check auth and load data
+      await checkAuthAndLoadData();
+    } catch (error) {
+      console.error("Error during initialization:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const checkAuthAndLoadData = async () => {
     try {
@@ -51,8 +120,6 @@ export default function App() {
       }
     } catch (error) {
       console.error("Error during initialization:", error);
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -208,6 +275,20 @@ export default function App() {
             LE VOYAGEUR
           </div>
           <p className="text-muted-foreground">Loading...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Don't render until Google Maps API key is loaded
+  if (!googleMapsApiKey) {
+    return (
+      <div className="size-full flex items-center justify-center bg-slate-50">
+        <div className="text-center space-y-4">
+          <div className="text-3xl font-light tracking-wider">
+            LE VOYAGEUR
+          </div>
+          <p className="text-muted-foreground">Initializing map...</p>
         </div>
       </div>
     );
@@ -436,12 +517,12 @@ export default function App() {
 
         {/* Map */}
         <div className="flex-1 relative">
-          <APIProvider apiKey={GOOGLE_MAPS_API_KEY}>
+          <APIProvider apiKey={googleMapsApiKey}>
             <Map
               locations={locations}
               heatMapData={heatMapLocations}
               showHeatMap={showHeatMap}
-              googleMapsApiKey={GOOGLE_MAPS_API_KEY}
+              googleMapsApiKey={googleMapsApiKey}
             />
             <AnimatePresence>
               {showAddModal && selectedPlace && (

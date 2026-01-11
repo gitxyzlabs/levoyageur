@@ -51,6 +51,15 @@ app.get("/make-server-48182530/health", (c) => {
   return c.json({ status: "ok" });
 });
 
+// Get Google Maps API key
+app.get("/make-server-48182530/config/google-maps-key", (c) => {
+  const apiKey = Deno.env.get('GOOGLE_MAPS_API_KEY');
+  if (!apiKey) {
+    return c.json({ error: 'Google Maps API key not configured' }, 500);
+  }
+  return c.json({ apiKey });
+});
+
 // Sign up endpoint
 app.post("/make-server-48182530/signup", async (c) => {
   const { email, password, name } = await c.req.json();
