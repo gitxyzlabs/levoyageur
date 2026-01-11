@@ -152,14 +152,14 @@ export function EditorPanel({ onLocationAdded, locations, onLocationDeleted }: E
 
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="lvEditorsScore">LV Editors Score (0-10)</Label>
+                <Label htmlFor="lvEditorsScore">LV Editors Score (0-11)</Label>
                 <Input
                   id="lvEditorsScore"
                   type="number"
                   step="0.1"
                   min="0"
-                  max="10"
-                  placeholder="8.5"
+                  max="11"
+                  placeholder="9.8"
                   value={lvEditorsScore}
                   onChange={(e) => setLvEditorsScore(e.target.value)}
                 />
