@@ -212,25 +212,88 @@ app.put("/make-server-48182530/admin/users/:userId/role", async (c) => {
 
 // Get all locations
 app.get("/make-server-48182530/locations", async (c) => {
-  const locations = await kv.getByPrefix('location:');
-  console.log('GET /locations - Found locations:', locations);
-  console.log('Location count:', locations.length);
-  if (locations.length > 0) {
-    console.log('First location:', JSON.stringify(locations[0], null, 2));
+  try {
+    const supabase = getSupabaseClient();
+    const { data: locations, error } = await supabase
+      .from('locations')
+      .select('*')
+      .order('created_at', { ascending: false });
+    
+    if (error) {
+      console.error('Error fetching locations from Supabase:', error);
+      return c.json({ error: error.message }, 500);
+    }
+    
+    console.log('GET /locations - Found locations:', locations?.length || 0);
+    
+    // Transform snake_case to camelCase for frontend
+    const transformedLocations = locations?.map(loc => ({
+      id: loc.id,
+      name: loc.name,
+      lat: loc.lat,
+      lng: loc.lng,
+      lvEditorsScore: loc.lv_editors_score,
+      lvCrowdsourceScore: loc.lv_crowdsource_score,
+      googleRating: loc.google_rating,
+      michelinScore: loc.michelin_score,
+      tags: loc.tags,
+      description: loc.description,
+      place_id: loc.place_id,
+      image: loc.image,
+      cuisine: loc.cuisine,
+      area: loc.area,
+      createdBy: loc.created_by,
+      createdAt: loc.created_at,
+    })) || [];
+    
+    return c.json({ locations: transformedLocations });
+  } catch (error: any) {
+    console.error('Error in /locations endpoint:', error);
+    return c.json({ error: error.message }, 500);
   }
-  return c.json({ locations });
 });
 
 // Get locations by tag (for heat map)
 app.get("/make-server-48182530/locations/tag/:tag", async (c) => {
-  const tag = c.req.param('tag');
-  const allLocations = await kv.getByPrefix('location:');
-  
-  const filteredLocations = allLocations.filter((loc: any) => 
-    loc.tags && loc.tags.includes(tag.toLowerCase())
-  );
-  
-  return c.json({ locations: filteredLocations });
+  try {
+    const tag = c.req.param('tag');
+    const supabase = getSupabaseClient();
+    
+    const { data: locations, error } = await supabase
+      .from('locations')
+      .select('*')
+      .contains('tags', [tag.toLowerCase()]);
+    
+    if (error) {
+      console.error('Error fetching locations by tag:', error);
+      return c.json({ error: error.message }, 500);
+    }
+    
+    // Transform snake_case to camelCase for frontend
+    const transformedLocations = locations?.map(loc => ({
+      id: loc.id,
+      name: loc.name,
+      lat: loc.lat,
+      lng: loc.lng,
+      lvEditorsScore: loc.lv_editors_score,
+      lvCrowdsourceScore: loc.lv_crowdsource_score,
+      googleRating: loc.google_rating,
+      michelinScore: loc.michelin_score,
+      tags: loc.tags,
+      description: loc.description,
+      place_id: loc.place_id,
+      image: loc.image,
+      cuisine: loc.cuisine,
+      area: loc.area,
+      createdBy: loc.created_by,
+      createdAt: loc.created_at,
+    })) || [];
+    
+    return c.json({ locations: transformedLocations });
+  } catch (error: any) {
+    console.error('Error in /locations/tag endpoint:', error);
+    return c.json({ error: error.message }, 500);
+  }
 });
 
 // Add location (editor only)
@@ -248,7 +311,6 @@ app.post("/make-server-48182530/locations", async (c) => {
   }
   
   const locationData = await c.req.json();
-  const locationId = crypto.randomUUID();
   
   // Sanitize place_id - ensure it's either a valid string or null
   let placeId = locationData.place_id;
@@ -263,19 +325,62 @@ app.post("/make-server-48182530/locations", async (c) => {
   console.log('Original place_id:', locationData.place_id);
   console.log('Sanitized place_id:', placeId);
   
-  const location = {
-    id: locationId,
-    ...locationData,
-    place_id: placeId, // Use sanitized place_id
-    createdBy: user.id,
-    createdAt: new Date().toISOString(),
-  };
-  
-  await kv.set(`location:${locationId}`, location);
-  
-  console.log('Location saved successfully with place_id:', location.place_id);
-  
-  return c.json({ location });
+  try {
+    const supabase = getSupabaseClient();
+    
+    const { data: location, error } = await supabase
+      .from('locations')
+      .insert({
+        name: locationData.name,
+        lat: locationData.lat,
+        lng: locationData.lng,
+        lv_editors_score: locationData.lvEditorsScore,
+        lv_crowdsource_score: locationData.lvCrowdsourceScore || 0,
+        google_rating: locationData.googleRating || 0,
+        michelin_score: locationData.michelinScore || 0,
+        tags: locationData.tags || [],
+        description: locationData.description,
+        place_id: placeId,
+        image: locationData.image,
+        cuisine: locationData.cuisine,
+        area: locationData.area,
+        created_by: user.id,
+      })
+      .select()
+      .single();
+    
+    if (error) {
+      console.error('Error inserting location:', error);
+      return c.json({ error: error.message }, 500);
+    }
+    
+    console.log('Location saved successfully with place_id:', location.place_id);
+    
+    // Transform snake_case to camelCase for frontend
+    const transformedLocation = {
+      id: location.id,
+      name: location.name,
+      lat: location.lat,
+      lng: location.lng,
+      lvEditorsScore: location.lv_editors_score,
+      lvCrowdsourceScore: location.lv_crowdsource_score,
+      googleRating: location.google_rating,
+      michelinScore: location.michelin_score,
+      tags: location.tags,
+      description: location.description,
+      place_id: location.place_id,
+      image: location.image,
+      cuisine: location.cuisine,
+      area: location.area,
+      createdBy: location.created_by,
+      createdAt: location.created_at,
+    };
+    
+    return c.json({ location: transformedLocation });
+  } catch (error: any) {
+    console.error('Error in add location endpoint:', error);
+    return c.json({ error: error.message }, 500);
+  }
 });
 
 // Update location (editor only)
@@ -293,24 +398,70 @@ app.put("/make-server-48182530/locations/:id", async (c) => {
   }
   
   const locationId = c.req.param('id');
-  const existingLocation = await kv.get(`location:${locationId}`);
-  
-  if (!existingLocation) {
-    return c.json({ error: 'Location not found' }, 404);
-  }
-  
   const updates = await c.req.json();
-  const updatedLocation = {
-    ...existingLocation,
-    ...updates,
-    id: locationId,
-    updatedBy: user.id,
-    updatedAt: new Date().toISOString(),
-  };
   
-  await kv.set(`location:${locationId}`, updatedLocation);
-  
-  return c.json({ location: updatedLocation });
+  try {
+    const supabase = getSupabaseClient();
+    
+    // Transform camelCase to snake_case for database
+    const dbUpdates: any = {
+      updated_by: user.id,
+      updated_at: new Date().toISOString(),
+    };
+    
+    if (updates.name !== undefined) dbUpdates.name = updates.name;
+    if (updates.lat !== undefined) dbUpdates.lat = updates.lat;
+    if (updates.lng !== undefined) dbUpdates.lng = updates.lng;
+    if (updates.lvEditorsScore !== undefined) dbUpdates.lv_editors_score = updates.lvEditorsScore;
+    if (updates.lvCrowdsourceScore !== undefined) dbUpdates.lv_crowdsource_score = updates.lvCrowdsourceScore;
+    if (updates.googleRating !== undefined) dbUpdates.google_rating = updates.googleRating;
+    if (updates.michelinScore !== undefined) dbUpdates.michelin_score = updates.michelinScore;
+    if (updates.tags !== undefined) dbUpdates.tags = updates.tags;
+    if (updates.description !== undefined) dbUpdates.description = updates.description;
+    if (updates.place_id !== undefined) dbUpdates.place_id = updates.place_id;
+    if (updates.image !== undefined) dbUpdates.image = updates.image;
+    if (updates.cuisine !== undefined) dbUpdates.cuisine = updates.cuisine;
+    if (updates.area !== undefined) dbUpdates.area = updates.area;
+    
+    const { data: location, error } = await supabase
+      .from('locations')
+      .update(dbUpdates)
+      .eq('id', locationId)
+      .select()
+      .single();
+    
+    if (error) {
+      console.error('Error updating location:', error);
+      return c.json({ error: error.message }, 500);
+    }
+    
+    // Transform snake_case to camelCase for frontend
+    const transformedLocation = {
+      id: location.id,
+      name: location.name,
+      lat: location.lat,
+      lng: location.lng,
+      lvEditorsScore: location.lv_editors_score,
+      lvCrowdsourceScore: location.lv_crowdsource_score,
+      googleRating: location.google_rating,
+      michelinScore: location.michelin_score,
+      tags: location.tags,
+      description: location.description,
+      place_id: location.place_id,
+      image: location.image,
+      cuisine: location.cuisine,
+      area: location.area,
+      createdBy: location.created_by,
+      createdAt: location.created_at,
+      updatedBy: location.updated_by,
+      updatedAt: location.updated_at,
+    };
+    
+    return c.json({ location: transformedLocation });
+  } catch (error: any) {
+    console.error('Error in update location endpoint:', error);
+    return c.json({ error: error.message }, 500);
+  }
 });
 
 // Delete location (editor only)
@@ -328,9 +479,25 @@ app.delete("/make-server-48182530/locations/:id", async (c) => {
   }
   
   const locationId = c.req.param('id');
-  await kv.del(`location:${locationId}`);
   
-  return c.json({ success: true });
+  try {
+    const supabase = getSupabaseClient();
+    
+    const { error } = await supabase
+      .from('locations')
+      .delete()
+      .eq('id', locationId);
+    
+    if (error) {
+      console.error('Error deleting location:', error);
+      return c.json({ error: error.message }, 500);
+    }
+    
+    return c.json({ success: true });
+  } catch (error: any) {
+    console.error('Error in delete location endpoint:', error);
+    return c.json({ error: error.message }, 500);
+  }
 });
 
 // Get city guides
@@ -354,16 +521,53 @@ app.get("/make-server-48182530/favorites", async (c) => {
   }
   
   const supabase = getSupabaseClient();
-  const { data: { user }, error } = await supabase.auth.getUser(accessToken);
+  const { data: { user }, error: authError } = await supabase.auth.getUser(accessToken);
   
-  if (error || !user) {
+  if (authError || !user) {
     return c.json({ error: 'Unauthorized' }, 401);
   }
   
-  const favoriteIds = await kv.get(`favorites:${user.id}`) || [];
-  const favorites = await kv.mget(favoriteIds.map((id: string) => `location:${id}`));
-  
-  return c.json({ favorites: favorites.filter(Boolean) });
+  try {
+    // Get favorites with location details
+    const { data: favorites, error } = await supabase
+      .from('favorites')
+      .select(`
+        location_id,
+        locations (*)
+      `)
+      .eq('user_id', user.id);
+    
+    if (error) {
+      console.error('Error fetching favorites:', error);
+      return c.json({ error: error.message }, 500);
+    }
+    
+    // Transform to match expected format
+    const transformedFavorites = favorites?.map(fav => {
+      const loc = fav.locations as any;
+      return {
+        id: loc.id,
+        name: loc.name,
+        lat: loc.lat,
+        lng: loc.lng,
+        lvEditorsScore: loc.lv_editors_score,
+        lvCrowdsourceScore: loc.lv_crowdsource_score,
+        googleRating: loc.google_rating,
+        michelinScore: loc.michelin_score,
+        tags: loc.tags,
+        description: loc.description,
+        place_id: loc.place_id,
+        image: loc.image,
+        cuisine: loc.cuisine,
+        area: loc.area,
+      };
+    }) || [];
+    
+    return c.json({ favorites: transformedFavorites });
+  } catch (error: any) {
+    console.error('Error in /favorites endpoint:', error);
+    return c.json({ error: error.message }, 500);
+  }
 });
 
 app.post("/make-server-48182530/favorites/:locationId", async (c) => {
@@ -375,19 +579,34 @@ app.post("/make-server-48182530/favorites/:locationId", async (c) => {
   }
   
   const supabase = getSupabaseClient();
-  const { data: { user }, error } = await supabase.auth.getUser(accessToken);
+  const { data: { user }, error: authError } = await supabase.auth.getUser(accessToken);
   
-  if (error || !user) {
+  if (authError || !user) {
     return c.json({ error: 'Unauthorized' }, 401);
   }
   
-  const favoriteIds = await kv.get(`favorites:${user.id}`) || [];
-  if (!favoriteIds.includes(locationId)) {
-    favoriteIds.push(locationId);
-    await kv.set(`favorites:${user.id}`, favoriteIds);
+  try {
+    const { error } = await supabase
+      .from('favorites')
+      .insert({
+        user_id: user.id,
+        location_id: locationId,
+      });
+    
+    if (error) {
+      // Ignore duplicate errors (already favorited)
+      if (error.code === '23505') {
+        return c.json({ success: true });
+      }
+      console.error('Error adding favorite:', error);
+      return c.json({ error: error.message }, 500);
+    }
+    
+    return c.json({ success: true });
+  } catch (error: any) {
+    console.error('Error in add favorite endpoint:', error);
+    return c.json({ error: error.message }, 500);
   }
-  
-  return c.json({ success: true });
 });
 
 app.delete("/make-server-48182530/favorites/:locationId", async (c) => {
@@ -399,17 +618,29 @@ app.delete("/make-server-48182530/favorites/:locationId", async (c) => {
   }
   
   const supabase = getSupabaseClient();
-  const { data: { user }, error } = await supabase.auth.getUser(accessToken);
+  const { data: { user }, error: authError } = await supabase.auth.getUser(accessToken);
   
-  if (error || !user) {
+  if (authError || !user) {
     return c.json({ error: 'Unauthorized' }, 401);
   }
   
-  const favoriteIds = await kv.get(`favorites:${user.id}`) || [];
-  const updatedFavorites = favoriteIds.filter((id: string) => id !== locationId);
-  await kv.set(`favorites:${user.id}`, updatedFavorites);
-  
-  return c.json({ success: true });
+  try {
+    const { error } = await supabase
+      .from('favorites')
+      .delete()
+      .eq('user_id', user.id)
+      .eq('location_id', locationId);
+    
+    if (error) {
+      console.error('Error removing favorite:', error);
+      return c.json({ error: error.message }, 500);
+    }
+    
+    return c.json({ success: true });
+  } catch (error: any) {
+    console.error('Error in remove favorite endpoint:', error);
+    return c.json({ error: error.message }, 500);
+  }
 });
 
 // Ratings endpoints
@@ -422,14 +653,30 @@ app.get("/make-server-48182530/ratings/:locationId", async (c) => {
   }
   
   const supabase = getSupabaseClient();
-  const { data: { user }, error } = await supabase.auth.getUser(accessToken);
+  const { data: { user }, error: authError } = await supabase.auth.getUser(accessToken);
   
-  if (error || !user) {
+  if (authError || !user) {
     return c.json({ rating: null });
   }
   
-  const rating = await kv.get(`rating:${user.id}:${locationId}`);
-  return c.json({ rating: rating || null });
+  try {
+    const { data, error } = await supabase
+      .from('user_ratings')
+      .select('rating')
+      .eq('user_id', user.id)
+      .eq('location_id', locationId)
+      .maybeSingle();
+    
+    if (error) {
+      console.error('Error fetching rating:', error);
+      return c.json({ rating: null });
+    }
+    
+    return c.json({ rating: data?.rating || null });
+  } catch (error: any) {
+    console.error('Error in get rating endpoint:', error);
+    return c.json({ rating: null });
+  }
 });
 
 app.post("/make-server-48182530/ratings/:locationId", async (c) => {
@@ -442,45 +689,57 @@ app.post("/make-server-48182530/ratings/:locationId", async (c) => {
   }
   
   const supabase = getSupabaseClient();
-  const { data: { user }, error } = await supabase.auth.getUser(accessToken);
+  const { data: { user }, error: authError } = await supabase.auth.getUser(accessToken);
   
-  if (error || !user) {
+  if (authError || !user) {
     return c.json({ error: 'Unauthorized' }, 401);
   }
   
-  // Store user's rating
-  await kv.set(`rating:${user.id}:${locationId}`, rating);
-  
-  // Update location's crowdsource score
-  const location = await kv.get(`location:${locationId}`);
-  if (location) {
-    // Get all ratings for this location
-    const allRatings = await kv.getByPrefix(`rating:`);
-    const locationRatings = allRatings
-      .map((r: any) => r)
-      .filter((r: any) => typeof r === 'number'); // Only count actual ratings for this location
+  try {
+    // Upsert rating (insert or update)
+    const { error } = await supabase
+      .from('user_ratings')
+      .upsert({
+        user_id: user.id,
+        location_id: locationId,
+        rating: rating,
+      }, {
+        onConflict: 'user_id,location_id'
+      });
     
-    // Calculate average (simplified - in production you'd want a better tracking system)
-    if (locationRatings.length > 0) {
-      const avg = locationRatings.reduce((sum: number, r: number) => sum + r, 0) / locationRatings.length;
-      location.lvCrowdsourceScore = avg;
-      await kv.set(`location:${locationId}`, location);
+    if (error) {
+      console.error('Error saving rating:', error);
+      return c.json({ error: error.message }, 500);
     }
+    
+    return c.json({ success: true, rating });
+  } catch (error: any) {
+    console.error('Error in save rating endpoint:', error);
+    return c.json({ error: error.message }, 500);
   }
-  
-  return c.json({ success: true, rating });
 });
 
 app.get("/make-server-48182530/ratings/:locationId/count", async (c) => {
   const locationId = c.req.param('locationId');
   
-  // Get all ratings that match this location pattern
-  const allRatings = await kv.getByPrefix(`rating:`);
-  const locationRatings = allRatings.filter((key: string) => 
-    key.endsWith(`:${locationId}`)
-  );
-  
-  return c.json({ count: locationRatings.length });
+  try {
+    const supabase = getSupabaseClient();
+    
+    const { count, error } = await supabase
+      .from('user_ratings')
+      .select('*', { count: 'exact', head: true })
+      .eq('location_id', locationId);
+    
+    if (error) {
+      console.error('Error counting ratings:', error);
+      return c.json({ count: 0 });
+    }
+    
+    return c.json({ count: count || 0 });
+  } catch (error: any) {
+    console.error('Error in rating count endpoint:', error);
+    return c.json({ count: 0 });
+  }
 });
 
 // Google Places API endpoint
@@ -555,111 +814,108 @@ app.get("/make-server-48182530/google/place/:placeId", async (c) => {
 app.post("/make-server-48182530/seed", async (c) => {
   console.log('Seeding database with sample locations...');
   
-  const sampleLocations = [
-    {
-      id: crypto.randomUUID(),
-      name: "Tacos El Gordo",
-      lat: 32.7157,
-      lng: -117.1611,
-      lvEditorsScore: 9.5,
-      lvCrowdsourceScore: 9.2,
-      googleRating: 4.5,
-      michelinScore: 0,
-      tags: ["tacos", "mexican", "casual"],
-      description: "Legendary Tijuana-style tacos in San Diego",
-      cuisine: "Mexican",
-      area: "Chula Vista",
-      place_id: "ChIJexample123",
-      image: null,
-      createdBy: "system",
-      createdAt: new Date().toISOString(),
-    },
-    {
-      id: crypto.randomUUID(),
-      name: "Addison",
-      lat: 32.9547,
-      lng: -117.2441,
-      lvEditorsScore: 10.8,
-      lvCrowdsourceScore: 10.5,
-      googleRating: 4.8,
-      michelinScore: 3,
-      tags: ["fine dining", "french", "michelin"],
-      description: "San Diego's only three-Michelin-star restaurant",
-      cuisine: "French",
-      area: "Del Mar",
-      place_id: "ChIJexample456",
-      image: null,
-      createdBy: "system",
-      createdAt: new Date().toISOString(),
-    },
-    {
-      id: crypto.randomUUID(),
-      name: "The Crack Shack",
-      lat: 32.7353,
-      lng: -117.1490,
-      lvEditorsScore: 8.7,
-      lvCrowdsourceScore: 8.9,
-      googleRating: 4.6,
-      michelinScore: 0,
-      tags: ["chicken", "casual", "outdoor"],
-      description: "Elevated fried chicken and craft beer",
-      cuisine: "American",
-      area: "Little Italy",
-      place_id: "ChIJexample789",
-      image: null,
-      createdBy: "system",
-      createdAt: new Date().toISOString(),
-    },
-    {
-      id: crypto.randomUUID(),
-      name: "Cali Cream",
-      lat: 32.7355,
-      lng: -117.1494,
-      lvEditorsScore: 7.8,
-      lvCrowdsourceScore: 8.1,
-      googleRating: 4.7,
-      michelinScore: 0,
-      tags: ["ice cream", "dessert", "casual"],
-      description: "Artisan ice cream with unique flavors",
-      cuisine: "Dessert",
-      area: "Little Italy",
-      place_id: "ChIJexample321",
-      image: null,
-      createdBy: "system",
-      createdAt: new Date().toISOString(),
-    },
-    {
-      id: crypto.randomUUID(),
-      name: "Born & Raised",
-      lat: 32.7350,
-      lng: -117.1498,
-      lvEditorsScore: 9.8,
-      lvCrowdsourceScore: 9.4,
-      googleRating: 4.7,
-      michelinScore: 1,
-      tags: ["steakhouse", "fine dining", "rooftop"],
-      description: "Opulent steakhouse with rooftop bar",
-      cuisine: "Steakhouse",
-      area: "Little Italy",
-      place_id: "ChIJexample654",
-      image: null,
-      createdBy: "system",
-      createdAt: new Date().toISOString(),
-    },
-  ];
-  
-  for (const location of sampleLocations) {
-    await kv.set(`location:${location.id}`, location);
-    console.log(`Seeded location: ${location.name}`);
+  try {
+    const supabase = getSupabaseClient();
+    
+    const sampleLocations = [
+      {
+        name: "Tacos El Gordo",
+        lat: 32.7157,
+        lng: -117.1611,
+        lv_editors_score: 9.5,
+        lv_crowdsource_score: 9.2,
+        google_rating: 4.5,
+        michelin_score: 0,
+        tags: ["tacos", "mexican", "casual"],
+        description: "Legendary Tijuana-style tacos in San Diego",
+        cuisine: "Mexican",
+        area: "Chula Vista",
+        place_id: "ChIJexample123",
+        created_by: "system",
+      },
+      {
+        name: "Addison",
+        lat: 32.9547,
+        lng: -117.2441,
+        lv_editors_score: 10.8,
+        lv_crowdsource_score: 10.5,
+        google_rating: 4.8,
+        michelin_score: 3,
+        tags: ["fine dining", "french", "michelin"],
+        description: "San Diego's only three-Michelin-star restaurant",
+        cuisine: "French",
+        area: "Del Mar",
+        place_id: "ChIJexample456",
+        created_by: "system",
+      },
+      {
+        name: "The Crack Shack",
+        lat: 32.7353,
+        lng: -117.1490,
+        lv_editors_score: 8.7,
+        lv_crowdsource_score: 8.9,
+        google_rating: 4.6,
+        michelin_score: 0,
+        tags: ["chicken", "casual", "outdoor"],
+        description: "Elevated fried chicken and craft beer",
+        cuisine: "American",
+        area: "Little Italy",
+        place_id: "ChIJexample789",
+        created_by: "system",
+      },
+      {
+        name: "Cali Cream",
+        lat: 32.7355,
+        lng: -117.1494,
+        lv_editors_score: 7.8,
+        lv_crowdsource_score: 8.1,
+        google_rating: 4.7,
+        michelin_score: 0,
+        tags: ["ice cream", "dessert", "casual"],
+        description: "Artisan ice cream with unique flavors",
+        cuisine: "Dessert",
+        area: "Little Italy",
+        place_id: "ChIJexample321",
+        created_by: "system",
+      },
+      {
+        name: "Born & Raised",
+        lat: 32.7350,
+        lng: -117.1498,
+        lv_editors_score: 9.8,
+        lv_crowdsource_score: 9.4,
+        google_rating: 4.7,
+        michelin_score: 1,
+        tags: ["steakhouse", "fine dining", "rooftop"],
+        description: "Opulent steakhouse with rooftop bar",
+        cuisine: "Steakhouse",
+        area: "Little Italy",
+        place_id: "ChIJexample654",
+        created_by: "system",
+      },
+    ];
+    
+    const { data, error } = await supabase
+      .from('locations')
+      .insert(sampleLocations)
+      .select();
+    
+    if (error) {
+      console.error('Error seeding locations:', error);
+      return c.json({ error: error.message }, 500);
+    }
+    
+    console.log(`Successfully seeded ${data.length} locations`);
+    
+    return c.json({ 
+      success: true, 
+      message: `Seeded ${data.length} locations`,
+      locations: data 
+    });
+  } catch (error: any) {
+    console.error('Error in seed endpoint:', error);
+    return c.json({ error: error.message }, 500);
   }
-  
-  console.log(`Successfully seeded ${sampleLocations.length} locations`);
-  
-  return c.json({ 
-    success: true, 
-    message: `Seeded ${sampleLocations.length} locations`,
-    locations: sampleLocations 
-  });
 });
 
 // Catch-all route for any unmatched paths

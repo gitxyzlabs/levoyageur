@@ -56,6 +56,7 @@ export function LocationInfoWindow({
       setIsFavorite(favorites.some((fav: Location) => fav.id === location.id));
     } catch (error) {
       console.error('Failed to check favorite status:', error);
+      // Silently fail - database may not be set up yet
     }
   };
 
@@ -66,7 +67,7 @@ export function LocationInfoWindow({
       setUserRating(rating || 0);
     } catch (error) {
       console.error('Failed to load user rating:', error);
-      // Don't show error if rating doesn't exist
+      // Silently fail - database may not be set up yet
     }
   };
 
@@ -76,6 +77,7 @@ export function LocationInfoWindow({
       setCommunityRatingCount(count || 0);
     } catch (error) {
       console.error('Failed to load community rating count:', error);
+      // Silently fail - database may not be set up yet
     }
   };
 
