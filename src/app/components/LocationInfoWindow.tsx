@@ -151,7 +151,7 @@ export function LocationInfoWindow({
       console.log('Saving rating:', rating, 'for location:', location.id);
       await api.setUserRating(location.id, rating);
       setUserRating(rating);
-      toast.success(`Rated ${rating.toFixed(1)}/100!`);
+      toast.success(`Rated ${rating.toFixed(1)}/10!`);
       loadCommunityRatingCount(); // Refresh count
     } catch (error: any) {
       console.error('Failed to set rating:', error);
@@ -279,12 +279,13 @@ export function LocationInfoWindow({
         <div className="px-4 pb-4">
           {/* My Rating (for logged-in users) */}
           {isAuthenticated && user && (
-            <div className="mb-4 p-4 bg-gradient-to-br from-purple-50 via-pink-50 to-rose-50 rounded-xl border border-purple-100">
-              <p className="text-sm font-semibold text-purple-900 mb-3">Rate This Location</p>
+            <div className="mb-3 p-3 bg-gray-50 rounded-lg border border-gray-200">
+              <p className="text-xs font-medium text-gray-600 mb-2">My Rating</p>
               <RatingSlider
                 value={userRating}
                 onChange={handleRatingClick}
                 disabled={false}
+                compact={true}
               />
             </div>
           )}
