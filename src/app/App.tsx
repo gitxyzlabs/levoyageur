@@ -386,7 +386,7 @@ export default function App() {
       
       console.log('Panning to:', { lat, lng });
       
-      // Store the location to pan the map
+      // Store the location to pan the map (no offset - center directly on location)
       setMapCenter({ lat, lng });
       setMapZoom(15); // Zoom in close
     }

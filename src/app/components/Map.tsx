@@ -60,6 +60,22 @@ export function Map({
 
   const displayLocations = showHeatMap && heatMapData ? heatMapData : locations;
 
+  // Set map padding to avoid InfoWindows being covered by search bar
+  useEffect(() => {
+    if (!map) return;
+    
+    // Add padding to the top of the map viewport
+    // This ensures InfoWindows and other UI elements respect the search bar area
+    map.setOptions({
+      padding: {
+        top: 120, // Space for search bar + some buffer
+        bottom: 20,
+        left: 20,
+        right: 20,
+      },
+    });
+  }, [map]);
+
   // Pan to new center when mapCenter changes
   useEffect(() => {
     if (!map || !mapCenter) return;
