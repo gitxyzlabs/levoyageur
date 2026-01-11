@@ -4,6 +4,7 @@ import { Heart, Award, Users, Star, ChevronLeft, ChevronRight } from 'lucide-rea
 import type { Location, User } from '../../utils/api';
 import { api } from '../../utils/api';
 import { toast } from 'sonner';
+import { RatingSlider } from './RatingSlider';
 
 interface LocationInfoWindowProps {
   location: Location;
@@ -65,6 +66,7 @@ export function LocationInfoWindow({
       setUserRating(rating || 0);
     } catch (error) {
       console.error('Failed to load user rating:', error);
+      // Don't show error if rating doesn't exist
     }
   };
 
@@ -146,13 +148,15 @@ export function LocationInfoWindow({
     }
 
     try {
+      console.log('Saving rating:', rating, 'for location:', location.id);
       await api.setUserRating(location.id, rating);
       setUserRating(rating);
-      toast.success(`Rated ${rating}/10!`);
+      toast.success(`Rated ${rating.toFixed(1)}/100!`);
       loadCommunityRatingCount(); // Refresh count
-    } catch (error) {
+    } catch (error: any) {
       console.error('Failed to set rating:', error);
-      toast.error('Failed to save rating');
+      console.error('Error details:', error.message);
+      toast.error('Failed to save rating. Please try again.');
     }
   };
 
@@ -275,25 +279,13 @@ export function LocationInfoWindow({
         <div className="px-4 pb-4">
           {/* My Rating (for logged-in users) */}
           {isAuthenticated && user && (
-            <div className="mb-4 p-3 bg-gradient-to-r from-purple-50 to-pink-50 rounded-lg">
-              <p className="text-xs font-semibold text-purple-900 mb-2">My Rating</p>
-              <div className="flex gap-1">
-                {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((rating) => (
-                  <button
-                    key={rating}
-                    onClick={() => handleRatingClick(rating)}
-                    onMouseEnter={() => setHoverRating(rating)}
-                    onMouseLeave={() => setHoverRating(0)}
-                    className={`flex-1 h-8 rounded text-xs font-semibold transition-all ${
-                      rating <= (hoverRating || userRating)
-                        ? 'bg-gradient-to-r from-purple-500 to-pink-500 text-white shadow-md scale-105'
-                        : 'bg-white text-gray-400 hover:bg-gray-50'
-                    }`}
-                  >
-                    {rating}
-                  </button>
-                ))}
-              </div>
+            <div className="mb-4 p-4 bg-gradient-to-br from-purple-50 via-pink-50 to-rose-50 rounded-xl border border-purple-100">
+              <p className="text-sm font-semibold text-purple-900 mb-3">Rate This Location</p>
+              <RatingSlider
+                value={userRating}
+                onChange={handleRatingClick}
+                disabled={false}
+              />
             </div>
           )}
 
@@ -336,7 +328,9 @@ export function LocationInfoWindow({
               <span className="text-gray-600">Google Rating</span>
               <div className="flex items-center gap-1">
                 <Star className="w-4 h-4 fill-yellow-400 text-yellow-400" />
-                <span className="font-semibold">{googleRating.rating?.toFixed(1) ?? '—'}</span>
+                <span className="font-semibold">
+                  {googleRating.rating ? (googleRating.rating.toFixed(1)) : '—'}
+                </span>
                 {googleRating.count && (
                   <span className="text-xs text-gray-500 ml-1">({googleRating.count})</span>
                 )}

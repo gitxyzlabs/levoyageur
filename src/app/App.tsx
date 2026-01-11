@@ -33,6 +33,7 @@ import { Label } from './components/ui/label';
 import { api, supabase } from '../utils/api';
 import type { Location as APILocation, User as APIUser } from '../utils/api';
 import { projectId, publicAnonKey } from '../../utils/supabase/info';
+import { setAccessToken } from '../utils/api';
 
 // Use types from API
 type Location = APILocation & {
@@ -161,6 +162,9 @@ export default function App() {
       if (session) {
         console.log('Session found! User ID:', session.user.id);
         console.log('User email:', session.user.email);
+        
+        // IMPORTANT: Set the access token first before making any API calls
+        setAccessToken(session.access_token);
         
         try {
           // Try to get user data from backend
