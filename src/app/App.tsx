@@ -8,13 +8,17 @@ import {
   Search, 
   MapPin, 
   Flame,
-  Sparkles
+  Sparkles,
+  ChevronLeft,
+  ChevronRight,
+  X
 } from 'lucide-react';
 
 import { Map } from './components/Map';
 import { Auth } from './components/Auth';
 import { EditorPanel } from './components/EditorPanel';
 import { AddLocationModal } from './components/AddLocationModal';
+import { SearchAutocomplete } from './components/SearchAutocomplete';
 
 import { Button } from './components/ui/button';
 import { Input } from './components/ui/input';
@@ -50,9 +54,9 @@ export default function App() {
   const [showAuth, setShowAuth] = useState(false);
   const [showAddModal, setShowAddModal] = useState(false);
   const [selectedPlace, setSelectedPlace] = useState<any>(null);
-  const [showLegend, setShowLegend] = useState(true);
   const [googlePlacesResults, setGooglePlacesResults] = useState<google.maps.places.PlaceResult[]>([]);
   const [googleMapsApiKey, setGoogleMapsApiKey] = useState<string>("");
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(true);
 
   useEffect(() => {
     initializeApp();
@@ -93,11 +97,10 @@ export default function App() {
         } else {
           console.error("❌ Failed to load Google Maps API key from server");
           console.error("Please add VITE_GOOGLE_MAPS_API_KEY to .env.local file");
-          toast.error("Google Maps API key not configured. Please add it to .env.local");
         }
       }
-
-      // Then check auth and load data
+      
+      // Load locations and check auth (important for OAuth callback!)
       await checkAuthAndLoadData();
     } catch (error) {
       console.error("Error during initialization:", error);
@@ -211,6 +214,41 @@ export default function App() {
       toast.error("Search failed");
       console.error(error);
     }
+  };
+
+  const handleTagSelect = async (tag: string) => {
+    setSearchQuery(tag);
+    try {
+      const { locations: data } = await api.getLocationsByTag(tag);
+      setHeatMapLocations(data);
+      setShowHeatMap(data.length > 0);
+
+      if (data.length === 0) {
+        toast.info(`No locations found with tag "${tag}"`);
+      } else {
+        toast.success(`Found ${data.length} location(s) with tag "${tag}"`);
+      }
+    } catch (error: any) {
+      toast.error("Search failed");
+      console.error(error);
+    }
+  };
+
+  const handlePlaceSelect = (place: google.maps.places.PlaceResult) => {
+    console.log('Selected place:', place);
+    // Open the add location modal for editors
+    if (isAuthenticated && user?.role === 'editor') {
+      setSelectedPlace(place);
+      setShowAddModal(true);
+    } else {
+      toast.info('Sign in as an editor to add this location to Le Voyageur');
+    }
+  };
+
+  const handleSearchClear = () => {
+    setSearchQuery('');
+    setShowHeatMap(false);
+    setHeatMapLocations([]);
   };
 
   const handleSignOut = async () => {
@@ -368,65 +406,8 @@ export default function App() {
 
       <div className="flex-1 flex overflow-hidden">
         {/* Sidebar */}
-        <div className="w-96 bg-slate-50 border-r border-slate-200 overflow-y-auto">
-          <div className="p-6 space-y-6">
-            {/* Search */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Search className="h-5 w-5" />
-                  Search by Tag
-                </CardTitle>
-                <CardDescription>
-                  Find the best locations by category
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="flex gap-2">
-                  <Input
-                    placeholder="e.g., tacos, sushi, hotel..."
-                    value={searchQuery}
-                    onChange={(e) =>
-                      setSearchQuery(e.target.value)
-                    }
-                    onKeyPress={(e) =>
-                      e.key === "Enter" && handleSearch()
-                    }
-                  />
-                  <Button onClick={handleSearch}>
-                    <Search className="h-4 w-4" />
-                  </Button>
-                </div>
-
-                {showHeatMap && heatMapLocations.length > 0 && (
-                  <div className="flex items-center justify-between p-3 bg-orange-50 rounded-lg border border-orange-200">
-                    <div className="flex items-center gap-2">
-                      <Flame className="h-5 w-5 text-orange-600" />
-                      <div>
-                        <Label className="text-sm font-medium">
-                          Heat Map Active
-                        </Label>
-                        <p className="text-xs text-muted-foreground">
-                          Showing {heatMapLocations.length}{" "}
-                          locations
-                        </p>
-                      </div>
-                    </div>
-                    <Switch
-                      checked={showHeatMap}
-                      onCheckedChange={(checked) => {
-                        setShowHeatMap(checked);
-                        if (!checked) {
-                          setSearchQuery("");
-                          setHeatMapLocations([]);
-                        }
-                      }}
-                    />
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-
+        <div className={`${sidebarCollapsed ? 'w-0' : 'w-96'} bg-slate-50 border-r border-slate-200 overflow-y-auto transition-all duration-300`}>
+          <div className={`p-6 space-y-6 ${sidebarCollapsed ? 'hidden' : ''}`}>
             {/* Stats */}
             <Card>
               <CardHeader>
@@ -517,63 +498,92 @@ export default function App() {
 
         {/* Map */}
         <div className="flex-1 relative">
+          {console.log('Rendering map with API key:', googleMapsApiKey ? 'Present' : 'Missing')}
+          {console.log('Number of locations:', locations.length)}
           <APIProvider apiKey={googleMapsApiKey}>
+            {/* Floating Search Bar */}
+            <motion.div
+              initial={{ opacity: 0, y: -20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.4 }}
+              className="absolute top-6 left-1/2 -translate-x-1/2 z-10 w-full px-4 sm:px-6"
+              style={{ 
+                maxWidth: 'min(640px, calc(100vw - 160px))', // Ensure space for chevron + padding
+              }}
+            >
+              <SearchAutocomplete
+                onPlaceSelect={handlePlaceSelect}
+                onTagSelect={handleTagSelect}
+                onClear={handleSearchClear}
+              />
+              {showHeatMap && heatMapLocations.length > 0 && (
+                <motion.div
+                  initial={{ opacity: 0, y: -10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="mt-3 mx-auto w-fit"
+                >
+                  <div className="flex items-center gap-3 px-4 py-2 bg-white/95 backdrop-blur-2xl rounded-xl shadow-lg border border-amber-200">
+                    <Flame className="h-4 w-4 text-orange-600" />
+                    <span className="text-sm font-medium text-gray-900">
+                      Heat Map Active: {heatMapLocations.length} locations
+                    </span>
+                    <button
+                      onClick={() => {
+                        setShowHeatMap(false);
+                        setSearchQuery("");
+                        setHeatMapLocations([]);
+                      }}
+                      className="ml-2 text-gray-400 hover:text-gray-700 transition"
+                    >
+                      <X className="h-4 w-4" />
+                    </button>
+                  </div>
+                </motion.div>
+              )}
+            </motion.div>
+
+            {/* Sidebar Toggle Button */}
+            <motion.button
+              initial={{ opacity: 0, x: -20 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ duration: 0.4 }}
+              onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
+              className="absolute top-6 left-4 sm:left-6 z-20 p-3 bg-white/95 backdrop-blur-2xl rounded-xl shadow-lg border border-slate-200 hover:bg-white hover:shadow-xl transition-all duration-300"
+            >
+              {sidebarCollapsed ? (
+                <ChevronRight className="h-5 w-5 text-slate-600" />
+              ) : (
+                <ChevronLeft className="h-5 w-5 text-gray-700" />
+              )}
+            </motion.button>
+
+            {/* Map Component */}
             <Map
               locations={locations}
               heatMapData={heatMapLocations}
               showHeatMap={showHeatMap}
               googleMapsApiKey={googleMapsApiKey}
             />
-            <AnimatePresence>
-              {showAddModal && selectedPlace && (
-                <AddLocationModal
-                  isOpen={showAddModal}
-                  onClose={() => {
-                    setShowAddModal(false);
-                    setSelectedPlace(null);
-                  }}
-                  onSave={handleAddLocationClick}
-                  initialPlace={selectedPlace}
-                  onLocationAdded={loadLocations}
-                  selectedPlace={selectedPlace}
-                />
-              )}
-            </AnimatePresence>
-            <AnimatePresence>
-              {showLegend && (
-                <motion.div
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: 20 }}
-                  transition={{ duration: 0.3 }}
-                >
-                  <Card className="absolute bottom-4 left-4 bg-white shadow-md p-4">
-                    <CardHeader>
-                      <CardTitle className="text-sm font-medium">
-                        Heat Map Legend
-                      </CardTitle>
-                    </CardHeader>
-                    <CardContent className="space-y-2">
-                      <div className="flex items-center gap-2">
-                        <div className="w-4 h-4 bg-blue-500 rounded-full" />
-                        <Label className="text-sm font-medium">
-                          Low
-                        </Label>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <div className="w-4 h-4 bg-red-500 rounded-full" />
-                        <Label className="text-sm font-medium">
-                          High
-                        </Label>
-                      </div>
-                    </CardContent>
-                  </Card>
-                </motion.div>
-              )}
-            </AnimatePresence>
           </APIProvider>
         </div>
       </div>
+
+      {/* Add Location Modal */}
+      <AnimatePresence>
+        {showAddModal && selectedPlace && (
+          <AddLocationModal
+            isOpen={showAddModal}
+            onClose={() => {
+              setShowAddModal(false);
+              setSelectedPlace(null);
+            }}
+            onSave={handleAddLocationClick}
+            initialPlace={selectedPlace}
+            onLocationAdded={loadLocations}
+            selectedPlace={selectedPlace}
+          />
+        )}
+      </AnimatePresence>
     </div>
   );
 }

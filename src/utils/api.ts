@@ -79,6 +79,18 @@ export const api = {
     return data;
   },
 
+  signInWithOAuth: async (provider: 'google' | 'apple' | 'twitter') => {
+    const { data, error } = await supabase.auth.signInWithOAuth({
+      provider,
+      options: {
+        redirectTo: `${window.location.origin}`,
+      },
+    });
+
+    if (error) throw error;
+    return data;
+  },
+
   signOut: async () => {
     const { error } = await supabase.auth.signOut();
     if (error) throw error;
