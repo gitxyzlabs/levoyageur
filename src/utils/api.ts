@@ -41,17 +41,22 @@ export const getAccessToken = () => accessToken;
 const fetchWithAuth = async (url: string, options: RequestInit = {}) => {
   // Always get the latest session token instead of using cached variable
   const { data: { session } } = await supabase.auth.getSession();
-  const currentToken = session?.access_token || publicAnonKey;
   
   console.log('=== fetchWithAuth Debug ===');
   console.log('URL:', url);
   console.log('Has session:', !!session);
-  console.log('Using token type:', session?.access_token ? 'ACCESS_TOKEN' : 'ANON_KEY');
-  console.log('Token (first 20 chars):', currentToken?.substring(0, 20));
+  console.log('Using token type:', session?.access_token ? 'ACCESS_TOKEN' : 'NO_TOKEN');
+  console.log('Token (first 20 chars):', session?.access_token?.substring(0, 20) || 'N/A');
+  
+  // Don't use anon key as Bearer token - it's not a JWT!
+  if (!session?.access_token) {
+    console.error('❌ No access token available');
+    throw new Error('Not authenticated');
+  }
   
   const headers = {
     'Content-Type': 'application/json',
-    'Authorization': `Bearer ${currentToken}`,
+    'Authorization': `Bearer ${session.access_token}`,
     ...options.headers,
   };
 
