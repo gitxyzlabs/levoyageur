@@ -1,4 +1,18 @@
 {
+  "builds": [
+    {
+      "src": "package.json",
+      "use": "@vercel/static-build",
+      "config": {
+        "distDir": "dist"
+      }
+    }
+  ],
+  "buildCommand": "npm run build",
+  "outputDirectory": "dist",
+  "framework": null,
+  "devCommand": "npm run dev",
+  "installCommand": "npm install",
   "rewrites": [
     {
       "source": "/api/:path*",
@@ -22,6 +36,15 @@
           "value": "Content-Type, Authorization"
         }
       ]
+    }
+  ],
+  "routes": [
+    {
+      "handle": "filesystem"
+    },
+    {
+      "src": "/(.*)",
+      "dest": "/index.html"
     }
   ]
 }
