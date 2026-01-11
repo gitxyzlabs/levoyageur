@@ -1,7 +1,6 @@
 import { Hono } from "npm:hono";
 import { cors } from "npm:hono/cors";
 import { logger } from "npm:hono/logger";
-import * as kv from "./kv_store.tsx";
 import { createClient } from "npm:@supabase/supabase-js@2";
 
 const app = new Hono();
@@ -46,6 +45,29 @@ const verifyAuth = async (request: Request) => {
   return user;
 };
 
+// Helper function to get user metadata from database
+const getUserMetadata = async (userId: string) => {
+  const supabase = getSupabaseClient();
+  const { data, error } = await supabase
+    .from('user_metadata')
+    .select('*')
+    .eq('user_id', userId)
+    .maybeSingle();
+  
+  if (error) {
+    console.error('Error fetching user metadata:', error);
+    return null;
+  }
+  
+  return data;
+};
+
+// Helper function to check if user is an editor
+const isEditor = async (userId: string): Promise<boolean> => {
+  const metadata = await getUserMetadata(userId);
+  return metadata?.role === 'editor';
+};
+
 // Health check endpoint
 app.get("/make-server-48182530/health", (c) => {
   return c.json({ status: "ok" });
@@ -65,6 +87,8 @@ app.post("/make-server-48182530/signup", async (c) => {
   const { email, password, name } = await c.req.json();
   
   const supabase = getSupabaseClient();
+  
+  // Create auth user
   const { data, error } = await supabase.auth.admin.createUser({
     email,
     password,
@@ -74,16 +98,38 @@ app.post("/make-server-48182530/signup", async (c) => {
   });
   
   if (error) {
+    console.error('Error creating auth user:', error);
     return c.json({ error: error.message }, 400);
   }
   
-  // Store user data in KV store
-  await kv.set(`user:${data.user.id}`, {
-    id: data.user.id,
-    email,
-    name,
-    role: 'user', // Default role
-  });
+  // Check if this is the first user ever - if so, make them an editor
+  const { count } = await supabase
+    .from('user_metadata')
+    .select('*', { count: 'exact', head: true });
+  
+  const isFirstUser = count === 0;
+  const role = isFirstUser ? 'editor' : 'user';
+  
+  if (isFirstUser) {
+    console.log('🎉 First user detected! Automatically granting editor role.');
+  }
+  
+  // Store user metadata in database
+  const { error: metadataError } = await supabase
+    .from('user_metadata')
+    .insert({
+      user_id: data.user.id,
+      email,
+      name,
+      role,
+    });
+  
+  if (metadataError) {
+    console.error('Error creating user metadata:', metadataError);
+    // Note: Auth user is already created, so we don't roll back
+  }
+  
+  console.log(`User ${email} created with role: ${role}`);
   
   return c.json({ user: data.user });
 });
@@ -94,23 +140,41 @@ app.post("/make-server-48182530/create-oauth-user", async (c) => {
   
   console.log('Creating OAuth user:', userData);
   
-  // Check if this is the FIRST user ever created - make them an editor automatically
-  const allUsers = await kv.getByPrefix('user:');
-  const isFirstUser = allUsers.length === 0;
+  const supabase = getSupabaseClient();
   
-  const role = isFirstUser ? 'editor' : (userData.role || 'user');
+  // Check if user metadata already exists
+  const existing = await getUserMetadata(userData.id);
+  if (existing) {
+    console.log('User metadata already exists, skipping creation');
+    return c.json({ success: true, user: { ...userData, role: existing.role } });
+  }
+  
+  // Check if this is the first user ever - if so, make them an editor
+  const { count } = await supabase
+    .from('user_metadata')
+    .select('*', { count: 'exact', head: true });
+  
+  const isFirstUser = count === 0;
+  const role = isFirstUser ? 'editor' : 'user';
   
   if (isFirstUser) {
     console.log('🎉 First user detected! Automatically granting editor role.');
   }
   
-  // Store user data in KV store
-  await kv.set(`user:${userData.id}`, {
-    id: userData.id,
-    email: userData.email,
-    name: userData.name,
-    role: role,
-  });
+  // Store user metadata in database
+  const { error } = await supabase
+    .from('user_metadata')
+    .insert({
+      user_id: userData.id,
+      email: userData.email,
+      name: userData.name,
+      role,
+    });
+  
+  if (error) {
+    console.error('Error creating OAuth user metadata:', error);
+    return c.json({ error: error.message }, 500);
+  }
   
   console.log(`OAuth user created successfully with role: ${role}`);
   
@@ -132,13 +196,22 @@ app.get("/make-server-48182530/user", async (c) => {
     return c.json({ error: 'Unauthorized' }, 401);
   }
   
-  const userData = await kv.get(`user:${authUser.id}`);
+  // Get user metadata from database
+  const metadata = await getUserMetadata(authUser.id);
   
-  if (!userData) {
-    return c.json({ error: 'User not found' }, 404);
+  if (!metadata) {
+    return c.json({ error: 'User metadata not found' }, 404);
   }
   
-  return c.json({ user: userData });
+  // Combine auth data with metadata
+  const user = {
+    id: authUser.id,
+    email: authUser.email,
+    name: metadata.name,
+    role: metadata.role,
+  };
+  
+  return c.json({ user });
 });
 
 // Admin: Get all users
@@ -157,16 +230,30 @@ app.get("/make-server-48182530/admin/users", async (c) => {
   }
   
   // Check if user is an editor (only editors can access admin panel)
-  const currentUser = await kv.get(`user:${authUser.id}`);
-  
-  if (!currentUser || currentUser.role !== 'editor') {
+  if (!await isEditor(authUser.id)) {
     return c.json({ error: 'Forbidden: Only editors can access this endpoint' }, 403);
   }
   
-  // Get all users
-  const allUsers = await kv.getByPrefix('user:');
+  // Get all users from user_metadata table
+  const { data: allUsers, error } = await supabase
+    .from('user_metadata')
+    .select('*')
+    .order('created_at', { ascending: false });
   
-  return c.json({ users: allUsers });
+  if (error) {
+    console.error('Error fetching users:', error);
+    return c.json({ error: error.message }, 500);
+  }
+  
+  // Transform to match expected format
+  const transformedUsers = allUsers?.map(user => ({
+    id: user.user_id,
+    email: user.email,
+    name: user.name,
+    role: user.role,
+  })) || [];
+  
+  return c.json({ users: transformedUsers });
 });
 
 // Admin: Update user role
@@ -187,27 +274,43 @@ app.put("/make-server-48182530/admin/users/:userId/role", async (c) => {
   }
   
   // Check if user is an editor (only editors can modify roles)
-  const currentUser = await kv.get(`user:${authUser.id}`);
-  
-  if (!currentUser || currentUser.role !== 'editor') {
+  if (!await isEditor(authUser.id)) {
     return c.json({ error: 'Forbidden: Only editors can modify user roles' }, 403);
   }
   
-  // Get target user and update role
-  const targetUser = await kv.get(`user:${userId}`);
+  // Validate role
+  if (role !== 'user' && role !== 'editor') {
+    return c.json({ error: 'Invalid role. Must be "user" or "editor"' }, 400);
+  }
   
-  if (!targetUser) {
+  // Update user role in database
+  const { data: updatedUser, error } = await supabase
+    .from('user_metadata')
+    .update({ role, updated_at: new Date().toISOString() })
+    .eq('user_id', userId)
+    .select()
+    .single();
+  
+  if (error) {
+    console.error('Error updating user role:', error);
+    return c.json({ error: error.message }, 500);
+  }
+  
+  if (!updatedUser) {
     return c.json({ error: 'User not found' }, 404);
   }
   
-  const updatedUser = {
-    ...targetUser,
-    role,
+  console.log(`Updated user ${userId} role to: ${role}`);
+  
+  // Return transformed user
+  const transformedUser = {
+    id: updatedUser.user_id,
+    email: updatedUser.email,
+    name: updatedUser.name,
+    role: updatedUser.role,
   };
   
-  await kv.set(`user:${userId}`, updatedUser);
-  
-  return c.json({ user: updatedUser });
+  return c.json({ user: transformedUser });
 });
 
 // Get all locations
@@ -259,6 +362,8 @@ app.get("/make-server-48182530/locations/tag/:tag", async (c) => {
     const tag = c.req.param('tag');
     const supabase = getSupabaseClient();
     
+    console.log('Searching for locations with tag:', tag);
+    
     const { data: locations, error } = await supabase
       .from('locations')
       .select('*')
@@ -268,6 +373,8 @@ app.get("/make-server-48182530/locations/tag/:tag", async (c) => {
       console.error('Error fetching locations by tag:', error);
       return c.json({ error: error.message }, 500);
     }
+    
+    console.log(`Found ${locations?.length || 0} locations with tag: ${tag}`);
     
     // Transform snake_case to camelCase for frontend
     const transformedLocations = locations?.map(loc => ({
@@ -304,9 +411,8 @@ app.post("/make-server-48182530/locations", async (c) => {
     return c.json({ error: 'Unauthorized - Please log in' }, 401);
   }
   
-  const userData = await kv.get(`user:${user.id}`);
-  
-  if (!userData || userData.role !== 'editor') {
+  // Check if user is an editor
+  if (!await isEditor(user.id)) {
     return c.json({ error: 'Forbidden - Editor access required' }, 403);
   }
   
@@ -322,6 +428,7 @@ app.post("/make-server-48182530/locations", async (c) => {
   
   console.log('=== Adding Location ===');
   console.log('Name:', locationData.name);
+  console.log('Editor:', user.email);
   console.log('Original place_id:', locationData.place_id);
   console.log('Sanitized place_id:', placeId);
   
@@ -354,7 +461,7 @@ app.post("/make-server-48182530/locations", async (c) => {
       return c.json({ error: error.message }, 500);
     }
     
-    console.log('Location saved successfully with place_id:', location.place_id);
+    console.log('✅ Location saved successfully with place_id:', location.place_id);
     
     // Transform snake_case to camelCase for frontend
     const transformedLocation = {
@@ -391,14 +498,17 @@ app.put("/make-server-48182530/locations/:id", async (c) => {
     return c.json({ error: 'Unauthorized - Please log in' }, 401);
   }
   
-  const userData = await kv.get(`user:${user.id}`);
-  
-  if (!userData || userData.role !== 'editor') {
+  // Check if user is an editor
+  if (!await isEditor(user.id)) {
     return c.json({ error: 'Forbidden - Editor access required' }, 403);
   }
   
   const locationId = c.req.param('id');
   const updates = await c.req.json();
+  
+  console.log('=== Updating Location ===');
+  console.log('Location ID:', locationId);
+  console.log('Editor:', user.email);
   
   try {
     const supabase = getSupabaseClient();
@@ -434,6 +544,8 @@ app.put("/make-server-48182530/locations/:id", async (c) => {
       console.error('Error updating location:', error);
       return c.json({ error: error.message }, 500);
     }
+    
+    console.log('✅ Location updated successfully');
     
     // Transform snake_case to camelCase for frontend
     const transformedLocation = {
@@ -472,13 +584,16 @@ app.delete("/make-server-48182530/locations/:id", async (c) => {
     return c.json({ error: 'Unauthorized - Please log in' }, 401);
   }
   
-  const userData = await kv.get(`user:${user.id}`);
-  
-  if (!userData || userData.role !== 'editor') {
+  // Check if user is an editor
+  if (!await isEditor(user.id)) {
     return c.json({ error: 'Forbidden - Editor access required' }, 403);
   }
   
   const locationId = c.req.param('id');
+  
+  console.log('=== Deleting Location ===');
+  console.log('Location ID:', locationId);
+  console.log('Editor:', user.email);
   
   try {
     const supabase = getSupabaseClient();
@@ -493,23 +608,13 @@ app.delete("/make-server-48182530/locations/:id", async (c) => {
       return c.json({ error: error.message }, 500);
     }
     
+    console.log('✅ Location deleted successfully');
+    
     return c.json({ success: true });
   } catch (error: any) {
     console.error('Error in delete location endpoint:', error);
     return c.json({ error: error.message }, 500);
   }
-});
-
-// Get city guides
-app.get("/make-server-48182530/guides/:cityId", async (c) => {
-  const cityId = c.req.param('cityId');
-  const guide = await kv.get(`guide:${cityId}`);
-  
-  if (!guide) {
-    return c.json({ error: 'Guide not found' }, 404);
-  }
-  
-  return c.json({ guide });
 });
 
 // Favorites endpoints
@@ -602,6 +707,8 @@ app.post("/make-server-48182530/favorites/:locationId", async (c) => {
       return c.json({ error: error.message }, 500);
     }
     
+    console.log(`✅ User ${user.email} favorited location ${locationId}`);
+    
     return c.json({ success: true });
   } catch (error: any) {
     console.error('Error in add favorite endpoint:', error);
@@ -635,6 +742,8 @@ app.delete("/make-server-48182530/favorites/:locationId", async (c) => {
       console.error('Error removing favorite:', error);
       return c.json({ error: error.message }, 500);
     }
+    
+    console.log(`✅ User ${user.email} unfavorited location ${locationId}`);
     
     return c.json({ success: true });
   } catch (error: any) {
@@ -695,6 +804,11 @@ app.post("/make-server-48182530/ratings/:locationId", async (c) => {
     return c.json({ error: 'Unauthorized' }, 401);
   }
   
+  // Validate rating (0.0-10.0 for users)
+  if (rating < 0 || rating > 10) {
+    return c.json({ error: 'Rating must be between 0.0 and 10.0' }, 400);
+  }
+  
   try {
     // Upsert rating (insert or update)
     const { error } = await supabase
@@ -711,6 +825,8 @@ app.post("/make-server-48182530/ratings/:locationId", async (c) => {
       console.error('Error saving rating:', error);
       return c.json({ error: error.message }, 500);
     }
+    
+    console.log(`✅ User ${user.email} rated location ${locationId}: ${rating}`);
     
     return c.json({ success: true, rating });
   } catch (error: any) {
@@ -788,7 +904,7 @@ app.get("/make-server-48182530/google/place/:placeId", async (c) => {
       height: photo.height,
     })) || [];
     
-    console.log('Successfully fetched place details. Photos count:', photos.length);
+    console.log('✅ Successfully fetched place details. Photos count:', photos.length);
     
     return c.json({
       details: {
@@ -810,119 +926,11 @@ app.get("/make-server-48182530/google/place/:placeId", async (c) => {
   }
 });
 
-// Seed database with sample data (for development)
-app.post("/make-server-48182530/seed", async (c) => {
-  console.log('Seeding database with sample locations...');
-  
-  try {
-    const supabase = getSupabaseClient();
-    
-    const sampleLocations = [
-      {
-        name: "Tacos El Gordo",
-        lat: 32.7157,
-        lng: -117.1611,
-        lv_editors_score: 9.5,
-        lv_crowdsource_score: 9.2,
-        google_rating: 4.5,
-        michelin_score: 0,
-        tags: ["tacos", "mexican", "casual"],
-        description: "Legendary Tijuana-style tacos in San Diego",
-        cuisine: "Mexican",
-        area: "Chula Vista",
-        place_id: "ChIJexample123",
-        created_by: "system",
-      },
-      {
-        name: "Addison",
-        lat: 32.9547,
-        lng: -117.2441,
-        lv_editors_score: 10.8,
-        lv_crowdsource_score: 10.5,
-        google_rating: 4.8,
-        michelin_score: 3,
-        tags: ["fine dining", "french", "michelin"],
-        description: "San Diego's only three-Michelin-star restaurant",
-        cuisine: "French",
-        area: "Del Mar",
-        place_id: "ChIJexample456",
-        created_by: "system",
-      },
-      {
-        name: "The Crack Shack",
-        lat: 32.7353,
-        lng: -117.1490,
-        lv_editors_score: 8.7,
-        lv_crowdsource_score: 8.9,
-        google_rating: 4.6,
-        michelin_score: 0,
-        tags: ["chicken", "casual", "outdoor"],
-        description: "Elevated fried chicken and craft beer",
-        cuisine: "American",
-        area: "Little Italy",
-        place_id: "ChIJexample789",
-        created_by: "system",
-      },
-      {
-        name: "Cali Cream",
-        lat: 32.7355,
-        lng: -117.1494,
-        lv_editors_score: 7.8,
-        lv_crowdsource_score: 8.1,
-        google_rating: 4.7,
-        michelin_score: 0,
-        tags: ["ice cream", "dessert", "casual"],
-        description: "Artisan ice cream with unique flavors",
-        cuisine: "Dessert",
-        area: "Little Italy",
-        place_id: "ChIJexample321",
-        created_by: "system",
-      },
-      {
-        name: "Born & Raised",
-        lat: 32.7350,
-        lng: -117.1498,
-        lv_editors_score: 9.8,
-        lv_crowdsource_score: 9.4,
-        google_rating: 4.7,
-        michelin_score: 1,
-        tags: ["steakhouse", "fine dining", "rooftop"],
-        description: "Opulent steakhouse with rooftop bar",
-        cuisine: "Steakhouse",
-        area: "Little Italy",
-        place_id: "ChIJexample654",
-        created_by: "system",
-      },
-    ];
-    
-    const { data, error } = await supabase
-      .from('locations')
-      .insert(sampleLocations)
-      .select();
-    
-    if (error) {
-      console.error('Error seeding locations:', error);
-      return c.json({ error: error.message }, 500);
-    }
-    
-    console.log(`Successfully seeded ${data.length} locations`);
-    
-    return c.json({ 
-      success: true, 
-      message: `Seeded ${data.length} locations`,
-      locations: data 
-    });
-  } catch (error: any) {
-    console.error('Error in seed endpoint:', error);
-    return c.json({ error: error.message }, 500);
-  }
-});
-
 // Catch-all route for any unmatched paths
 app.all('*', (c) => {
-  console.log('Unmatched route:', c.req.path);
+  console.log('❌ Unmatched route:', c.req.path);
   console.log('Method:', c.req.method);
-  return c.json({ error: 'requested path is invalid' }, 404);
+  return c.json({ error: 'Requested path is invalid' }, 404);
 });
 
 Deno.serve(app.fetch);
