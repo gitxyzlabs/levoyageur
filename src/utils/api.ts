@@ -1,8 +1,7 @@
-import { createClient } from '@supabase/supabase-js';
-import { projectId, publicAnonKey } from '../../utils/supabase/info';
+import { supabase, supabaseUrl, publicAnonKey } from './supabase';
 
-const supabaseUrl = `https://${projectId}.supabase.co`;
-export const supabase = createClient(supabaseUrl, publicAnonKey);
+// Re-export for convenience
+export { supabase };
 
 // Use custom domain for API calls in production, Supabase URL in development
 const isProduction = window.location.hostname === 'lvofc.com';
@@ -191,10 +190,11 @@ export const api = {
 
   // Locations
   getLocations: async (): Promise<{ locations: Location[] }> => {
-    // Public endpoint - no auth required
+    // Public endpoint - use publicAnonKey for authorization
     const response = await fetch(`${API_BASE}/locations`, {
       headers: {
         'Content-Type': 'application/json',
+        'Authorization': `Bearer ${publicAnonKey}`,
       },
     });
     
