@@ -1,50 +1,33 @@
 {
-  "builds": [
-    {
-      "src": "package.json",
-      "use": "@vercel/static-build",
-      "config": {
-        "distDir": "dist"
-      }
-    }
-  ],
+  "version": 2,
   "buildCommand": "npm run build",
-  "outputDirectory": "dist",
-  "framework": null,
   "devCommand": "npm run dev",
   "installCommand": "npm install",
+  "framework": "vite",
+  "outputDirectory": "dist",
   "rewrites": [
     {
-      "source": "/api/:path*",
-      "destination": "https://vwikyikicmfefzntshsl.supabase.co/functions/v1/make-server-48182530/:path*"
+      "source": "/(.*)",
+      "destination": "/index.html"
     }
   ],
   "headers": [
     {
-      "source": "/api/:path*",
+      "source": "/(.*)",
       "headers": [
         {
-          "key": "Access-Control-Allow-Origin",
-          "value": "*"
+          "key": "X-Content-Type-Options",
+          "value": "nosniff"
         },
         {
-          "key": "Access-Control-Allow-Methods",
-          "value": "GET, POST, PUT, DELETE, OPTIONS"
+          "key": "X-Frame-Options",
+          "value": "DENY"
         },
         {
-          "key": "Access-Control-Allow-Headers",
-          "value": "Content-Type, Authorization"
+          "key": "X-XSS-Protection",
+          "value": "1; mode=block"
         }
       ]
-    }
-  ],
-  "routes": [
-    {
-      "handle": "filesystem"
-    },
-    {
-      "src": "/(.*)",
-      "dest": "/index.html"
     }
   ]
 }
