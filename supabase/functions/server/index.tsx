@@ -41,7 +41,7 @@ function getSupabaseClient() {
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
 const JWKS = jose.createRemoteJWKSet(new URL(`${SUPABASE_URL}/auth/v1/.well-known/jwks.json`));
 
-// Middleware to verify JWT and extract user ID (updated for proper signature verification with jose)
+// Middleware to verify JWT and extract user ID (using Supabase's getUser method)
 async function verifyAuth(c: any, next: any) {
   console.log('📍 verifyAuth middleware called');
   console.log('📍 Request URL:', c.req.url);
@@ -60,27 +60,34 @@ async function verifyAuth(c: any, next: any) {
   console.log('📍 Token length:', token.length);
 
   try {
-    // Manually verify using JWKS for asymmetric signatures
-    console.log("Attempting JWKS fetch from:", `${SUPABASE_URL}/auth/v1/.well-known/jwks.json`);
-    const { payload } = await jose.jwtVerify(token, JWKS, {
-      issuer: `${SUPABASE_URL}/auth/v1`,
-      audience: 'authenticated',
-      algorithms: ['ES256', 'RS256'], // Support ES256 (as per your token) and RS256
-    });
+    // Use Supabase's built-in getUser method instead of manual JWT verification
+    // This should work with OAuth tokens
+    const supabase = createClient(
+      Deno.env.get('SUPABASE_URL')!,
+      Deno.env.get('SUPABASE_ANON_KEY')!
+    );
     
-    if (!payload.sub) {
-      throw new Error('Invalid token: missing sub claim');
+    console.log('📍 Calling supabase.auth.getUser() with token');
+    const { data: { user }, error } = await supabase.auth.getUser(token);
+    
+    if (error) {
+      console.log('❌ Supabase getUser error:', error.message);
+      console.log('❌ Error details:', JSON.stringify(error));
+      throw error;
+    }
+    
+    if (!user) {
+      throw new Error('No user returned from getUser()');
     }
 
-    console.log('✅ User verified successfully:', payload.sub);
-    console.log('✅ User email:', payload.email);
-    c.set('userId', payload.sub);
-    c.set('userEmail', payload.email);
+    console.log('✅ User verified successfully:', user.id);
+    console.log('✅ User email:', user.email);
+    c.set('userId', user.id);
+    c.set('userEmail', user.email);
     await next();
   } catch (error: any) {
     console.log('❌ JWT verification failed:', error.message);
-    console.log('❌ Error code:', error.code);
-    console.log('❌ Error name:', error.name);
+    console.log('❌ Error stack:', error.stack);
     
     // Try to decode the JWT without verification to see what's in it
     try {
@@ -756,7 +763,9 @@ app.all('*', (c) => {
   return c.json({ error: 'Not Found' }, 404);
 });
 
-// Start the server with JWT validation DISABLED
-// This allows us to manually verify OAuth JWTs in our middleware
+// Start the server with manual JWT verification (disable Supabase's built-in JWT verification)
 console.log('🚀 Server starting with manual JWT verification');
-Deno.serve(app.fetch);
+Deno.serve({
+  // Disable automatic JWT verification - we handle it manually in our middleware
+  onListen: () => console.log('✅ Server is listening'),
+}, app.fetch);
