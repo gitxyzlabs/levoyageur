@@ -70,12 +70,6 @@ export default function App() {
           const { user: userProfile } = await api.getCurrentUser();
           setUser(userProfile);
           console.log('✅ User profile loaded:', userProfile);
-          
-          // Load favorites and want to go lists
-          await loadUserLists();
-          
-          // Load saved location for logged-in user
-          loadSavedLocation(session.user.id);
         } catch (error) {
           console.error('Failed to fetch user profile:', error);
           // Fallback to basic user data
@@ -85,10 +79,10 @@ export default function App() {
             name: session.user.user_metadata?.name || session.user.email || 'User',
             role: 'user', // Default role
           });
-          
-          // Still try to load saved location
-          loadSavedLocation(session.user.id);
         }
+        
+        // Load saved location for logged-in user
+        loadSavedLocation(session.user.id);
         
         if (event === 'SIGNED_IN') {
           toast.success('Welcome to Le Voyageur!');
@@ -269,48 +263,46 @@ export default function App() {
   };
 
   const handleToggleFavorite = async (locationId: string) => {
+    if (!user) {
+      toast.error('Please sign in to save favorites');
+      return;
+    }
+    
     const isFavorite = favoriteIds.has(locationId);
     
-    try {
-      if (isFavorite) {
-        await api.removeFavorite(locationId);
-        setFavoriteIds(prev => {
-          const newSet = new Set(prev);
-          newSet.delete(locationId);
-          return newSet;
-        });
-        toast.success('Removed from favorites');
-      } else {
-        await api.addFavorite(locationId);
-        setFavoriteIds(prev => new Set([...prev, locationId]));
-        toast.success('Added to favorites!');
-      }
-    } catch (error: any) {
-      console.error('Failed to toggle favorite:', error);
-      toast.error(error.message || 'Failed to update favorites');
+    // Update local state only (no backend call)
+    if (isFavorite) {
+      setFavoriteIds(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(locationId);
+        return newSet;
+      });
+      toast.success('Removed from favorites');
+    } else {
+      setFavoriteIds(prev => new Set([...prev, locationId]));
+      toast.success('Added to favorites!');
     }
   };
 
   const handleToggleWantToGo = async (locationId: string) => {
+    if (!user) {
+      toast.error('Please sign in to save to Want to Go');
+      return;
+    }
+    
     const isWantToGo = wantToGoIds.has(locationId);
     
-    try {
-      if (isWantToGo) {
-        await api.removeWantToGo(locationId);
-        setWantToGoIds(prev => {
-          const newSet = new Set(prev);
-          newSet.delete(locationId);
-          return newSet;
-        });
-        toast.success('Removed from Want to Go');
-      } else {
-        await api.addWantToGo(locationId);
-        setWantToGoIds(prev => new Set([...prev, locationId]));
-        toast.success('Added to Want to Go!');
-      }
-    } catch (error: any) {
-      console.error('Failed to toggle want to go:', error);
-      toast.error(error.message || 'Failed to update Want to Go');
+    // Update local state only (no backend call)
+    if (isWantToGo) {
+      setWantToGoIds(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(locationId);
+        return newSet;
+      });
+      toast.success('Removed from Want to Go');
+    } else {
+      setWantToGoIds(prev => new Set([...prev, locationId]));
+      toast.success('Added to Want to Go!');
     }
   };
 

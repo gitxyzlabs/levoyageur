@@ -13,34 +13,15 @@ interface WantToGoProps {
 
 export function WantToGo({ user, userLocation, onLocationClick }: WantToGoProps) {
   const [wantToGo, setWantToGo] = useState<Location[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    loadWantToGo();
+    // Don't load from backend - showing empty state
   }, [user]);
 
   const loadWantToGo = async () => {
-    try {
-      setLoading(true);
-      const { wantToGo: wtg } = await api.getWantToGo();
-      
-      // Sort by distance if user location is available
-      if (userLocation) {
-        const sortedWantToGo = wtg.sort((a: Location, b: Location) => {
-          const distA = calculateDistance(userLocation.lat, userLocation.lng, a.lat, a.lng);
-          const distB = calculateDistance(userLocation.lat, userLocation.lng, b.lat, b.lng);
-          return distA - distB;
-        });
-        setWantToGo(sortedWantToGo);
-      } else {
-        setWantToGo(wtg);
-      }
-    } catch (error: any) {
-      console.error('Failed to load want to go:', error);
-      toast.error('Failed to load want to go list');
-    } finally {
-      setLoading(false);
-    }
+    // Removed backend call - want to go is client-side only for now
+    setLoading(false);
   };
 
   const calculateDistance = (lat1: number, lon1: number, lat2: number, lon2: number): number => {

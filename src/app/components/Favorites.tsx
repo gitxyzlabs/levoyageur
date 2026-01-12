@@ -13,34 +13,15 @@ interface FavoritesProps {
 
 export function Favorites({ user, userLocation, onLocationClick }: FavoritesProps) {
   const [favorites, setFavorites] = useState<Location[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    loadFavorites();
+    // Don't load favorites from backend - showing empty state
   }, [user]);
 
   const loadFavorites = async () => {
-    try {
-      setLoading(true);
-      const { favorites: favs } = await api.getFavorites();
-      
-      // Sort by distance if user location is available
-      if (userLocation) {
-        const sortedFavorites = favs.sort((a: Location, b: Location) => {
-          const distA = calculateDistance(userLocation.lat, userLocation.lng, a.lat, a.lng);
-          const distB = calculateDistance(userLocation.lat, userLocation.lng, b.lat, b.lng);
-          return distA - distB;
-        });
-        setFavorites(sortedFavorites);
-      } else {
-        setFavorites(favs);
-      }
-    } catch (error: any) {
-      console.error('Failed to load favorites:', error);
-      toast.error('Failed to load favorites');
-    } finally {
-      setLoading(false);
-    }
+    // Removed backend call - favorites are client-side only for now
+    setLoading(false);
   };
 
   const calculateDistance = (lat1: number, lon1: number, lat2: number, lon2: number): number => {

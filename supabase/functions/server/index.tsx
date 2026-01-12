@@ -56,20 +56,19 @@ async function verifyAuth(c: any, next: any) {
   console.log('📍 Token length:', token.length);
 
   try {
-    // Verify JWT signature using JWKS (supports ES256)
-    const { payload } = await jose.jwtVerify(token, JWKS, {
-      issuer: `${SUPABASE_URL}/auth/v1`,
-      audience: 'authenticated',
-    });
-
-    if (!payload.sub) {
-      throw new Error('No user ID in payload');
+    // Use Supabase client to verify the token instead of manual JWT verification
+    const supabase = getSupabaseAdmin();
+    const { data: { user }, error } = await supabase.auth.getUser(token);
+    
+    if (error || !user) {
+      console.log('❌ Supabase auth verification failed:', error?.message);
+      throw new Error(error?.message || 'Invalid token');
     }
 
-    console.log('✅ User verified successfully:', payload.sub);
-    console.log('✅ User email:', payload.email);
-    c.set('userId', payload.sub);
-    c.set('userEmail', payload.email);
+    console.log('✅ User verified successfully:', user.id);
+    console.log('✅ User email:', user.email);
+    c.set('userId', user.id);
+    c.set('userEmail', user.email);
     await next();
   } catch (error: any) {
     console.log('❌ JWT verification failed:', error.message);
