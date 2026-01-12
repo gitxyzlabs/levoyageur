@@ -51,8 +51,10 @@ export default function App() {
   const [mapZoom, setMapZoom] = useState(10);
   const [selectedGooglePlace, setSelectedGooglePlace] = useState<google.maps.places.PlaceResult | null>(null);
   const [user, setUser] = useState<APIUser | null>(null);
-  const [sidebarView, setSidebarView] = useState<'home' | 'profile'>('home');
+  const [sidebarView, setSidebarView] = useState<'favorites' | 'wantToGo' | 'profile'>('favorites');
   const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
+  const [favoriteIds, setFavoriteIds] = useState<Set<string>>(new Set());
+  const [wantToGoIds, setWantToGoIds] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     initializeApp();
@@ -67,6 +69,9 @@ export default function App() {
           const { user: userProfile } = await api.getCurrentUser();
           setUser(userProfile);
           console.log('✅ User profile loaded:', userProfile);
+          
+          // Load favorites and want to go lists
+          await loadUserLists();
         } catch (error) {
           console.error('Failed to fetch user profile:', error);
           // Fallback to basic user data
@@ -84,6 +89,8 @@ export default function App() {
       } else {
         // User is logged out
         setUser(null);
+        setFavoriteIds(new Set());
+        setWantToGoIds(new Set());
       }
     });
     
@@ -254,6 +261,68 @@ export default function App() {
     } else {
       toast.success('Logged out successfully');
       setUser(null);
+    }
+  };
+
+  const loadUserLists = async () => {
+    try {
+      // Load favorites
+      const { favorites } = await api.getFavorites();
+      setFavoriteIds(new Set(favorites.map(loc => loc.id)));
+      
+      // Load want to go
+      const { wantToGo } = await api.getWantToGo();
+      setWantToGoIds(new Set(wantToGo.map(loc => loc.id)));
+      
+      console.log('✅ User lists loaded:', favorites.length, 'favorites,', wantToGo.length, 'want to go');
+    } catch (error) {
+      console.error('Failed to load user lists:', error);
+    }
+  };
+
+  const handleToggleFavorite = async (locationId: string) => {
+    const isFavorite = favoriteIds.has(locationId);
+    
+    try {
+      if (isFavorite) {
+        await api.removeFavorite(locationId);
+        setFavoriteIds(prev => {
+          const newSet = new Set(prev);
+          newSet.delete(locationId);
+          return newSet;
+        });
+        toast.success('Removed from favorites');
+      } else {
+        await api.addFavorite(locationId);
+        setFavoriteIds(prev => new Set([...prev, locationId]));
+        toast.success('Added to favorites!');
+      }
+    } catch (error: any) {
+      console.error('Failed to toggle favorite:', error);
+      toast.error(error.message || 'Failed to update favorites');
+    }
+  };
+
+  const handleToggleWantToGo = async (locationId: string) => {
+    const isWantToGo = wantToGoIds.has(locationId);
+    
+    try {
+      if (isWantToGo) {
+        await api.removeWantToGo(locationId);
+        setWantToGoIds(prev => {
+          const newSet = new Set(prev);
+          newSet.delete(locationId);
+          return newSet;
+        });
+        toast.success('Removed from Want to Go');
+      } else {
+        await api.addWantToGo(locationId);
+        setWantToGoIds(prev => new Set([...prev, locationId]));
+        toast.success('Added to Want to Go!');
+      }
+    } catch (error: any) {
+      console.error('Failed to toggle want to go:', error);
+      toast.error(error.message || 'Failed to update Want to Go');
     }
   };
 
@@ -541,7 +610,10 @@ export default function App() {
               googleMapsApiKey={googleMapsApiKey}
               user={user}
               isAuthenticated={!!user}
-              onFavoriteToggle={() => {}}
+              onFavoriteToggle={handleToggleFavorite}
+              onWantToGoToggle={handleToggleWantToGo}
+              favoriteIds={favoriteIds}
+              wantToGoIds={wantToGoIds}
               mapCenter={mapCenter}
               mapZoom={mapZoom}
               selectedGooglePlace={selectedGooglePlace}

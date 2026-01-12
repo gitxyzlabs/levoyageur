@@ -10,6 +10,10 @@ interface GooglePlaceInfoWindowProps {
   onClose: () => void;
   user: { id: string; email: string; name: string; role: 'user' | 'editor' } | null;
   isAuthenticated: boolean;
+  onFavoriteToggle?: (locationId: string) => void;
+  onWantToGoToggle?: (locationId: string) => void;
+  favoriteIds?: Set<string>;
+  wantToGoIds?: Set<string>;
 }
 
 interface GooglePhoto {
@@ -22,7 +26,11 @@ export function GooglePlaceInfoWindow({
   place, 
   onClose,
   user,
-  isAuthenticated
+  isAuthenticated,
+  onFavoriteToggle,
+  onWantToGoToggle,
+  favoriteIds,
+  wantToGoIds
 }: GooglePlaceInfoWindowProps) {
   const [photos, setPhotos] = useState<GooglePhoto[]>([]);
   const [currentPhotoIndex, setCurrentPhotoIndex] = useState(0);
@@ -213,30 +221,54 @@ export function GooglePlaceInfoWindow({
           {/* Action Buttons */}
           <div className="grid grid-cols-2 gap-2 mb-4">
             <button
-              onClick={() => {
+              onClick={async () => {
                 if (!isAuthenticated) {
                   toast.error('Please sign in to add favorites');
                   return;
                 }
-                toast.success('Added to favorites!');
+                
+                if (!place.place_id) {
+                  toast.error('Unable to save this location');
+                  return;
+                }
+
+                if (onFavoriteToggle) {
+                  onFavoriteToggle(place.place_id);
+                }
               }}
-              className="flex items-center justify-center gap-1.5 px-3 py-2.5 bg-gray-50 hover:bg-gray-100 text-gray-700 border border-gray-200 rounded-lg text-xs font-medium transition-all"
+              className={`flex items-center justify-center gap-1.5 px-3 py-2.5 border rounded-lg text-xs font-medium transition-all ${
+                favoriteIds?.has(place.place_id || '')
+                  ? 'bg-red-50 hover:bg-red-100 text-red-700 border-red-200'
+                  : 'bg-gray-50 hover:bg-gray-100 text-gray-700 border-gray-200'
+              }`}
             >
-              <Heart className="w-3.5 h-3.5" />
+              <Heart className={`w-3.5 h-3.5 ${favoriteIds?.has(place.place_id || '') ? 'fill-red-500 stroke-red-500' : ''}`} />
               Favorite
             </button>
             
             <button
-              onClick={() => {
+              onClick={async () => {
                 if (!isAuthenticated) {
                   toast.error('Please sign in to add to Want to Go');
                   return;
                 }
-                toast.success('Added to Want to Go!');
+
+                if (!place.place_id) {
+                  toast.error('Unable to save this location');
+                  return;
+                }
+
+                if (onWantToGoToggle) {
+                  onWantToGoToggle(place.place_id);
+                }
               }}
-              className="flex items-center justify-center gap-1.5 px-3 py-2.5 bg-gray-50 hover:bg-gray-100 text-gray-700 border border-gray-200 rounded-lg text-xs font-medium transition-all"
+              className={`flex items-center justify-center gap-1.5 px-3 py-2.5 border rounded-lg text-xs font-medium transition-all ${
+                wantToGoIds?.has(place.place_id || '')
+                  ? 'bg-green-50 hover:bg-green-100 text-green-700 border-green-200'
+                  : 'bg-gray-50 hover:bg-gray-100 text-gray-700 border-gray-200'
+              }`}
             >
-              <Bookmark className="w-3.5 h-3.5" />
+              <Bookmark className={`w-3.5 h-3.5 ${wantToGoIds?.has(place.place_id || '') ? 'fill-green-500 stroke-green-500' : ''}`} />
               Want to Go
             </button>
             

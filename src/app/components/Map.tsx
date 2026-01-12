@@ -13,7 +13,10 @@ interface MapProps {
   onAddLocationRequest?: (place: any) => void;
   user: User | null;
   isAuthenticated: boolean;
-  onFavoriteToggle?: () => void;
+  onFavoriteToggle?: (locationId: string) => void;
+  onWantToGoToggle?: (locationId: string) => void;
+  favoriteIds?: Set<string>;
+  wantToGoIds?: Set<string>;
   mapCenter?: { lat: number; lng: number } | null;
   mapZoom?: number;
   selectedGooglePlace?: google.maps.places.PlaceResult | null;
@@ -50,6 +53,9 @@ export function Map({
   user,
   isAuthenticated,
   onFavoriteToggle,
+  onWantToGoToggle,
+  favoriteIds,
+  wantToGoIds,
   mapCenter,
   mapZoom,
   selectedGooglePlace,
@@ -305,6 +311,9 @@ export function Map({
             user={user}
             isAuthenticated={isAuthenticated}
             onFavoriteToggle={onFavoriteToggle}
+            onWantToGoToggle={onWantToGoToggle}
+            favoriteIds={favoriteIds}
+            wantToGoIds={wantToGoIds}
           />
         )}
 
@@ -319,6 +328,10 @@ export function Map({
             }}
             user={user}
             isAuthenticated={isAuthenticated}
+            onFavoriteToggle={onFavoriteToggle}
+            onWantToGoToggle={onWantToGoToggle}
+            favoriteIds={favoriteIds}
+            wantToGoIds={wantToGoIds}
           />
         )}
       </GoogleMap>
