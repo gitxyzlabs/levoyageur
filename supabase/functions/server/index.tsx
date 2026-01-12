@@ -56,19 +56,21 @@ async function verifyAuth(c: any, next: any) {
   console.log('📍 Token length:', token.length);
 
   try {
-    // Use Supabase client to verify the token instead of manual JWT verification
-    const supabase = getSupabaseAdmin();
-    const { data: { user }, error } = await supabase.auth.getUser(token);
+    // Manually verify using JWKS for asymmetric signatures
+    const { payload } = await jose.jwtVerify(token, JWKS, {
+      issuer: `${SUPABASE_URL}/auth/v1`,
+      audience: 'authenticated',
+      algorithms: ['ES256', 'RS256'], // Support ES256 (as per your token) and RS256
+    });
     
-    if (error || !user) {
-      console.log('❌ Supabase auth verification failed:', error?.message);
-      throw new Error(error?.message || 'Invalid token');
+    if (!payload.sub) {
+      throw new Error('Invalid token: missing sub claim');
     }
 
-    console.log('✅ User verified successfully:', user.id);
-    console.log('✅ User email:', user.email);
-    c.set('userId', user.id);
-    c.set('userEmail', user.email);
+    console.log('✅ User verified successfully:', payload.sub);
+    console.log('✅ User email:', payload.email);
+    c.set('userId', payload.sub);
+    c.set('userEmail', payload.email);
     await next();
   } catch (error: any) {
     console.log('❌ JWT verification failed:', error.message);
@@ -92,7 +94,6 @@ async function verifyAuth(c: any, next: any) {
     return c.json({ error: 'Unauthorized', details: error.message }, 401);
   }
 }
-
 // ============================================
 // PUBLIC ROUTES (No Auth Required)
 // ============================================
