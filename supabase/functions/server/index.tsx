@@ -73,7 +73,23 @@ async function verifyAuth(c: any, next: any) {
     await next();
   } catch (error: any) {
     console.log('❌ JWT verification failed:', error.message);
-    console.log('❌ Full error:', JSON.stringify(error));
+    console.log('❌ Error code:', error.code);
+    console.log('❌ Error name:', error.name);
+    
+    // Try to decode the JWT without verification to see what's in it
+    try {
+      const decoded = jose.decodeJwt(token);
+      console.log('📍 Decoded JWT payload (unverified):');
+      console.log('  - sub:', decoded.sub);
+      console.log('  - email:', decoded.email);
+      console.log('  - aud:', decoded.aud);
+      console.log('  - iss:', decoded.iss);
+      console.log('  - exp:', decoded.exp);
+      console.log('  - iat:', decoded.iat);
+    } catch (decodeError) {
+      console.log('❌ Could not decode JWT:', decodeError);
+    }
+    
     return c.json({ error: 'Unauthorized', details: error.message }, 401);
   }
 }
@@ -224,16 +240,38 @@ app.get('/make-server-48182530/favorites', verifyAuth, async (c) => {
 });
 
 // Add a favorite
-app.post('/make-server-48182530/favorites', verifyAuth, async (c) => {
-  console.log('📍 POST /favorites - Start');
+app.post('/make-server-48182530/favorites/:locationId', verifyAuth, async (c) => {
+  console.log('📍 POST /favorites/:locationId - Start');
   const userId = c.get('userId');
-  const { locationId } = await c.req.json();
+  const locationId = c.req.param('locationId');
 
   if (!locationId) {
     return c.json({ error: 'locationId is required' }, 400);
   }
 
   try {
+    // Check if location exists, if not create a minimal record
+    // This handles Google Place IDs that aren't in our database yet
+    const existingLocation = await kv.get(`location:${locationId}`);
+    if (!existingLocation) {
+      console.log('📍 Location not found, creating minimal record for:', locationId);
+      // Create a minimal location record - it will be enriched by frontend or editor later
+      const minimalLocation = {
+        id: locationId,
+        name: 'Google Place', // Frontend should update this
+        lat: 0,
+        lng: 0,
+        lvEditorsScore: 0,
+        lvCrowdsourceScore: 0,
+        googleRating: 0,
+        michelinScore: 0,
+        tags: [],
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      };
+      await kv.set(`location:${locationId}`, minimalLocation);
+    }
+
     const favoriteKey = `favorite:${userId}:${locationId}`;
     const favorite = {
       userId,
@@ -242,7 +280,7 @@ app.post('/make-server-48182530/favorites', verifyAuth, async (c) => {
     };
     await kv.set(favoriteKey, favorite);
     console.log('✅ Favorite added:', favoriteKey);
-    return c.json(favorite);
+    return c.json({ success: true });
   } catch (error) {
     console.error('❌ Error in POST /favorites:', error);
     return c.json({ error: 'Failed to add favorite' }, 500);
@@ -307,6 +345,28 @@ app.post('/make-server-48182530/want-to-go/:locationId', verifyAuth, async (c) =
   }
 
   try {
+    // Check if location exists, if not create a minimal record
+    // This handles Google Place IDs that aren't in our database yet
+    const existingLocation = await kv.get(`location:${locationId}`);
+    if (!existingLocation) {
+      console.log('📍 Location not found, creating minimal record for:', locationId);
+      // Create a minimal location record - it will be enriched by frontend or editor later
+      const minimalLocation = {
+        id: locationId,
+        name: 'Google Place', // Frontend should update this
+        lat: 0,
+        lng: 0,
+        lvEditorsScore: 0,
+        lvCrowdsourceScore: 0,
+        googleRating: 0,
+        michelinScore: 0,
+        tags: [],
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      };
+      await kv.set(`location:${locationId}`, minimalLocation);
+    }
+
     const wantToGoKey = `wantToGo:${userId}:${locationId}`;
     const wantToGoItem = {
       userId,
@@ -315,7 +375,7 @@ app.post('/make-server-48182530/want-to-go/:locationId', verifyAuth, async (c) =
     };
     await kv.set(wantToGoKey, wantToGoItem);
     console.log('✅ Want to go added:', wantToGoKey);
-    return c.json(wantToGoItem);
+    return c.json({ success: true });
   } catch (error) {
     console.error('❌ Error in POST /want-to-go:', error);
     return c.json({ error: 'Failed to add to want to go list' }, 500);

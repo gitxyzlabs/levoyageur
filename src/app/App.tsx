@@ -55,6 +55,7 @@ export default function App() {
   const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
   const [favoriteIds, setFavoriteIds] = useState<Set<string>>(new Set());
   const [wantToGoIds, setWantToGoIds] = useState<Set<string>>(new Set());
+  const [locationPermissionGranted, setLocationPermissionGranted] = useState(false);
 
   useEffect(() => {
     initializeApp();
@@ -72,6 +73,9 @@ export default function App() {
           
           // Load favorites and want to go lists
           await loadUserLists();
+          
+          // Load saved location for logged-in user
+          loadSavedLocation(session.user.id);
         } catch (error) {
           console.error('Failed to fetch user profile:', error);
           // Fallback to basic user data
@@ -81,6 +85,9 @@ export default function App() {
             name: session.user.user_metadata?.name || session.user.email || 'User',
             role: 'user', // Default role
           });
+          
+          // Still try to load saved location
+          loadSavedLocation(session.user.id);
         }
         
         if (event === 'SIGNED_IN') {
@@ -91,31 +98,12 @@ export default function App() {
         setUser(null);
         setFavoriteIds(new Set());
         setWantToGoIds(new Set());
+        setLocationPermissionGranted(false);
+        
+        // Request location when not logged in (won't be saved)
+        requestGeolocation();
       }
     });
-    
-    // Get user's geolocation and center map on it
-    if (navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(
-        (position) => {
-          const userPos = {
-            lat: position.coords.latitude,
-            lng: position.coords.longitude,
-          };
-          setMapCenter(userPos);
-          setMapZoom(13);
-          setUserLocation(userPos);
-          console.log('✅ Centered map on user location:', userPos);
-        },
-        (error) => {
-          console.log('Geolocation error:', error);
-          // Fallback to San Diego if geolocation is denied
-          const fallbackLocation = { lat: 32.7157, lng: -117.1611 };
-          setMapCenter(fallbackLocation);
-          console.log('⚠️ Using fallback location (San Diego)');
-        }
-      );
-    }
     
     // Cleanup subscription
     return () => {
@@ -323,6 +311,63 @@ export default function App() {
     } catch (error: any) {
       console.error('Failed to toggle want to go:', error);
       toast.error(error.message || 'Failed to update Want to Go');
+    }
+  };
+
+  const loadSavedLocation = async (userId: string) => {
+    try {
+      const savedLocation = localStorage.getItem(`lv_location_${userId}`);
+      
+      if (savedLocation) {
+        const userPos = JSON.parse(savedLocation);
+        setMapCenter(userPos);
+        setMapZoom(13);
+        setUserLocation(userPos);
+        setLocationPermissionGranted(true);
+        console.log('✅ Using saved location for user:', userPos);
+      } else {
+        // No saved location, request fresh geolocation
+        console.log('No saved location, requesting permission...');
+        requestGeolocation(userId);
+      }
+    } catch (error) {
+      console.error('Failed to load saved location:', error);
+      requestGeolocation(userId);
+    }
+  };
+
+  const requestGeolocation = (userId?: string) => {
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          const userPos = {
+            lat: position.coords.latitude,
+            lng: position.coords.longitude,
+          };
+          setMapCenter(userPos);
+          setMapZoom(13);
+          setUserLocation(userPos);
+          setLocationPermissionGranted(true);
+          console.log('✅ Centered map on user location:', userPos);
+          
+          // Save location for logged-in users
+          if (userId) {
+            try {
+              localStorage.setItem(`lv_location_${userId}`, JSON.stringify(userPos));
+              console.log('✅ Saved location for future sessions');
+            } catch (error) {
+              console.error('Failed to save location:', error);
+            }
+          }
+        },
+        (error) => {
+          console.log('Geolocation error:', error);
+          // Fallback to San Diego if geolocation is denied
+          const fallbackLocation = { lat: 32.7157, lng: -117.1611 };
+          setMapCenter(fallbackLocation);
+          console.log('⚠️ Using fallback location (San Diego)');
+        }
+      );
     }
   };
 
