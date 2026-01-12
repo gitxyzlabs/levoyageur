@@ -159,8 +159,8 @@ export const api = {
   // User
   getCurrentUser: async () => {
     const userData = await fetchWithAuth(`${API_BASE}/user`);
-    // The server returns the user object directly, not wrapped
-    return { user: userData };
+    // The server returns { user: userData }, so just return it as is
+    return userData;
   },
 
   updateUserRole: async (role: 'user' | 'editor') => {

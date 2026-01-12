@@ -62,13 +62,21 @@ export default function App() {
       console.log('Auth state changed:', event, session);
       
       if (session?.user) {
-        // User is logged in
-        setUser({
-          id: session.user.id,
-          email: session.user.email || '',
-          name: session.user.user_metadata?.name || session.user.email || 'User',
-          role: 'user', // Default role
-        });
+        // User is logged in - fetch full user profile from backend
+        try {
+          const { user: userProfile } = await api.getCurrentUser();
+          setUser(userProfile);
+          console.log('✅ User profile loaded:', userProfile);
+        } catch (error) {
+          console.error('Failed to fetch user profile:', error);
+          // Fallback to basic user data
+          setUser({
+            id: session.user.id,
+            email: session.user.email || '',
+            name: session.user.user_metadata?.name || session.user.email || 'User',
+            role: 'user', // Default role
+          });
+        }
         
         if (event === 'SIGNED_IN') {
           toast.success('Welcome to Le Voyageur!');
