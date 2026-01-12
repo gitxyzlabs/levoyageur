@@ -5,6 +5,10 @@ import { createClient } from "npm:@supabase/supabase-js@2";
 import * as kv from "./kv_store.tsx";
 import * as jose from "jsr:@panva/jose@6"; // Add this import for proper JWT verification
 
+// Debug logging for environment variables
+console.log("SUPABASE_URL from env:", Deno.env.get("SUPABASE_URL"));
+console.log("JWKS URL being used:", `${Deno.env.get("SUPABASE_URL")}/auth/v1/.well-known/jwks.json`);
+
 const app = new Hono();
 
 // Enable logger
@@ -57,6 +61,7 @@ async function verifyAuth(c: any, next: any) {
 
   try {
     // Manually verify using JWKS for asymmetric signatures
+    console.log("Attempting JWKS fetch from:", `${SUPABASE_URL}/auth/v1/.well-known/jwks.json`);
     const { payload } = await jose.jwtVerify(token, JWKS, {
       issuer: `${SUPABASE_URL}/auth/v1`,
       audience: 'authenticated',

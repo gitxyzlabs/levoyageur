@@ -22,6 +22,7 @@ interface MapProps {
   selectedGooglePlace?: google.maps.places.PlaceResult | null;
   onGooglePlaceClose?: () => void;
   onPOIClick?: (place: google.maps.places.PlaceResult) => void;
+  onMapBoundsChange?: (bounds: google.maps.LatLngBounds) => void;
 }
 
 // Helper functions for marker styling
@@ -60,7 +61,8 @@ export function Map({
   mapZoom,
   selectedGooglePlace,
   onGooglePlaceClose,
-  onPOIClick
+  onPOIClick,
+  onMapBoundsChange
 }: MapProps) {
   const [selectedLocation, setSelectedLocation] = useState<Location | null>(null);
   const [clickedPOI, setClickedPOI] = useState<google.maps.places.PlaceResult | null>(null);
@@ -97,33 +99,21 @@ export function Map({
     }
   }, [map, mapCenter, mapZoom]);
 
-  // Auto-fit bounds when locations change
+  // Track map bounds changes
   useEffect(() => {
-    if (!map || displayLocations.length === 0) return;
+    if (!map || !onMapBoundsChange) return;
 
-    try {
-      const bounds = new google.maps.LatLngBounds();
-      displayLocations.forEach(location => {
-        bounds.extend({ lat: location.lat, lng: location.lng });
-      });
-      
-      map.fitBounds(bounds);
-      
-      // Set a max zoom level to prevent zooming in too much
-      const listener = google.maps.event.addListenerOnce(map, 'bounds_changed', () => {
-        const currentZoom = map.getZoom();
-        if (currentZoom && currentZoom > 15) {
-          map.setZoom(15);
-        }
-      });
-      
-      return () => {
-        google.maps.event.removeListener(listener);
-      };
-    } catch (error) {
-      console.error('Error fitting bounds:', error);
-    }
-  }, [map, displayLocations]);
+    const listener = map.addListener('bounds_changed', () => {
+      const bounds = map.getBounds();
+      if (bounds) {
+        onMapBoundsChange(bounds);
+      }
+    });
+
+    return () => {
+      google.maps.event.removeListener(listener);
+    };
+  }, [map, onMapBoundsChange]);
 
   // Add POI click listener
   useEffect(() => {

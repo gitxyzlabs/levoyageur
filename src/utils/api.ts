@@ -44,6 +44,8 @@ const fetchWithAuth = async (url: string, options: RequestInit = {}) => {
   
   console.log('=== fetchWithAuth Debug ===');
   console.log('URL:', url);
+  console.log('Full session:', session);
+  console.log('Using token:', session?.access_token?.substring(0, 30) + '...');
   console.log('Has session:', !!session);
   console.log('Using token type:', session?.access_token ? 'ACCESS_TOKEN' : 'NO_TOKEN');
   console.log('Token (first 20 chars):', session?.access_token?.substring(0, 20) || 'N/A');

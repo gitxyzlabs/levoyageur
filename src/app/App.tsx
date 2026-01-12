@@ -56,6 +56,7 @@ export default function App() {
   const [favoriteIds, setFavoriteIds] = useState<Set<string>>(new Set());
   const [wantToGoIds, setWantToGoIds] = useState<Set<string>>(new Set());
   const [locationPermissionGranted, setLocationPermissionGranted] = useState(false);
+  const [mapBounds, setMapBounds] = useState<google.maps.LatLngBounds | null>(null);
 
   useEffect(() => {
     initializeApp();
@@ -597,6 +598,7 @@ export default function App() {
                 onPlaceSelect={handlePlaceSelect}
                 onTagSelect={handleTagSelect}
                 onClear={handleSearchClear}
+                mapBounds={mapBounds}
               />
               {showHeatMap && heatMapLocations.length > 0 && (
                 <motion.div
@@ -655,6 +657,7 @@ export default function App() {
               mapZoom={mapZoom}
               selectedGooglePlace={selectedGooglePlace}
               onGooglePlaceClose={() => setSelectedGooglePlace(null)}
+              onMapBoundsChange={setMapBounds}
             />
           </APIProvider>
         </div>

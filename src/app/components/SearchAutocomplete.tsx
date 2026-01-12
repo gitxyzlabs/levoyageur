@@ -9,9 +9,10 @@ interface SearchAutocompleteProps {
   onPlaceSelect: (place: any) => void; // Updated type
   onTagSelect: (tag: string) => void;
   onClear?: () => void;
+  mapBounds?: google.maps.LatLngBounds | null;
 }
 
-export function SearchAutocomplete({ onPlaceSelect, onTagSelect, onClear }: SearchAutocompleteProps) {
+export function SearchAutocomplete({ onPlaceSelect, onTagSelect, onClear, mapBounds }: SearchAutocompleteProps) {
   const [searchValue, setSearchValue] = useState('');
   const [showDropdown, setShowDropdown] = useState(false);
   const [googlePredictions, setGooglePredictions] = useState<any[]>([]);
@@ -40,6 +41,7 @@ export function SearchAutocomplete({ onPlaceSelect, onTagSelect, onClear }: Sear
           const request = {
             input: searchValue,
             includedPrimaryTypes: ['restaurant', 'cafe', 'bar', 'bakery', 'meal_takeaway'],
+            bounds: mapBounds,
           };
           
           const { suggestions } = await AutocompleteSuggestion.fetchAutocompleteSuggestions(request);
@@ -89,7 +91,7 @@ export function SearchAutocomplete({ onPlaceSelect, onTagSelect, onClear }: Sear
 
     const timeoutId = setTimeout(fetchSuggestions, 300);
     return () => clearTimeout(timeoutId);
-  }, [searchValue]);
+  }, [searchValue, places, mapBounds]);
 
   // Handle click outside to close dropdown
   useEffect(() => {
