@@ -414,7 +414,7 @@ app.post('/make-server-48182530/favorites/:locationId', verifyAuth, async (c) =>
   try {
     const supabase = getSupabaseAdmin();
     
-    // Check if location exists
+    // Check if location exists, if not create a placeholder
     const { data: location, error: locError } = await supabase
       .from('locations')
       .select('id')
@@ -422,7 +422,27 @@ app.post('/make-server-48182530/favorites/:locationId', verifyAuth, async (c) =>
       .single();
 
     if (locError || !location) {
-      return c.json({ error: 'Location not found' }, 404);
+      console.log('📍 Location not found, creating placeholder for:', locationId);
+      // Create a placeholder location - it will be enriched by editors later
+      const { error: createError } = await supabase
+        .from('locations')
+        .insert({
+          id: locationId,
+          name: 'Pending Location Data',
+          lat: 0,
+          lng: 0,
+          lv_editors_score: 0,
+          lv_crowdsource_score: 0,
+          google_rating: 0,
+          michelin_score: 0,
+          tags: [],
+          place_id: locationId,
+        });
+      
+      if (createError && createError.code !== '23505') { // Ignore duplicate key error
+        console.error('❌ Error creating placeholder location:', createError);
+        return c.json({ error: 'Failed to create location placeholder' }, 500);
+      }
     }
 
     // Insert favorite (unique constraint will prevent duplicates)
@@ -554,7 +574,7 @@ app.post('/make-server-48182530/want-to-go/:locationId', verifyAuth, async (c) =
   try {
     const supabase = getSupabaseAdmin();
     
-    // Check if location exists
+    // Check if location exists, if not create a placeholder
     const { data: location, error: locError } = await supabase
       .from('locations')
       .select('id')
@@ -562,7 +582,27 @@ app.post('/make-server-48182530/want-to-go/:locationId', verifyAuth, async (c) =
       .single();
 
     if (locError || !location) {
-      return c.json({ error: 'Location not found' }, 404);
+      console.log('📍 Location not found, creating placeholder for:', locationId);
+      // Create a placeholder location - it will be enriched by editors later
+      const { error: createError } = await supabase
+        .from('locations')
+        .insert({
+          id: locationId,
+          name: 'Pending Location Data',
+          lat: 0,
+          lng: 0,
+          lv_editors_score: 0,
+          lv_crowdsource_score: 0,
+          google_rating: 0,
+          michelin_score: 0,
+          tags: [],
+          place_id: locationId,
+        });
+      
+      if (createError && createError.code !== '23505') { // Ignore duplicate key error
+        console.error('❌ Error creating placeholder location:', createError);
+        return c.json({ error: 'Failed to create location placeholder' }, 500);
+      }
     }
 
     // Insert want to go (unique constraint will prevent duplicates)
@@ -807,6 +847,66 @@ app.put('/make-server-48182530/locations/:id/rating', verifyAuth, verifyEditor, 
   try {
     const supabase = getSupabaseAdmin();
     
+    // Check if location exists, if not create a placeholder
+    const { data: existingLocation, error: selectError } = await supabase
+      .from('locations')
+      .select('*')
+      .eq('id', locationId)
+      .single();
+
+    if (selectError || !existingLocation) {
+      console.log('📍 Location not found, creating placeholder for:', locationId);
+      // Create a placeholder location - editor will add full details
+      const { data: newLocation, error: createError } = await supabase
+        .from('locations')
+        .insert({
+          id: locationId,
+          name: 'Pending Location Data',
+          lat: 0,
+          lng: 0,
+          lv_editors_score: lvEditorsScore || 0,
+          lv_crowdsource_score: 0,
+          google_rating: 0,
+          michelin_score: 0,
+          tags: tags || [],
+          place_id: locationId,
+          created_by: userId,
+          updated_by: userId,
+        })
+        .select()
+        .single();
+      
+      if (createError) {
+        console.error('❌ Error creating placeholder location:', createError);
+        return c.json({ error: 'Failed to create location placeholder' }, 500);
+      }
+      
+      console.log('✅ Location placeholder created with rating/tags:', locationId);
+      
+      // Return the new location
+      return c.json({
+        id: newLocation.id,
+        name: newLocation.name,
+        description: newLocation.description,
+        lat: newLocation.lat,
+        lng: newLocation.lng,
+        lvEditorsScore: newLocation.lv_editors_score,
+        lvCrowdsourceScore: newLocation.lv_crowdsource_score,
+        googleRating: newLocation.google_rating,
+        michelinScore: newLocation.michelin_score,
+        tags: newLocation.tags || [],
+        cuisine: newLocation.cuisine,
+        area: newLocation.area,
+        image: newLocation.image,
+        placeId: newLocation.place_id,
+        createdBy: newLocation.created_by,
+        createdAt: newLocation.created_at,
+        updatedBy: newLocation.updated_by,
+        updatedAt: newLocation.updated_at,
+      });
+    }
+    
+    // Location exists, update it
     const dbUpdates: any = {
       updated_by: userId,
       updated_at: new Date().toISOString(),
@@ -854,6 +954,28 @@ app.put('/make-server-48182530/locations/:id/rating', verifyAuth, verifyEditor, 
     console.error('❌ Error in PUT /locations/:id/rating:', error);
     return c.json({ error: 'Failed to update location rating/tags' }, 500);
   }
+});
+
+// Create a new tag (editors only) - Note: This is now legacy since tags are stored in location arrays
+// But we keep it for backwards compatibility with frontend
+app.post('/make-server-48182530/tags', verifyAuth, verifyEditor, async (c) => {
+  console.log('📍 POST /tags - Start');
+  const { name } = await c.req.json();
+
+  if (!name) {
+    return c.json({ error: 'name is required' }, 400);
+  }
+
+  // Tags are stored directly in locations table as arrays
+  // This endpoint just validates and returns the tag
+  const normalizedTag = name.toLowerCase().trim();
+  
+  console.log('✅ Tag validated:', normalizedTag);
+  return c.json({ 
+    id: normalizedTag, 
+    name: normalizedTag,
+    createdAt: new Date().toISOString(),
+  });
 });
 
 // ============================================
