@@ -70,26 +70,19 @@ export default function App() {
   useEffect(() => {
     initializeApp();
     
-    // Get user's geolocation and center map on it
+    // Get user's geolocation for centering the map
     if (navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
         (position) => {
-          const userPos = {
+          const userLocation = {
             lat: position.coords.latitude,
             lng: position.coords.longitude,
           };
-          setUserLocation(userPos);
-          // Center map on user's location
-          setMapCenter(userPos);
-          setMapZoom(13); // Good zoom level to see nearby locations
-          console.log('✅ Centered map on user location:', userPos);
+          setMapCenter(userLocation);
+          console.log('✅ Centered map on user location:', userLocation);
         },
         (error) => {
-          console.log('Geolocation error:', error);
-          // Fallback to San Diego if geolocation is denied
-          const fallbackLocation = { lat: 32.7157, lng: -117.1611 };
-          setMapCenter(fallbackLocation);
-          console.log('⚠️ Using fallback location (San Diego)');
+          console.log('Geolocation error (using default center):', error.message);
         }
       );
     }
@@ -98,9 +91,9 @@ export default function App() {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
       console.log('Auth state changed:', event, session?.user?.email);
       
-      if (event === 'SIGNED_IN' && session) {
-        console.log('User signed in via OAuth, loading user data...');
-        await handleOAuthSignIn(session);
+      if ((event === 'SIGNED_IN' || event === 'INITIAL_SESSION') && session) {
+        console.log('User signed in or initial session found, loading user data...');
+        await handleSignIn(session);
       } else if (event === 'SIGNED_OUT') {
         console.log('User signed out');
         setIsAuthenticated(false);
@@ -208,9 +201,9 @@ export default function App() {
     }
   };
 
-  const handleOAuthSignIn = async (session: any) => {
+  const handleSignIn = async (session: any) => {
     try {
-      console.log('🔐 Starting OAuth sign-in flow...');
+      console.log('🔐 Starting sign-in flow...');
       console.log('📧 User email:', session.user.email);
       console.log('🆔 User ID:', session.user.id);
       
@@ -249,14 +242,14 @@ export default function App() {
         return;
       }
       
-      const userData = await response.json();
+      const { user: userData } = await response.json();  // Destructure for wrapped response
       console.log('✅ User profile loaded:', userData);
       
       setUser(userData);
       setIsAuthenticated(true);
       toast.success(`Welcome back, ${userData.name}!`);
     } catch (error: any) {
-      console.error('❌ Error in handleOAuthSignIn:', error);
+      console.error('❌ Error in handleSignIn:', error);
       
       // Show helpful error message
       toast.error(
