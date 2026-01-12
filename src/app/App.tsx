@@ -1,39 +1,28 @@
 import React, { useState, useEffect } from 'react';
-import { motion, AnimatePresence } from 'motion/react';
+import { motion } from 'motion/react';
 import { APIProvider } from '@vis.gl/react-google-maps';
 import { toast, Toaster } from 'sonner';
 import { 
-  LogIn, 
-  LogOut, 
-  Search, 
   MapPin, 
   Flame,
   Sparkles,
   ChevronLeft,
   ChevronRight,
-  X
+  X,
+  LogIn,
+  LogOut,
+  User
 } from 'lucide-react';
 
 import { Map } from './components/Map';
-import { Auth } from './components/Auth';
-import { EditorPanel } from './components/EditorPanel';
-import { AddLocationModal } from './components/AddLocationModal';
 import { SearchAutocomplete } from './components/SearchAutocomplete';
-import { UserProfile } from './components/UserProfile';
-import { AdminPanel } from './components/AdminPanel';
-import { Favorites } from './components/Favorites';
 
 import { Button } from './components/ui/button';
-import { Input } from './components/ui/input';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './components/ui/card';
-import { Badge } from './components/ui/badge';
-import { Switch } from './components/ui/switch';
-import { Label } from './components/ui/label';
+import { Card, CardContent, CardHeader, CardTitle } from './components/ui/card';
 
 import { api, supabase } from '../utils/api';
 import type { Location as APILocation, User as APIUser } from '../utils/api';
 import { projectId, publicAnonKey } from '../../utils/supabase/info.tsx';
-import { setAccessToken } from '../utils/api';
 
 // Use types from API
 type Location = APILocation & {
@@ -43,32 +32,43 @@ type Location = APILocation & {
   area?: string;
 };
 
-type User = APIUser;
-
 export default function App() {
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [user, setUser] = useState<User | null>(null);
   const [locations, setLocations] = useState<Location[]>([]);
-  const [heatMapLocations, setHeatMapLocations] = useState<
-    Location[]
-  >([]);
+  const [heatMapLocations, setHeatMapLocations] = useState<Location[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [showHeatMap, setShowHeatMap] = useState(false);
   const [loading, setLoading] = useState(true);
-  const [showAuth, setShowAuth] = useState(false);
-  const [showAddModal, setShowAddModal] = useState(false);
-  const [selectedPlace, setSelectedPlace] = useState<any>(null);
-  const [googlePlacesResults, setGooglePlacesResults] = useState<google.maps.places.PlaceResult[]>([]);
   const [googleMapsApiKey, setGoogleMapsApiKey] = useState<string>("");
   const [sidebarCollapsed, setSidebarCollapsed] = useState(true);
-  const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
-  const [favoritesKey, setFavoritesKey] = useState(0);
   const [mapCenter, setMapCenter] = useState<{ lat: number; lng: number } | null>(null);
   const [mapZoom, setMapZoom] = useState(10);
   const [selectedGooglePlace, setSelectedGooglePlace] = useState<google.maps.places.PlaceResult | null>(null);
+  const [user, setUser] = useState<APIUser | null>(null);
 
   useEffect(() => {
     initializeApp();
+    
+    // Listen for auth state changes
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      console.log('Auth state changed:', event, session);
+      
+      if (session?.user) {
+        // User is logged in
+        setUser({
+          id: session.user.id,
+          email: session.user.email || '',
+          name: session.user.user_metadata?.name || session.user.email || 'User',
+          role: 'user', // Default role
+        });
+        
+        if (event === 'SIGNED_IN') {
+          toast.success('Welcome to Le Voyageur!');
+        }
+      } else {
+        // User is logged out
+        setUser(null);
+      }
+    });
     
     // Get user's geolocation and center map on it
     if (navigator.geolocation) {
@@ -78,10 +78,8 @@ export default function App() {
             lat: position.coords.latitude,
             lng: position.coords.longitude,
           };
-          setUserLocation(userPos);
-          // Center map on user's location
           setMapCenter(userPos);
-          setMapZoom(13); // Good zoom level to see nearby locations
+          setMapZoom(13);
           console.log('✅ Centered map on user location:', userPos);
         },
         (error) => {
@@ -94,20 +92,7 @@ export default function App() {
       );
     }
     
-    // Listen for auth state changes (important for OAuth!)
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-      console.log('Auth state changed:', event, session?.user?.email);
-      
-      if ((event === 'SIGNED_IN' || event === 'INITIAL_SESSION') && session) {
-        console.log('User signed in or initial session found, loading user data...');
-        await handleSignIn(session);  // Renamed from handleOAuthSignIn
-      } else if (event === 'SIGNED_OUT') {
-        console.log('User signed out');
-        setIsAuthenticated(false);
-        setUser(null);
-      }
-    });
-    
+    // Cleanup subscription
     return () => {
       subscription.unsubscribe();
     };
@@ -119,16 +104,11 @@ export default function App() {
       const envApiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
       
       if (envApiKey) {
-        // Use API key from .env.local
         setGoogleMapsApiKey(envApiKey);
         (window as any).GOOGLE_MAPS_API_KEY = envApiKey;
-        console.log("=== Google Maps Debug ===");
-        console.log("API Key loaded from .env.local: ✅ Yes");
-        console.log("API Key (first 10 chars):", envApiKey.substring(0, 10) + "...");
-        console.log("API Key length:", envApiKey.length);
+        console.log("API Key loaded from .env.local");
       } else {
-        // Fallback: Fetch from server (for Figma Make environment)
-        console.log("=== Google Maps Debug ===");
+        // Fallback: Fetch from server
         console.log("No API key in .env.local, fetching from server...");
         
         const response = await fetch(
@@ -144,16 +124,13 @@ export default function App() {
           const { apiKey } = await response.json();
           setGoogleMapsApiKey(apiKey);
           (window as any).GOOGLE_MAPS_API_KEY = apiKey;
-          console.log("API Key loaded from server: ✅ Yes");
-          console.log("API Key (first 10 chars):", apiKey.substring(0, 10) + "...");
-          console.log("API Key length:", apiKey.length);
+          console.log("API Key loaded from server");
         } else {
-          console.error("❌ Failed to load Google Maps API key from server");
-          console.error("Please add VITE_GOOGLE_MAPS_API_KEY to .env.local file");
+          console.error("Failed to load Google Maps API key");
         }
       }
       
-      // Load locations (auth now handled by onAuthStateChange)
+      // Load locations
       await loadLocations();
     } catch (error) {
       console.error("Error during initialization:", error);
@@ -162,155 +139,13 @@ export default function App() {
     }
   };
 
-  // Remove user loading from this function (now centralized in onAuthStateChange)
-  const checkAuthAndLoadData = async () => {
-    try {
-      // Only load locations - user loading now happens via onAuthStateChange
-      await loadLocations();
-    } catch (error) {
-      console.error("Error loading locations:", error);
-      // Don't throw - allow app to continue even if locations fail to load
-    }
-  };
-
-  const handleSignIn = async (session: any) => {
-    try {
-      console.log('🔐 Starting sign-in flow...');
-      console.log('📧 User email:', session.user.email);
-      console.log('🆔 User ID:', session.user.id);
-      
-      setAccessToken(session.access_token);
-      
-      await new Promise(resolve => setTimeout(resolve, 100));
-      
-      console.log('📡 Fetching user profile from server...');
-      
-      const response = await fetch(
-        `https://api.lvofc.com/functions/v1/make-server-48182530/user`,
-        {
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${session.access_token}`,
-          },
-        }
-      );
-      
-      console.log('📡 Server response status:', response.status);
-      
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error('❌ Server returned error:', errorText);
-        toast.error('Server authentication failed. The backend may need to be redeployed. Check console for details.', { duration: 5000 });
-        console.log('⚠️ Keeping user session but not marking as fully authenticated');
-        return;
-      }
-      
-      const { user: userData } = await response.json();  // Destructure for wrapped response
-      console.log('✅ User profile loaded:', userData);
-      
-      setUser(userData);
-      setIsAuthenticated(true);
-      toast.success(`Welcome back, ${userData.name}!`);
-    } catch (error: any) {
-      console.error('❌ Error in handleSignIn:', error);
-      toast.error('Unable to load user profile. You may need to deploy the latest server code to Supabase.', { duration: 6000 });
-      console.log('⚠️ Not auto-signing out due to error. User can manually sign out.');
-    }
-  };
-
   const loadLocations = async () => {
     try {
       const { locations: data } = await api.getLocations();
-      console.log('Loaded locations:', data);
-      console.log('Number of locations:', data.length);
-      if (data.length > 0) {
-        console.log('First location details:', JSON.stringify(data[0], null, 2));
-      }
+      console.log('Loaded locations:', data.length);
       setLocations(data);
     } catch (error: any) {
       console.error("Failed to load locations:", error);
-      // Don't show error toast on initial load
-    }
-  };
-
-  const handleGooglePlacesSearch = (places: google.maps.places.PlaceResult[]) => {
-    console.log('Google Places results:', places);
-    setGooglePlacesResults(places);
-    
-    // Show toast
-    toast.success(`Found ${places.length} place(s) on Google Maps`);
-  };
-
-  const handleClearGooglePlacesSearch = () => {
-    setGooglePlacesResults([]);
-  };
-
-  const handleAddLocationClick = async (locationData: any) => {
-    if (!isAuthenticated || user?.role !== 'editor') {
-      toast.error('You must be signed in as an editor to add locations');
-      return;
-    }
-
-    console.log('=== handleAddLocationClick Debug ===');
-    console.log('locationData received:', locationData);
-    console.log('place_id:', locationData.place_id);
-
-    try {
-      const newLocation = {
-        name: locationData.name,
-        lat: locationData.lat,
-        lng: locationData.lng,
-        lvEditorsScore: locationData.lvEditorsScore,
-        lvCrowdsourceScore: locationData.lvCrowdsourceScore || 0,
-        googleRating: locationData.googleRating || 0,
-        michelinScore: locationData.michelinScore || 0,
-        tags: locationData.tags || [],
-        description: locationData.description,
-        place_id: locationData.place_id,
-        image: locationData.image,
-        cuisine: locationData.cuisine,
-        area: locationData.area,
-      };
-
-      console.log('Sending to API:', newLocation);
-
-      await api.addLocation(newLocation);
-      toast.success(`Added ${locationData.name} to the collection!`);
-      await loadLocations();
-      setShowAddModal(false);
-      setSelectedPlace(null);
-      setGooglePlacesResults([]);
-    } catch (error: any) {
-      toast.error('Failed to add location');
-      console.error(error);
-    }
-  };
-
-  const handleSearch = async () => {
-    if (!searchQuery.trim()) {
-      setShowHeatMap(false);
-      setHeatMapLocations([]);
-      return;
-    }
-
-    try {
-      const { locations: data } =
-        await api.getLocationsByTag(searchQuery);
-      setHeatMapLocations(data);
-      setShowHeatMap(data.length > 0);
-
-      if (data.length === 0) {
-        toast.info(
-          `No locations found with tag "${searchQuery}"`,
-        );
-      } else {
-        toast.success(
-          `Found ${data.length} location(s) with tag "${searchQuery}"`,
-        );
-      }
-    } catch (error: any) {
-      toast.error("Search failed");
-      console.error(error);
     }
   };
 
@@ -333,20 +168,8 @@ export default function App() {
   };
 
   const handlePlaceSelect = (place: google.maps.places.PlaceResult) => {
-    console.log('=== Selected Place Debug ===');
-    console.log('Selected place:', place);
-    console.log('Place ID:', place.place_id);
-    console.log('Place name:', place.name);
-    console.log('Place geometry:', place.geometry);
-    console.log('Is authenticated:', isAuthenticated);
-    console.log('User:', user);
-    console.log('User role:', user?.role);
-    
     // Store the selected Google place to show in Map
     setSelectedGooglePlace(place);
-    
-    // Clear the search results after selection
-    setGooglePlacesResults([]);
     
     // Pan map to the selected place location
     if (place.geometry?.location) {
@@ -354,19 +177,9 @@ export default function App() {
       const lat = typeof location.lat === 'function' ? location.lat() : location.lat;
       const lng = typeof location.lng === 'function' ? location.lng() : location.lng;
       
-      console.log('Panning to:', { lat, lng });
-      
-      // Store the location to pan the map (no offset - center directly on location)
       setMapCenter({ lat, lng });
-      setMapZoom(15); // Zoom in close
+      setMapZoom(15);
     }
-    
-    // Open the add location modal for editors
-    if (isAuthenticated && user?.role === 'editor') {
-      setSelectedPlace(place);
-      setShowAddModal(true);
-    }
-    // For everyone else (including non-authenticated), just show the info window via Map component
   };
 
   const handleSearchClear = () => {
@@ -375,40 +188,10 @@ export default function App() {
     setHeatMapLocations([]);
   };
 
-  const handleSignOut = async () => {
-    try {
-      await api.signOut();
-      setIsAuthenticated(false);
-      setUser(null);
-      toast.success("Signed out successfully");
-    } catch (error: any) {
-      toast.error("Sign out failed");
-    }
-  };
-
-  const handleBecomeEditor = async () => {
-    try {
-      // Call the admin endpoint to promote the current user
-      const { user: updatedUser } = await api.updateUserRoleByAdmin(user!.id, "editor");
-      setUser(updatedUser);
-      toast.success("You are now an editor! Refresh the page to see editor features.");
-      // Reload the page to update the UI
-      window.location.reload();
-    } catch (error: any) {
-      console.error('Failed to become editor:', error);
-      toast.error("Failed to update role: " + error.message);
-    }
-  };
-
-  const handleAuthSuccess = async () => {
-    setShowAuth(false);
-    await loadLocations();  // No need for full checkAuthAndLoadData; user loaded via onAuthStateChange
-  };
-
   const handleSeedDatabase = async () => {
     try {
       const response = await fetch(
-        `https://api.lvofc.com/functions/v1/make-server-48182530/seed`,
+        `https://${projectId}.supabase.co/functions/v1/make-server-48182530/seed`,
         {
           method: 'POST',
           headers: {
@@ -432,6 +215,30 @@ export default function App() {
     }
   };
 
+  const handleLogin = async () => {
+    const { data, error } = await supabase.auth.signInWithOAuth({
+      provider: 'google',
+    });
+    if (error) {
+      toast.error('Login failed');
+      console.error(error);
+    } else {
+      toast.success('Logged in successfully');
+      setUser(data.user);
+    }
+  };
+
+  const handleLogout = async () => {
+    const { error } = await supabase.auth.signOut();
+    if (error) {
+      toast.error('Logout failed');
+      console.error(error);
+    } else {
+      toast.success('Logged out successfully');
+      setUser(null);
+    }
+  };
+
   if (loading) {
     return (
       <div className="size-full flex items-center justify-center bg-slate-50">
@@ -445,7 +252,6 @@ export default function App() {
     );
   }
 
-  // Don't render until Google Maps API key is loaded
   if (!googleMapsApiKey) {
     return (
       <div className="size-full flex items-center justify-center bg-slate-50">
@@ -459,16 +265,6 @@ export default function App() {
     );
   }
 
-  // Show auth modal if requested
-  if (showAuth) {
-    return (
-      <>
-        <Auth onAuthSuccess={handleAuthSuccess} />
-        <Toaster position="top-center" richColors />
-      </>
-    );
-  }
-
   return (
     <div className="size-full flex flex-col bg-white">
       <Toaster position="top-center" richColors />
@@ -476,26 +272,32 @@ export default function App() {
       {/* Header */}
       <header className="bg-white border-b border-slate-200 shadow-sm">
         <div className="flex items-center justify-between px-6 py-4">
-          <div className="flex items-center gap-4">
-            <h1 className="text-2xl font-light tracking-wider">
-              LE VOYAGEUR
-            </h1>
-          </div>
-
-          <div className="flex items-center gap-4">
-            {isAuthenticated && user ? (
-              <UserProfile 
-                user={user} 
-                onSignOut={handleSignOut}
-              />
+          <h1 className="text-2xl font-light tracking-wider">
+            LE VOYAGEUR
+          </h1>
+          <div className="flex items-center gap-3">
+            {user ? (
+              <>
+                <div className="flex items-center gap-2 px-3 py-2 bg-slate-50 rounded-lg">
+                  <User className="h-4 w-4 text-gray-500" />
+                  <span className="text-sm font-medium text-gray-700">{user.name}</span>
+                </div>
+                <Button
+                  onClick={handleLogout}
+                  variant="outline"
+                  className="gap-2"
+                >
+                  <LogOut className="h-4 w-4" />
+                  Logout
+                </Button>
+              </>
             ) : (
               <Button
-                variant="default"
-                onClick={() => setShowAuth(true)}
-                className="gap-2"
+                onClick={handleLogin}
+                className="gap-2 bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700"
               >
                 <LogIn className="h-4 w-4" />
-                Sign In
+                Sign in with Google
               </Button>
             )}
           </div>
@@ -536,74 +338,6 @@ export default function App() {
               </CardContent>
             </Card>
 
-            {/* Editor Panel - Only show if user is logged in and is an editor */}
-            {isAuthenticated && user?.role === "editor" && (
-              <>
-                <AdminPanel currentUser={user} />
-                <EditorPanel
-                  onLocationAdded={loadLocations}
-                  locations={locations}
-                  onLocationDeleted={loadLocations}
-                />
-              </>
-            )}
-
-            {/* Favorites - Only show for logged-in users */}
-            {isAuthenticated && user && (
-              <Favorites
-                key={favoritesKey}
-                user={user}
-                userLocation={userLocation}
-              />
-            )}
-
-            {/* Become Editor Button - Only show for non-editor authenticated users */}
-            {isAuthenticated && user && user.role !== 'editor' && (
-              <Card className="bg-gradient-to-br from-amber-50 to-amber-100 border-amber-300">
-                <CardHeader>
-                  <CardTitle className="text-lg flex items-center gap-2">
-                    <Sparkles className="h-5 w-5 text-amber-600" />
-                    Become an Editor
-                  </CardTitle>
-                  <CardDescription>
-                    Upgrade your account to add and manage locations
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <Button 
-                    onClick={handleBecomeEditor}
-                    className="w-full gap-2 bg-gradient-to-r from-amber-500 to-rose-500 hover:from-amber-600 hover:to-rose-600"
-                  >
-                    <Sparkles className="h-4 w-4" />
-                    Become Editor
-                  </Button>
-                </CardContent>
-              </Card>
-            )}
-
-            {/* Login prompt for non-authenticated users */}
-            {!isAuthenticated && (
-              <Card className="bg-gradient-to-br from-slate-50 to-slate-100 border-slate-300">
-                <CardHeader>
-                  <CardTitle className="text-lg">
-                    Join Le Voyageur
-                  </CardTitle>
-                  <CardDescription>
-                    Sign in to become an editor and add locations
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <Button 
-                    onClick={() => setShowAuth(true)}
-                    className="w-full gap-2"
-                  >
-                    <LogIn className="h-4 w-4" />
-                    Sign In / Sign Up
-                  </Button>
-                </CardContent>
-              </Card>
-            )}
-
             {/* Info */}
             <Card>
               <CardHeader>
@@ -619,12 +353,6 @@ export default function App() {
                 <p>
                   • Heat map colors: blue (low) → red (high)
                 </p>
-                {user?.role === "editor" && (
-                  <p className="text-amber-600 font-medium">
-                    • As an editor, you can add and manage
-                    locations
-                  </p>
-                )}
               </CardContent>
             </Card>
           </div>
@@ -632,8 +360,6 @@ export default function App() {
 
         {/* Map */}
         <div className="flex-1 relative">
-          {console.log('Rendering map with API key:', googleMapsApiKey ? 'Present' : 'Missing')}
-          {console.log('Number of locations:', locations.length)}
           <APIProvider apiKey={googleMapsApiKey}>
             {/* Floating Search Bar */}
             <motion.div
@@ -642,7 +368,7 @@ export default function App() {
               transition={{ duration: 0.4 }}
               className="absolute top-6 left-1/2 -translate-x-1/2 z-10 w-full px-4 sm:px-6"
               style={{ 
-                maxWidth: 'min(640px, calc(100vw - 160px))', // Ensure space for chevron + padding
+                maxWidth: 'min(640px, calc(100vw - 160px))',
               }}
             >
               <SearchAutocomplete
@@ -698,8 +424,8 @@ export default function App() {
               showHeatMap={showHeatMap}
               googleMapsApiKey={googleMapsApiKey}
               user={user}
-              isAuthenticated={isAuthenticated}
-              onFavoriteToggle={() => setFavoritesKey(prev => prev + 1)}
+              isAuthenticated={!!user}
+              onFavoriteToggle={() => {}}
               mapCenter={mapCenter}
               mapZoom={mapZoom}
               selectedGooglePlace={selectedGooglePlace}
@@ -708,23 +434,6 @@ export default function App() {
           </APIProvider>
         </div>
       </div>
-
-      {/* Add Location Modal */}
-      <AnimatePresence>
-        {showAddModal && selectedPlace && (
-          <AddLocationModal
-            isOpen={showAddModal}
-            onClose={() => {
-              setShowAddModal(false);
-              setSelectedPlace(null);
-            }}
-            onSave={handleAddLocationClick}
-            initialPlace={selectedPlace}
-            onLocationAdded={loadLocations}
-            selectedPlace={selectedPlace}
-          />
-        )}
-      </AnimatePresence>
     </div>
   );
 }
