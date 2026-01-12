@@ -261,6 +261,57 @@ export const api = {
     });
   },
 
+  // Want to Go
+  getWantToGo: async (): Promise<{ wantToGo: Location[] }> => {
+    return fetchWithAuth(`${API_BASE}/want-to-go`);
+  },
+
+  addWantToGo: async (locationId: string) => {
+    return fetchWithAuth(`${API_BASE}/want-to-go/${locationId}`, {
+      method: 'POST',
+    });
+  },
+
+  removeWantToGo: async (locationId: string) => {
+    return fetchWithAuth(`${API_BASE}/want-to-go/${locationId}`, {
+      method: 'DELETE',
+    });
+  },
+
+  // Tags
+  getTags: async (): Promise<{ tags: string[] }> => {
+    // Public endpoint - doesn't require auth
+    const response = await fetch(`${API_BASE}/tags`, {
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${publicAnonKey}`,
+      },
+    });
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ error: response.statusText }));
+      console.error('❌ getTags error:', error);
+      throw new Error(error.error || `HTTP error! status: ${response.status}`);
+    }
+
+    return response.json();
+  },
+
+  createTag: async (name: string) => {
+    return fetchWithAuth(`${API_BASE}/tags`, {
+      method: 'POST',
+      body: JSON.stringify({ name }),
+    });
+  },
+
+  // Editor: Update location rating and tags
+  updateLocationRating: async (locationId: string, lvEditorsScore?: number, tags?: string[]) => {
+    return fetchWithAuth(`${API_BASE}/locations/${locationId}/rating`, {
+      method: 'PUT',
+      body: JSON.stringify({ lvEditorsScore, tags }),
+    });
+  },
+
   // User Ratings
   getUserRating: async (locationId: string): Promise<{ rating: number | null }> => {
     return fetchWithAuth(`${API_BASE}/ratings/${locationId}`);

@@ -129,6 +129,19 @@ app.get('/make-server-48182530/locations/tag/:tag', async (c) => {
   }
 });
 
+// Get all tags (public - no auth required)
+app.get('/make-server-48182530/tags', async (c) => {
+  console.log('📍 GET /tags - Start');
+  try {
+    const tags = await kv.getByPrefix('tag:');
+    console.log('GET /tags - Found tags:', tags.length);
+    return c.json({ tags: tags.map((tag: any) => tag.name) });
+  } catch (error) {
+    console.error('❌ Error in GET /tags:', error);
+    return c.json({ error: 'Failed to fetch tags' }, 500);
+  }
+});
+
 // ============================================
 // AUTHENTICATED ROUTES
 // ============================================
@@ -254,6 +267,79 @@ app.delete('/make-server-48182530/favorites/:locationId', verifyAuth, async (c) 
 });
 
 // ============================================
+// WANT TO GO ROUTES
+// ============================================
+
+// Get user's want to go list
+app.get('/make-server-48182530/want-to-go', verifyAuth, async (c) => {
+  console.log('📍 GET /want-to-go - Start');
+  const userId = c.get('userId');
+
+  try {
+    const wantToGoRecords = await kv.getByPrefix(`wantToGo:${userId}:`);
+    console.log('GET /want-to-go - Found records:', wantToGoRecords.length);
+    
+    // Get the actual location data for each want to go item
+    const wantToGo = [];
+    for (const wtg of wantToGoRecords) {
+      const location = await kv.get(`location:${wtg.locationId}`);
+      if (location) {
+        wantToGo.push(location);
+      }
+    }
+    
+    console.log('GET /want-to-go - Resolved locations:', wantToGo.length);
+    return c.json({ wantToGo });
+  } catch (error) {
+    console.error('❌ Error in GET /want-to-go:', error);
+    return c.json({ error: 'Failed to fetch want to go list' }, 500);
+  }
+});
+
+// Add to want to go list
+app.post('/make-server-48182530/want-to-go/:locationId', verifyAuth, async (c) => {
+  console.log('📍 POST /want-to-go/:locationId - Start');
+  const userId = c.get('userId');
+  const locationId = c.req.param('locationId');
+
+  if (!locationId) {
+    return c.json({ error: 'locationId is required' }, 400);
+  }
+
+  try {
+    const wantToGoKey = `wantToGo:${userId}:${locationId}`;
+    const wantToGoItem = {
+      userId,
+      locationId,
+      createdAt: new Date().toISOString(),
+    };
+    await kv.set(wantToGoKey, wantToGoItem);
+    console.log('✅ Want to go added:', wantToGoKey);
+    return c.json(wantToGoItem);
+  } catch (error) {
+    console.error('❌ Error in POST /want-to-go:', error);
+    return c.json({ error: 'Failed to add to want to go list' }, 500);
+  }
+});
+
+// Remove from want to go list
+app.delete('/make-server-48182530/want-to-go/:locationId', verifyAuth, async (c) => {
+  console.log('📍 DELETE /want-to-go/:locationId - Start');
+  const userId = c.get('userId');
+  const locationId = c.req.param('locationId');
+
+  try {
+    const wantToGoKey = `wantToGo:${userId}:${locationId}`;
+    await kv.del(wantToGoKey);
+    console.log('✅ Want to go removed:', wantToGoKey);
+    return c.json({ success: true });
+  } catch (error) {
+    console.error('❌ Error in DELETE /want-to-go:', error);
+    return c.json({ error: 'Failed to remove from want to go list' }, 500);
+  }
+});
+
+// ============================================
 // EDITOR-ONLY ROUTES
 // ============================================
 
@@ -339,6 +425,62 @@ app.delete('/make-server-48182530/locations/:id', verifyAuth, verifyEditor, asyn
   } catch (error) {
     console.error('❌ Error in DELETE /locations:', error);
     return c.json({ error: 'Failed to delete location' }, 500);
+  }
+});
+
+// Create a new tag (editors only)
+app.post('/make-server-48182530/tags', verifyAuth, verifyEditor, async (c) => {
+  console.log('📍 POST /tags - Start');
+  const { name } = await c.req.json();
+
+  if (!name) {
+    return c.json({ error: 'name is required' }, 400);
+  }
+
+  try {
+    const tagId = crypto.randomUUID();
+    const newTag = {
+      id: tagId,
+      name: name.toLowerCase().trim(),
+      createdAt: new Date().toISOString(),
+    };
+    await kv.set(`tag:${tagId}`, newTag);
+    console.log('✅ Tag created:', tagId);
+    return c.json(newTag);
+  } catch (error) {
+    console.error('❌ Error in POST /tags:', error);
+    return c.json({ error: 'Failed to create tag' }, 500);
+  }
+});
+
+// Update location rating and tags (editors only)
+app.put('/make-server-48182530/locations/:id/rating', verifyAuth, verifyEditor, async (c) => {
+  console.log('📍 PUT /locations/:id/rating - Start');
+  const locationId = c.req.param('id');
+  const { lvEditorsScore, tags } = await c.req.json();
+
+  if (lvEditorsScore !== undefined && (lvEditorsScore < 0 || lvEditorsScore > 11)) {
+    return c.json({ error: 'lvEditorsScore must be between 0.0 and 11.0' }, 400);
+  }
+
+  try {
+    const existingLocation = await kv.get(`location:${locationId}`);
+    if (!existingLocation) {
+      return c.json({ error: 'Location not found' }, 404);
+    }
+
+    const updatedLocation = {
+      ...existingLocation,
+      ...(lvEditorsScore !== undefined && { lvEditorsScore }),
+      ...(tags !== undefined && { tags }),
+      updatedAt: new Date().toISOString(),
+    };
+    await kv.set(`location:${locationId}`, updatedLocation);
+    console.log('✅ Location rating/tags updated:', locationId);
+    return c.json(updatedLocation);
+  } catch (error) {
+    console.error('❌ Error in PUT /locations/:id/rating:', error);
+    return c.json({ error: 'Failed to update location rating/tags' }, 500);
   }
 });
 

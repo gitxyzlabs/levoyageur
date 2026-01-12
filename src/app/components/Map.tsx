@@ -18,6 +18,7 @@ interface MapProps {
   mapZoom?: number;
   selectedGooglePlace?: google.maps.places.PlaceResult | null;
   onGooglePlaceClose?: () => void;
+  onPOIClick?: (place: google.maps.places.PlaceResult) => void;
 }
 
 // Helper functions for marker styling
@@ -52,9 +53,11 @@ export function Map({
   mapCenter,
   mapZoom,
   selectedGooglePlace,
-  onGooglePlaceClose
+  onGooglePlaceClose,
+  onPOIClick
 }: MapProps) {
   const [selectedLocation, setSelectedLocation] = useState<Location | null>(null);
+  const [clickedPOI, setClickedPOI] = useState<google.maps.places.PlaceResult | null>(null);
   const [googleRating, setGoogleRating] = useState<{ rating: number | null; count: number | null }>({ rating: null, count: null });
   const map = useMap();
 
@@ -116,37 +119,97 @@ export function Map({
     }
   }, [map, displayLocations]);
 
-  const handleMarkerClick = async (location: Location) => {
-    setSelectedLocation(location);
-    setGoogleRating({ rating: null, count: null });
-    
-    // Fetch Google rating if place_id exists and is valid
-    if (location.place_id && window.google && map) {
-      // Validate place_id format
-      if (typeof location.place_id !== 'string' || location.place_id.trim() === '' ||
-          location.place_id === 'undefined' || location.place_id === 'null') {
-        console.log('Invalid place_id format for location:', location.name);
-      } else {
+  // Add POI click listener
+  useEffect(() => {
+    if (!map) return;
+
+    const listener = map.addListener('click', async (event: google.maps.MapMouseEvent) => {
+      // Check if the click was on a POI (Point of Interest)
+      if (event.placeId) {
+        // Prevent the default info window from showing
+        event.stop();
+        
+        console.log('POI clicked:', event.placeId);
+        
         try {
-          // Use the new Place API instead of deprecated PlacesService
+          // Fetch place details using the new Places API
           const { Place } = await google.maps.importLibrary("places") as google.maps.PlacesLibrary;
           
           const place = new Place({
-            id: location.place_id,
+            id: event.placeId,
           });
-
-          // Fetch the place details with the new API
+          
+          // Fetch the place details
           await place.fetchFields({
-            fields: ['rating', 'userRatingCount'],
+            fields: ['displayName', 'formattedAddress', 'location', 'rating', 'userRatingCount', 'types', 'websiteURI', 'nationalPhoneNumber']
           });
-
-          setGoogleRating({
-            rating: place.rating ?? null,
-            count: place.userRatingCount ?? null,
-          });
+          
+          // Convert to PlaceResult format
+          const placeResult: google.maps.places.PlaceResult = {
+            place_id: event.placeId,
+            name: place.displayName,
+            formatted_address: place.formattedAddress,
+            geometry: place.location ? {
+              location: place.location
+            } : undefined,
+            rating: place.rating,
+            user_ratings_total: place.userRatingCount,
+            types: place.types,
+            website: place.websiteURI,
+            formatted_phone_number: place.nationalPhoneNumber,
+          };
+          
+          // Close any open LV location info window
+          setSelectedLocation(null);
+          
+          // Show the LV custom info window for this Google Place
+          setClickedPOI(placeResult);
+          
+          if (onPOIClick) {
+            onPOIClick(placeResult);
+          }
         } catch (error) {
-          console.error('Error fetching Google place details:', error);
+          console.error('Error fetching place details:', error);
         }
+      }
+    });
+
+    return () => {
+      google.maps.event.removeListener(listener);
+    };
+  }, [map, onPOIClick]);
+
+  const handleMarkerClick = async (location: Location) => {
+    setSelectedLocation(location);
+    setClickedPOI(null); // Close any POI info window
+    
+    // Fetch Google rating if place_id exists
+    if (!location.place_id || 
+        location.place_id === '' || 
+        location.place_id === 'undefined' || 
+        location.place_id === 'null') {
+      console.log('Invalid place_id format for location:', location.name);
+      setGoogleRating({ rating: null, count: null });
+    } else {
+      try {
+        // Use the new Place API instead of deprecated PlacesService
+        const { Place } = await google.maps.importLibrary("places") as google.maps.PlacesLibrary;
+        
+        const place = new Place({
+          id: location.place_id,
+        });
+
+        await place.fetchFields({
+          fields: ['rating', 'userRatingCount']
+        });
+
+        setGoogleRating({ 
+          rating: place.rating ?? null, 
+          count: place.userRatingCount ?? null 
+        });
+      } catch (error) {
+        console.error('Error fetching Google rating:', error);
+        setGoogleRating({ rating: null, count: null });
       }
     }
     
@@ -203,39 +266,38 @@ export function Map({
                   height: `${40 * scale}px`,
                 }}
               >
-                {/* Modern pin shape with rating */}
-                <div
-                  className="absolute inset-x-0 top-0 flex items-center justify-center font-semibold"
-                  style={{
-                    backgroundColor: color,
-                    width: `${32 * scale}px`,
-                    height: `${32 * scale}px`,
-                    borderRadius: '50% 50% 50% 0',
-                    transform: 'rotate(-45deg)',
-                    boxShadow: '0 4px 12px rgba(0,0,0,0.15), 0 2px 4px rgba(0,0,0,0.1)',
-                    border: '2px solid rgba(255,255,255,0.95)',
-                  }}
+                {/* Marker Pin */}
+                <svg 
+                  viewBox="0 0 32 40" 
+                  className="drop-shadow-lg"
+                  style={{ filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.2))' }}
                 >
-                  <span
-                    className="text-white"
-                    style={{
-                      transform: 'rotate(45deg)',
-                      fontSize: `${10 * scale}px`,
-                      fontWeight: 600,
-                      letterSpacing: '-0.02em',
-                    }}
+                  <path
+                    d="M16 0C9.373 0 4 5.373 4 12c0 8.5 12 28 12 28s12-19.5 12-28c0-6.627-5.373-12-12-12z"
+                    fill={color}
+                  />
+                  <circle cx="16" cy="12" r="4" fill="white" fillOpacity="0.9" />
+                </svg>
+                
+                {/* Rating Badge */}
+                {!showHeatMap && (
+                  <div 
+                    className="absolute -top-2 -right-2 bg-white text-slate-900 text-xs font-semibold px-1.5 py-0.5 rounded-full shadow-md border border-slate-200"
+                    style={{ fontSize: '10px' }}
                   >
                     {rating.toFixed(1)}
-                  </span>
-                </div>
+                  </div>
+                )}
               </div>
             </AdvancedMarker>
           );
         })}
 
-        {selectedLocation && (
+        {selectedLocation && !clickedPOI && (
           <LocationInfoWindow
             location={selectedLocation}
+            googleRating={googleRating.rating}
+            googleRatingCount={googleRating.count}
             onClose={() => {
               setSelectedLocation(null);
               setGoogleRating({ rating: null, count: null });
@@ -246,10 +308,11 @@ export function Map({
           />
         )}
 
-        {selectedGooglePlace && !selectedLocation && (
+        {(selectedGooglePlace || clickedPOI) && !selectedLocation && (
           <GooglePlaceInfoWindow
-            place={selectedGooglePlace}
+            place={clickedPOI || selectedGooglePlace!}
             onClose={() => {
+              setClickedPOI(null);
               if (onGooglePlaceClose) {
                 onGooglePlaceClose();
               }

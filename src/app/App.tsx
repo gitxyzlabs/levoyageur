@@ -11,11 +11,18 @@ import {
   X,
   LogIn,
   LogOut,
-  User
+  User,
+  Home,
+  Heart,
+  Bookmark,
+  Settings
 } from 'lucide-react';
 
 import { Map } from './components/Map';
 import { SearchAutocomplete } from './components/SearchAutocomplete';
+import { Profile } from './components/Profile';
+import { Favorites } from './components/Favorites';
+import { WantToGo } from './components/WantToGo';
 
 import { Button } from './components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from './components/ui/card';
@@ -44,6 +51,8 @@ export default function App() {
   const [mapZoom, setMapZoom] = useState(10);
   const [selectedGooglePlace, setSelectedGooglePlace] = useState<google.maps.places.PlaceResult | null>(null);
   const [user, setUser] = useState<APIUser | null>(null);
+  const [sidebarView, setSidebarView] = useState<'home' | 'profile'>('home');
+  const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
 
   useEffect(() => {
     initializeApp();
@@ -80,6 +89,7 @@ export default function App() {
           };
           setMapCenter(userPos);
           setMapZoom(13);
+          setUserLocation(userPos);
           console.log('✅ Centered map on user location:', userPos);
         },
         (error) => {
@@ -308,53 +318,151 @@ export default function App() {
         {/* Sidebar */}
         <div className={`${sidebarCollapsed ? 'w-0' : 'w-96'} bg-slate-50 border-r border-slate-200 overflow-y-auto transition-all duration-300`}>
           <div className={`p-6 space-y-6 ${sidebarCollapsed ? 'hidden' : ''}`}>
-            {/* Stats */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <MapPin className="h-5 w-5" />
-                  Database
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="text-center">
-                  <div className="text-4xl font-light mb-1">
-                    {locations.length}
+            {/* Sign In Prompt (when not logged in) */}
+            {!user && (
+              <Card>
+                <CardContent className="pt-6">
+                  <div className="text-center space-y-4">
+                    <div className="mx-auto w-16 h-16 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center">
+                      <User className="h-8 w-8 text-white" />
+                    </div>
+                    <div>
+                      <h3 className="font-semibold text-lg mb-2">Welcome to Le Voyageur</h3>
+                      <p className="text-sm text-muted-foreground">
+                        Sign in to save your favorite places and build your travel list
+                      </p>
+                    </div>
+                    <Button
+                      onClick={handleLogin}
+                      className="w-full gap-2 bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700"
+                    >
+                      <LogIn className="h-4 w-4" />
+                      Sign in with Google
+                    </Button>
                   </div>
-                  <p className="text-sm text-muted-foreground">
-                    Total Locations
-                  </p>
-                </div>
-                
-                {locations.length === 0 && (
-                  <Button 
-                    onClick={handleSeedDatabase}
-                    className="w-full gap-2 bg-gradient-to-r from-amber-500 to-rose-500 hover:from-amber-600 hover:to-rose-600"
-                  >
-                    <Sparkles className="h-4 w-4" />
-                    Add Sample Locations
-                  </Button>
-                )}
-              </CardContent>
-            </Card>
+                </CardContent>
+              </Card>
+            )}
 
-            {/* Info */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-lg">
-                  How to use
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="text-sm text-muted-foreground space-y-2">
-                <p>
-                  • Click on markers to view detailed scores
-                </p>
-                <p>• Search by tag to activate heat map</p>
-                <p>
-                  • Heat map colors: blue (low) → red (high)
-                </p>
-              </CardContent>
-            </Card>
+            {/* When logged in: Show navigation tabs */}
+            {user && (
+              <div className="flex gap-2 p-1 bg-white rounded-lg shadow-sm">
+                <button
+                  onClick={() => setSidebarView('favorites')}
+                  className={`flex-1 flex items-center justify-center gap-2 px-3 py-2.5 rounded-md text-sm font-medium transition-all ${
+                    sidebarView === 'favorites'
+                      ? 'bg-slate-900 text-white'
+                      : 'text-gray-600 hover:bg-slate-100'
+                  }`}
+                >
+                  <Heart className="h-4 w-4" />
+                  Favorites
+                </button>
+                <button
+                  onClick={() => setSidebarView('wantToGo')}
+                  className={`flex-1 flex items-center justify-center gap-2 px-3 py-2.5 rounded-md text-sm font-medium transition-all ${
+                    sidebarView === 'wantToGo'
+                      ? 'bg-slate-900 text-white'
+                      : 'text-gray-600 hover:bg-slate-100'
+                  }`}
+                >
+                  <Bookmark className="h-4 w-4" />
+                  Want to Go
+                </button>
+                <button
+                  onClick={() => setSidebarView('profile')}
+                  className={`flex-1 flex items-center justify-center gap-2 px-3 py-2.5 rounded-md text-sm font-medium transition-all ${
+                    sidebarView === 'profile'
+                      ? 'bg-slate-900 text-white'
+                      : 'text-gray-600 hover:bg-slate-100'
+                  }`}
+                >
+                  <User className="h-4 w-4" />
+                  Profile
+                </button>
+              </div>
+            )}
+
+            {/* Content based on selected view and auth status */}
+            {!user ? (
+              <>
+                {/* Not logged in: Show sign-in prompts for favorites and want to go */}
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <Heart className="h-5 w-5 text-red-500" />
+                      Favorites
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="text-center py-8">
+                    <Heart className="h-12 w-12 mx-auto mb-3 text-slate-300" />
+                    <p className="text-sm text-muted-foreground mb-4">
+                      Sign in to view your favorite locations
+                    </p>
+                    <Button
+                      onClick={handleLogin}
+                      variant="outline"
+                      className="gap-2"
+                    >
+                      <LogIn className="h-4 w-4" />
+                      Sign in
+                    </Button>
+                  </CardContent>
+                </Card>
+
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <Bookmark className="h-5 w-5 text-blue-500" />
+                      Want to Go
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="text-center py-8">
+                    <Bookmark className="h-12 w-12 mx-auto mb-3 text-slate-300" />
+                    <p className="text-sm text-muted-foreground mb-4">
+                      Sign in to build your travel wishlist
+                    </p>
+                    <Button
+                      onClick={handleLogin}
+                      variant="outline"
+                      className="gap-2"
+                    >
+                      <LogIn className="h-4 w-4" />
+                      Sign in
+                    </Button>
+                  </CardContent>
+                </Card>
+              </>
+            ) : (
+              <>
+                {/* Logged in: Show selected view content */}
+                {sidebarView === 'favorites' && (
+                  <Favorites 
+                    user={user} 
+                    userLocation={userLocation}
+                    onLocationClick={(location) => {
+                      setMapCenter({ lat: location.lat, lng: location.lng });
+                      setMapZoom(15);
+                    }}
+                  />
+                )}
+
+                {sidebarView === 'wantToGo' && (
+                  <WantToGo 
+                    user={user} 
+                    userLocation={userLocation}
+                    onLocationClick={(location) => {
+                      setMapCenter({ lat: location.lat, lng: location.lng });
+                      setMapZoom(15);
+                    }}
+                  />
+                )}
+
+                {sidebarView === 'profile' && (
+                  <Profile user={user} />
+                )}
+              </>
+            )}
           </div>
         </div>
 

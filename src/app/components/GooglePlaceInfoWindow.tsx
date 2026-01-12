@@ -1,6 +1,9 @@
+import { toast } from 'sonner';
 import { useState, useEffect } from 'react';
 import { InfoWindow } from '@vis.gl/react-google-maps';
-import { Award, Users, Star, ChevronLeft, ChevronRight, MapPin, Edit3 } from 'lucide-react';
+import { Award, Users, Star, ChevronLeft, ChevronRight, MapPin, Edit3, Navigation, Heart, Bookmark, Calendar } from 'lucide-react';
+import { EditorRatingModal } from './EditorRatingModal';
+import { api, type Location } from '../../utils/api';
 
 interface GooglePlaceInfoWindowProps {
   place: google.maps.places.PlaceResult;
@@ -27,8 +30,8 @@ export function GooglePlaceInfoWindow({
     rating: null, 
     count: null 
   });
-  const [showRatingSlider, setShowRatingSlider] = useState(false);
-  const [editorRating, setEditorRating] = useState(5.5);
+  const [showEditorModal, setShowEditorModal] = useState(false);
+  const [lvLocation, setLvLocation] = useState<Location | null>(null);
 
   useEffect(() => {
     if (place.place_id) {
@@ -115,10 +118,16 @@ export function GooglePlaceInfoWindow({
           <div className="flex-1">
             <h3 className="font-bold text-lg text-gray-900 mb-1">{place.name || 'Unknown Place'}</h3>
             {place.formatted_address && (
-              <p className="text-xs text-gray-600 flex items-center gap-1">
+              <button
+                onClick={() => {
+                  const url = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(place.formatted_address || '')}`;
+                  window.open(url, '_blank');
+                }}
+                className="text-xs text-blue-600 hover:text-blue-700 hover:underline cursor-pointer transition-colors text-left flex items-center gap-1"
+              >
                 <MapPin className="w-3 h-3" />
                 {place.formatted_address}
-              </p>
+              </button>
             )}
           </div>
           {isAuthenticated && user?.role === 'editor' && (
@@ -201,65 +210,86 @@ export function GooglePlaceInfoWindow({
             </div>
           </div>
 
+          {/* Action Buttons */}
+          <div className="grid grid-cols-2 gap-2 mb-4">
+            <button
+              onClick={() => {
+                if (!isAuthenticated) {
+                  toast.error('Please sign in to add favorites');
+                  return;
+                }
+                toast.success('Added to favorites!');
+              }}
+              className="flex items-center justify-center gap-1.5 px-3 py-2.5 bg-gray-50 hover:bg-gray-100 text-gray-700 border border-gray-200 rounded-lg text-xs font-medium transition-all"
+            >
+              <Heart className="w-3.5 h-3.5" />
+              Favorite
+            </button>
+            
+            <button
+              onClick={() => {
+                if (!isAuthenticated) {
+                  toast.error('Please sign in to add to Want to Go');
+                  return;
+                }
+                toast.success('Added to Want to Go!');
+              }}
+              className="flex items-center justify-center gap-1.5 px-3 py-2.5 bg-gray-50 hover:bg-gray-100 text-gray-700 border border-gray-200 rounded-lg text-xs font-medium transition-all"
+            >
+              <Bookmark className="w-3.5 h-3.5" />
+              Want to Go
+            </button>
+            
+            <button
+              onClick={() => {
+                toast.info('Reservations feature coming soon!');
+              }}
+              className="flex items-center justify-center gap-1.5 px-3 py-2.5 bg-gray-50 hover:bg-gray-100 text-gray-700 border border-gray-200 rounded-lg text-xs font-medium transition-all"
+            >
+              <Calendar className="w-3.5 h-3.5" />
+              Reserve
+            </button>
+            
+            <button
+              onClick={() => {
+                const url = `https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}`;
+                window.open(url, '_blank');
+              }}
+              className="flex items-center justify-center gap-1.5 px-3 py-2.5 bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 rounded-lg text-xs font-medium transition-all"
+            >
+              <Navigation className="w-3.5 h-3.5" />
+              Directions
+            </button>
+          </div>
+
           {/* Editor Rating Section - Only visible to editors */}
           {isAuthenticated && user?.role === 'editor' && (
             <div className="mt-4">
-              {!showRatingSlider ? (
-                <button
-                  onClick={() => setShowRatingSlider(true)}
-                  className="w-full p-3 bg-gradient-to-br from-amber-50 to-rose-50 hover:from-amber-100 hover:to-rose-100 rounded-lg border border-amber-200 transition-all"
-                >
-                  <p className="text-xs text-gray-700 text-center font-medium flex items-center justify-center gap-2">
-                    <Award className="w-4 h-4 text-amber-600" />
-                    Rate this location as LV Editor
-                  </p>
-                </button>
-              ) : (
-                <div className="p-4 bg-gradient-to-br from-amber-50 to-rose-50 rounded-lg border border-amber-200 space-y-3">
-                  <div className="flex items-center justify-between">
-                    <p className="text-xs font-semibold text-gray-700 uppercase tracking-wide flex items-center gap-2">
-                      <Award className="w-4 h-4 text-amber-600" />
-                      LV Editor Score
-                    </p>
-                    <span className="text-lg font-bold text-amber-600">{editorRating.toFixed(1)}</span>
-                  </div>
-                  <input
-                    type="range"
-                    min="0"
-                    max="11"
-                    step="0.1"
-                    value={editorRating}
-                    onChange={(e) => setEditorRating(parseFloat(e.target.value))}
-                    className="w-full h-2 bg-gradient-to-r from-slate-200 via-amber-300 to-rose-400 rounded-lg appearance-none cursor-pointer accent-amber-600"
-                    style={{
-                      background: `linear-gradient(to right, #e2e8f0 0%, #fbbf24 ${(editorRating / 11) * 50}%, #fb7185 ${(editorRating / 11) * 100}%)`
-                    }}
-                  />
-                  <div className="flex justify-between text-xs text-gray-500">
-                    <span>0.0</span>
-                    <span>11.0</span>
-                  </div>
-                  <div className="flex gap-2 mt-2">
-                    <button
-                      onClick={() => {
-                        setShowRatingSlider(false);
-                        // TODO: Submit rating to database
-                        console.log('Rating:', editorRating);
-                      }}
-                      className="flex-1 px-3 py-2 bg-amber-600 hover:bg-amber-700 text-white text-xs font-medium rounded-lg transition-colors"
-                    >
-                      Submit Rating
-                    </button>
-                    <button
-                      onClick={() => setShowRatingSlider(false)}
-                      className="px-3 py-2 bg-gray-200 hover:bg-gray-300 text-gray-700 text-xs font-medium rounded-lg transition-colors"
-                    >
-                      Cancel
-                    </button>
-                  </div>
-                </div>
-              )}
+              <button
+                onClick={() => setShowEditorModal(true)}
+                className="w-full p-3 bg-gradient-to-br from-amber-50 to-rose-50 hover:from-amber-100 hover:to-rose-100 rounded-lg border border-amber-200 transition-all"
+              >
+                <p className="text-xs text-gray-700 text-center font-medium flex items-center justify-center gap-2">
+                  <Award className="w-4 h-4 text-amber-600" />
+                  {lvLocation?.lvEditorsScore ? 'Update Rating' : 'No LV Rating Yet'}
+                </p>
+              </button>
             </div>
+          )}
+
+          {/* Editor Rating Modal */}
+          {showEditorModal && place.place_id && (
+            <EditorRatingModal
+              locationId={place.place_id}
+              locationName={place.name || 'Unknown Place'}
+              currentRating={lvLocation?.lvEditorsScore}
+              currentTags={lvLocation?.tags || []}
+              onClose={() => setShowEditorModal(false)}
+              onSuccess={() => {
+                toast.success('Rating updated successfully!');
+                setShowEditorModal(false);
+              }}
+            />
           )}
 
           {/* Types/Categories */}

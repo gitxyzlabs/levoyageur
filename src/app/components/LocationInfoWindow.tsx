@@ -1,6 +1,5 @@
-import { useState, useEffect } from 'react';
 import { InfoWindow } from '@vis.gl/react-google-maps';
-import { Heart, Award, Users, Star, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Heart, Award, Users, Star, ChevronLeft, ChevronRight, Navigation, Bookmark, Calendar } from 'lucide-react';
 import type { Location, User } from '../../utils/api';
 import { api } from '../../utils/api';
 import { toast } from 'sonner';
@@ -209,7 +208,15 @@ export function LocationInfoWindow({
           <div className="flex-1">
             <h3 className="font-bold text-lg text-gray-900 mb-1">{location.name}</h3>
             {location.description && (
-              <p className="text-xs text-gray-600">{location.description}</p>
+              <button
+                onClick={() => {
+                  const url = `https://www.google.com/maps/search/?api=1&query=${location.lat},${location.lng}`;
+                  window.open(url, '_blank');
+                }}
+                className="text-xs text-blue-600 hover:text-blue-700 hover:underline cursor-pointer transition-colors text-left"
+              >
+                {location.description}
+              </button>
             )}
           </div>
           <button
@@ -339,6 +346,56 @@ export function LocationInfoWindow({
                 )}
               </div>
             </div>
+          </div>
+
+          {/* Action Buttons */}
+          <div className="grid grid-cols-2 gap-2 mb-4">
+            <button
+              onClick={toggleFavorite}
+              className={`flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-lg text-xs font-medium transition-all ${
+                isFavorite
+                  ? 'bg-red-50 text-red-700 border border-red-200'
+                  : 'bg-gray-50 text-gray-700 border border-gray-200 hover:bg-gray-100'
+              }`}
+            >
+              <Heart className={`w-3.5 h-3.5 ${isFavorite ? 'fill-red-500' : ''}`} />
+              {isFavorite ? 'Saved' : 'Favorite'}
+            </button>
+            
+            <button
+              onClick={() => {
+                if (!isAuthenticated) {
+                  toast.error('Please sign in to add to Want to Go');
+                  return;
+                }
+                toast.success('Added to Want to Go!');
+              }}
+              className="flex items-center justify-center gap-1.5 px-3 py-2.5 bg-gray-50 hover:bg-gray-100 text-gray-700 border border-gray-200 rounded-lg text-xs font-medium transition-all"
+            >
+              <Bookmark className="w-3.5 h-3.5" />
+              Want to Go
+            </button>
+            
+            <button
+              onClick={() => {
+                toast.info('Reservations feature coming soon!');
+              }}
+              className="flex items-center justify-center gap-1.5 px-3 py-2.5 bg-gray-50 hover:bg-gray-100 text-gray-700 border border-gray-200 rounded-lg text-xs font-medium transition-all"
+            >
+              <Calendar className="w-3.5 h-3.5" />
+              Reserve
+            </button>
+            
+            <button
+              onClick={() => {
+                const url = `https://www.google.com/maps/dir/?api=1&destination=${location.lat},${location.lng}`;
+                window.open(url, '_blank');
+              }}
+              className="flex items-center justify-center gap-1.5 px-3 py-2.5 bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 rounded-lg text-xs font-medium transition-all"
+            >
+              <Navigation className="w-3.5 h-3.5" />
+              Directions
+            </button>
           </div>
 
           {/* Tags */}

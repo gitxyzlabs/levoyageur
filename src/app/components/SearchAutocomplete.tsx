@@ -39,22 +39,27 @@ export function SearchAutocomplete({ onPlaceSelect, onTagSelect, onClear }: Sear
           
           const request = {
             input: searchValue,
-            includedPrimaryTypes: ['restaurant', 'cafe', 'bar', 'bakery', 'meal_takeaway', 'meal_delivery'],
+            includedPrimaryTypes: ['restaurant', 'cafe', 'bar', 'bakery', 'meal_takeaway'],
           };
           
           const { suggestions } = await AutocompleteSuggestion.fetchAutocompleteSuggestions(request);
           
           if (suggestions && suggestions.length > 0) {
             console.log('Google predictions:', suggestions);
+            console.log('First suggestion structure:', JSON.stringify(suggestions[0], null, 2));
             // Convert new format to old format for compatibility
-            const predictions = suggestions.slice(0, 5).map((s: any) => ({
-              place_id: s.placePrediction?.placeId || s.placePrediction?.place,
-              description: s.placePrediction?.text?.text || '',
-              structured_formatting: {
-                main_text: s.placePrediction?.structuredFormat?.mainText?.text || '',
-                secondary_text: s.placePrediction?.structuredFormat?.secondaryText?.text || '',
-              }
-            }));
+            const predictions = suggestions.slice(0, 5).map((s: any) => {
+              const placePrediction = s.placePrediction;
+              return {
+                place_id: placePrediction?.placeId || placePrediction?.place,
+                description: placePrediction?.text?.text || placePrediction?.text || '',
+                structured_formatting: {
+                  main_text: placePrediction?.structuredFormat?.mainText?.text || placePrediction?.mainText?.text || placePrediction?.text?.text || 'Unknown',
+                  secondary_text: placePrediction?.structuredFormat?.secondaryText?.text || placePrediction?.secondaryText?.text || '',
+                }
+              };
+            });
+            console.log('Converted predictions:', predictions);
             setGooglePredictions(predictions);
           } else {
             setGooglePredictions([]);
@@ -106,6 +111,11 @@ export function SearchAutocomplete({ onPlaceSelect, onTagSelect, onClear }: Sear
   const handleGooglePlaceSelect = async (prediction: google.maps.places.AutocompletePrediction) => {
     if (!prediction.place_id) return;
 
+    // Close dropdown and clear predictions immediately
+    setShowDropdown(false);
+    setGooglePredictions([]);
+    setSupabaseTags([]);
+
     try {
       // Use the new Place API instead of deprecated PlacesService
       const { Place } = await google.maps.importLibrary("places") as google.maps.PlacesLibrary;
@@ -140,7 +150,8 @@ export function SearchAutocomplete({ onPlaceSelect, onTagSelect, onClear }: Sear
 
       onPlaceSelect(placeResult);
       setSearchValue(prediction.description);
-      setShowDropdown(false);
+      // Blur the input to prevent dropdown from reopening
+      inputRef.current?.blur();
     } catch (error) {
       console.error('Error fetching place details:', error);
       
@@ -153,7 +164,8 @@ export function SearchAutocomplete({ onPlaceSelect, onTagSelect, onClear }: Sear
       
       onPlaceSelect(fallbackResult);
       setSearchValue(prediction.description);
-      setShowDropdown(false);
+      // Blur the input to prevent dropdown from reopening
+      inputRef.current?.blur();
     }
   };
 
@@ -161,6 +173,10 @@ export function SearchAutocomplete({ onPlaceSelect, onTagSelect, onClear }: Sear
     onTagSelect(tag);
     setSearchValue(tag);
     setShowDropdown(false);
+    setGooglePredictions([]);
+    setSupabaseTags([]);
+    // Blur the input to prevent dropdown from reopening
+    inputRef.current?.blur();
   };
 
   const handleClear = () => {
@@ -206,7 +222,11 @@ export function SearchAutocomplete({ onPlaceSelect, onTagSelect, onClear }: Sear
           value={searchValue}
           onChange={(e) => setSearchValue(e.target.value)}
           onKeyDown={handleKeyDown}
-          onFocus={() => setShowDropdown(true)}
+          onFocus={() => {
+            if (hasResults) {
+              setShowDropdown(true);
+            }
+          }}
           placeholder="Search tags or places"
           className="w-full pl-12 pr-12 py-4 text-base rounded-2xl bg-white/95 backdrop-blur-2xl border-2 border-white/40 shadow-2xl focus:outline-none focus:ring-4 focus:ring-amber-400/30 focus:border-amber-400/50 text-gray-900 placeholder-gray-400 transition-all duration-300 hover:shadow-amber-200/50"
         />
