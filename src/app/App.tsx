@@ -70,19 +70,26 @@ export default function App() {
   useEffect(() => {
     initializeApp();
     
-    // Get user's geolocation for centering the map
+    // Get user's geolocation and center map on it
     if (navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
         (position) => {
-          const userLocation = {
+          const userPos = {
             lat: position.coords.latitude,
             lng: position.coords.longitude,
           };
-          setMapCenter(userLocation);
-          console.log('✅ Centered map on user location:', userLocation);
+          setUserLocation(userPos);
+          // Center map on user's location
+          setMapCenter(userPos);
+          setMapZoom(13); // Good zoom level to see nearby locations
+          console.log('✅ Centered map on user location:', userPos);
         },
         (error) => {
-          console.log('Geolocation error (using default center):', error.message);
+          console.log('Geolocation error:', error);
+          // Fallback to San Diego if geolocation is denied
+          const fallbackLocation = { lat: 32.7157, lng: -117.1611 };
+          setMapCenter(fallbackLocation);
+          console.log('⚠️ Using fallback location (San Diego)');
         }
       );
     }
@@ -93,7 +100,7 @@ export default function App() {
       
       if ((event === 'SIGNED_IN' || event === 'INITIAL_SESSION') && session) {
         console.log('User signed in or initial session found, loading user data...');
-        await handleSignIn(session);
+        await handleSignIn(session);  // Renamed from handleOAuthSignIn
       } else if (event === 'SIGNED_OUT') {
         console.log('User signed out');
         setIsAuthenticated(false);
@@ -146,8 +153,8 @@ export default function App() {
         }
       }
       
-      // Load locations and check auth (important for OAuth callback!)
-      await checkAuthAndLoadData();
+      // Load locations (auth now handled by onAuthStateChange)
+      await loadLocations();
     } catch (error) {
       console.error("Error during initialization:", error);
     } finally {
@@ -155,49 +162,14 @@ export default function App() {
     }
   };
 
+  // Remove user loading from this function (now centralized in onAuthStateChange)
   const checkAuthAndLoadData = async () => {
     try {
-      // Always load locations first (no auth required)
+      // Only load locations - user loading now happens via onAuthStateChange
       await loadLocations();
-      
-      // Check if user is logged in (optional)
-      console.log('Checking for active session...');
-      const session = await api.getSession();
-      
-      if (session) {
-        console.log('Session found! User ID:', session.user.id);
-        console.log('User email:', session.user.email);
-        console.log('Access token available:', !!session.access_token);
-        
-        // IMPORTANT: Set the access token first before making any API calls
-        setAccessToken(session.access_token);
-        
-        // Wait a tiny bit to ensure token is set
-        await new Promise(resolve => setTimeout(resolve, 100));
-        
-        try {
-          // Try to get user data from backend
-          const { user: userData } = await api.getCurrentUser();
-          console.log('User data loaded from backend:', userData);
-          console.log('User role from backend:', userData.role);
-          console.log('User ID:', userData.id);
-          console.log('User email:', userData.email);
-          console.log('🔍 ROLE CHECK - Is user an editor?', userData.role === 'editor');
-          setUser(userData);
-          setIsAuthenticated(true);
-        } catch (error: any) {
-          console.error('❌ Error loading user from backend:', error);
-          console.error('Error message:', error.message);
-          
-          // If user doesn't exist in backend, the backend will auto-create
-          // So if we still get an error, something else is wrong
-          toast.error('Failed to load user data. Please try signing out and back in.');
-        }
-      } else {
-        console.log('No active session found');
-      }
     } catch (error) {
-      console.error("Error during initialization:", error);
+      console.error("Error loading locations:", error);
+      // Don't throw - allow app to continue even if locations fail to load
     }
   };
 
@@ -209,14 +181,12 @@ export default function App() {
       
       setAccessToken(session.access_token);
       
-      // Small delay to ensure token is set
       await new Promise(resolve => setTimeout(resolve, 100));
       
       console.log('📡 Fetching user profile from server...');
       
-      // Try to get user data from backend
       const response = await fetch(
-        `https://${projectId}.supabase.co/functions/v1/make-server-48182530/user`,
+        `https://api.lvofc.com/functions/v1/make-server-48182530/user`,
         {
           headers: {
             'Content-Type': 'application/json',
@@ -230,14 +200,7 @@ export default function App() {
       if (!response.ok) {
         const errorText = await response.text();
         console.error('❌ Server returned error:', errorText);
-        
-        // Show helpful error message
-        toast.error(
-          'Server authentication failed. The backend may need to be redeployed. Check console for details.',
-          { duration: 5000 }
-        );
-        
-        // Don't sign out - let user stay "semi-authenticated" to view public content
+        toast.error('Server authentication failed. The backend may need to be redeployed. Check console for details.', { duration: 5000 });
         console.log('⚠️ Keeping user session but not marking as fully authenticated');
         return;
       }
@@ -250,14 +213,7 @@ export default function App() {
       toast.success(`Welcome back, ${userData.name}!`);
     } catch (error: any) {
       console.error('❌ Error in handleSignIn:', error);
-      
-      // Show helpful error message
-      toast.error(
-        'Unable to load user profile. You may need to deploy the latest server code to Supabase.',
-        { duration: 6000 }
-      );
-      
-      // Don't auto sign-out - let the user manually sign out if needed
+      toast.error('Unable to load user profile. You may need to deploy the latest server code to Supabase.', { duration: 6000 });
       console.log('⚠️ Not auto-signing out due to error. User can manually sign out.');
     }
   };
@@ -446,13 +402,13 @@ export default function App() {
 
   const handleAuthSuccess = async () => {
     setShowAuth(false);
-    await checkAuthAndLoadData();
+    await loadLocations();  // No need for full checkAuthAndLoadData; user loaded via onAuthStateChange
   };
 
   const handleSeedDatabase = async () => {
     try {
       const response = await fetch(
-        `https://${projectId}.supabase.co/functions/v1/make-server-48182530/seed`,
+        `https://api.lvofc.com/functions/v1/make-server-48182530/seed`,
         {
           method: 'POST',
           headers: {

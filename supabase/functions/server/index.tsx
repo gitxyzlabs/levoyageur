@@ -3,6 +3,7 @@ import { cors } from "npm:hono/cors";
 import { logger } from "npm:hono/logger";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import * as kv from "./kv_store.tsx";
+import * as jose from "jsr:@panva/jose@6"; // Add this import for proper JWT verification
 
 const app = new Hono();
 
@@ -32,7 +33,11 @@ function getSupabaseClient() {
   );
 }
 
-// Middleware to verify JWT and extract user ID
+// JWKS for JWT verification (fetches public keys for ES256 or other asymmetric algs)
+const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
+const JWKS = jose.createRemoteJWKSet(new URL(`${SUPABASE_URL}/auth/v1/.well-known/jwks.json`));
+
+// Middleware to verify JWT and extract user ID (updated for proper signature verification with jose)
 async function verifyAuth(c: any, next: any) {
   console.log('📍 verifyAuth middleware called');
   console.log('📍 Request URL:', c.req.url);
@@ -50,32 +55,27 @@ async function verifyAuth(c: any, next: any) {
   console.log('📍 Token extracted (first 20 chars):', token.substring(0, 20));
   console.log('📍 Token length:', token.length);
 
-  // IMPORTANT: Use the ANON key client for verifying user JWTs, not admin client!
-  // OAuth JWTs need to be verified with the anon key, not service role key
-  const supabase = getSupabaseClient();
-  console.log('📍 Using anon key client for JWT verification');
-  
-  const { data, error } = await supabase.auth.getUser(token);
-  
-  console.log('📍 getUser result - has user:', !!data?.user, 'has error:', !!error);
-  if (error) {
-    console.log('❌ getUser error:', error.message);
+  try {
+    // Verify JWT signature using JWKS (supports ES256)
+    const { payload } = await jose.jwtVerify(token, JWKS, {
+      issuer: `${SUPABASE_URL}/auth/v1`,
+      audience: 'authenticated',
+    });
+
+    if (!payload.sub) {
+      throw new Error('No user ID in payload');
+    }
+
+    console.log('✅ User verified successfully:', payload.sub);
+    console.log('✅ User email:', payload.email);
+    c.set('userId', payload.sub);
+    c.set('userEmail', payload.email);
+    await next();
+  } catch (error: any) {
+    console.log('❌ JWT verification failed:', error.message);
     console.log('❌ Full error:', JSON.stringify(error));
+    return c.json({ error: 'Unauthorized', details: error.message }, 401);
   }
-  if (data?.user) {
-    console.log('✅ User found - ID:', data.user.id);
-    console.log('✅ User email:', data.user.email);
-  }
-
-  if (error || !data.user) {
-    console.log('❌ Authorization error during JWT verification:', error?.message || 'No user found');
-    return c.json({ error: 'Unauthorized', details: error?.message }, 401);
-  }
-
-  console.log('✅ User verified successfully:', data.user.id);
-  c.set('userId', data.user.id);
-  c.set('userEmail', data.user.email);
-  await next();
 }
 
 // ============================================
@@ -156,10 +156,10 @@ app.get('/make-server-48182530/user', verifyAuth, async (c) => {
       };
       console.log('📍 Creating default profile:', defaultProfile);
       await kv.set(`user:${userId}`, defaultProfile);
-      return c.json(defaultProfile);
+      return c.json({ user: defaultProfile }); // Wrapped for consistency
     }
 
-    return c.json(userProfile);
+    return c.json({ user: userProfile }); // Wrapped for consistency
   } catch (error) {
     console.error('❌ Error in GET /user:', error);
     return c.json({ error: 'Failed to fetch user data' }, 500);
