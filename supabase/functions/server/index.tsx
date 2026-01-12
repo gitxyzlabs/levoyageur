@@ -2,12 +2,6 @@ import { Hono } from "npm:hono";
 import { cors } from "npm:hono/cors";
 import { logger } from "npm:hono/logger";
 import { createClient } from "npm:@supabase/supabase-js@2";
-import * as kv from "./kv_store.tsx";
-import * as jose from "jsr:@panva/jose@6"; // Add this import for proper JWT verification
-
-// Debug logging for environment variables
-console.log("SUPABASE_URL from env:", Deno.env.get("SUPABASE_URL"));
-console.log("JWKS URL being used:", `${Deno.env.get("SUPABASE_URL")}/auth/v1/.well-known/jwks.json`);
 
 const app = new Hono();
 
@@ -37,15 +31,9 @@ function getSupabaseClient() {
   );
 }
 
-// JWKS for JWT verification (fetches public keys for ES256 or other asymmetric algs)
-const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
-const JWKS = jose.createRemoteJWKSet(new URL(`${SUPABASE_URL}/auth/v1/.well-known/jwks.json`));
-
 // Middleware to verify JWT and extract user ID (using Supabase's getUser method)
 async function verifyAuth(c: any, next: any) {
   console.log('📍 verifyAuth middleware called');
-  console.log('📍 Request URL:', c.req.url);
-  console.log('📍 Request method:', c.req.method);
   
   const authHeader = c.req.header('Authorization');
   console.log('📍 Authorization header present:', !!authHeader);
@@ -57,22 +45,16 @@ async function verifyAuth(c: any, next: any) {
 
   const token = authHeader.replace('Bearer ', '');
   console.log('📍 Token extracted (first 20 chars):', token.substring(0, 20));
-  console.log('📍 Token length:', token.length);
 
   try {
-    // Use Supabase's built-in getUser method instead of manual JWT verification
-    // This should work with OAuth tokens
-    const supabase = createClient(
-      Deno.env.get('SUPABASE_URL')!,
-      Deno.env.get('SUPABASE_ANON_KEY')!
-    );
+    // Use Supabase's built-in getUser method (works with OAuth tokens)
+    const supabase = getSupabaseClient();
     
     console.log('📍 Calling supabase.auth.getUser() with token');
     const { data: { user }, error } = await supabase.auth.getUser(token);
     
     if (error) {
       console.log('❌ Supabase getUser error:', error.message);
-      console.log('❌ Error details:', JSON.stringify(error));
       throw error;
     }
     
@@ -87,25 +69,42 @@ async function verifyAuth(c: any, next: any) {
     await next();
   } catch (error: any) {
     console.log('❌ JWT verification failed:', error.message);
-    console.log('❌ Error stack:', error.stack);
-    
-    // Try to decode the JWT without verification to see what's in it
-    try {
-      const decoded = jose.decodeJwt(token);
-      console.log('📍 Decoded JWT payload (unverified):');
-      console.log('  - sub:', decoded.sub);
-      console.log('  - email:', decoded.email);
-      console.log('  - aud:', decoded.aud);
-      console.log('  - iss:', decoded.iss);
-      console.log('  - exp:', decoded.exp);
-      console.log('  - iat:', decoded.iat);
-    } catch (decodeError) {
-      console.log('❌ Could not decode JWT:', decodeError);
-    }
-    
     return c.json({ error: 'Unauthorized', details: error.message }, 401);
   }
 }
+
+// Middleware to verify editor role
+async function verifyEditor(c: any, next: any) {
+  const userId = c.get('userId');
+  
+  try {
+    // Query the user_metadata table to get the authoritative role
+    const supabase = getSupabaseAdmin();
+    const { data: userData, error } = await supabase
+      .from('user_metadata')
+      .select('role')
+      .eq('user_id', userId)
+      .single();
+
+    if (error || !userData) {
+      console.log('❌ User not found in user_metadata table:', userId);
+      return c.json({ error: 'Forbidden - User not found' }, 403);
+    }
+
+    const role = userData.role;
+    if (role !== 'editor') {
+      console.log('❌ User is not an editor. Role from user_metadata table:', role);
+      return c.json({ error: 'Forbidden - Editor role required' }, 403);
+    }
+    
+    console.log('✅ Editor role verified from user_metadata table:', role);
+    await next();
+  } catch (error) {
+    console.error('❌ Error in verifyEditor:', error);
+    return c.json({ error: 'Failed to verify editor role' }, 500);
+  }
+}
+
 // ============================================
 // PUBLIC ROUTES (No Auth Required)
 // ============================================
@@ -123,10 +122,42 @@ app.get('/make-server-48182530/config/google-maps-key', (c) => {
 app.get('/make-server-48182530/locations', async (c) => {
   console.log('📍 GET /locations - Start');
   try {
-    const locations = await kv.getByPrefix('location:');
-    console.log('GET /locations - Found locations:', locations.length);
-    // Return in the format expected by the client: { locations: Location[] }
-    return c.json({ locations });
+    const supabase = getSupabaseAdmin();
+    const { data: locations, error } = await supabase
+      .from('locations')
+      .select('*')
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      console.error('❌ Error fetching locations:', error);
+      return c.json({ error: 'Failed to fetch locations' }, 500);
+    }
+
+    console.log('GET /locations - Found locations:', locations?.length || 0);
+    
+    // Convert snake_case from DB to camelCase for frontend
+    const formattedLocations = locations?.map(loc => ({
+      id: loc.id,
+      name: loc.name,
+      description: loc.description,
+      lat: loc.lat,
+      lng: loc.lng,
+      lvEditorsScore: loc.lv_editors_score,
+      lvCrowdsourceScore: loc.lv_crowdsource_score,
+      googleRating: loc.google_rating,
+      michelinScore: loc.michelin_score,
+      tags: loc.tags || [],
+      cuisine: loc.cuisine,
+      area: loc.area,
+      image: loc.image,
+      placeId: loc.place_id,
+      createdBy: loc.created_by,
+      createdAt: loc.created_at,
+      updatedBy: loc.updated_by,
+      updatedAt: loc.updated_at,
+    })) || [];
+    
+    return c.json({ locations: formattedLocations });
   } catch (error) {
     console.error('❌ Error in GET /locations:', error);
     return c.json({ error: 'Failed to fetch locations' }, 500);
@@ -140,30 +171,75 @@ app.get('/make-server-48182530/locations/tag/:tag', async (c) => {
   console.log('Searching for tag:', tag);
   
   try {
-    const allLocations = await kv.getByPrefix('location:');
-    // Filter locations that have this tag (case-insensitive)
-    const filteredLocations = allLocations.filter((loc: any) => {
-      if (!loc.tags || !Array.isArray(loc.tags)) return false;
-      return loc.tags.some((t: string) => 
-        t.toLowerCase() === tag.toLowerCase()
-      );
-    });
+    const supabase = getSupabaseAdmin();
+    // Use PostgreSQL array contains operator
+    const { data: locations, error } = await supabase
+      .from('locations')
+      .select('*')
+      .contains('tags', [tag])
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      console.error('❌ Error fetching locations by tag:', error);
+      return c.json({ error: 'Failed to fetch locations by tag' }, 500);
+    }
     
-    console.log('GET /locations/tag - Found locations:', filteredLocations.length);
-    return c.json({ locations: filteredLocations });
+    console.log('GET /locations/tag - Found locations:', locations?.length || 0);
+    
+    // Convert snake_case to camelCase
+    const formattedLocations = locations?.map(loc => ({
+      id: loc.id,
+      name: loc.name,
+      description: loc.description,
+      lat: loc.lat,
+      lng: loc.lng,
+      lvEditorsScore: loc.lv_editors_score,
+      lvCrowdsourceScore: loc.lv_crowdsource_score,
+      googleRating: loc.google_rating,
+      michelinScore: loc.michelin_score,
+      tags: loc.tags || [],
+      cuisine: loc.cuisine,
+      area: loc.area,
+      image: loc.image,
+      placeId: loc.place_id,
+      createdBy: loc.created_by,
+      createdAt: loc.created_at,
+      updatedBy: loc.updated_by,
+      updatedAt: loc.updated_at,
+    })) || [];
+    
+    return c.json({ locations: formattedLocations });
   } catch (error) {
     console.error('❌ Error in GET /locations/tag:', error);
     return c.json({ error: 'Failed to fetch locations by tag' }, 500);
   }
 });
 
-// Get all tags (public - no auth required)
+// Get all unique tags (public - no auth required)
 app.get('/make-server-48182530/tags', async (c) => {
   console.log('📍 GET /tags - Start');
   try {
-    const tags = await kv.getByPrefix('tag:');
-    console.log('GET /tags - Found tags:', tags.length);
-    return c.json({ tags: tags.map((tag: any) => tag.name) });
+    const supabase = getSupabaseAdmin();
+    const { data: locations, error } = await supabase
+      .from('locations')
+      .select('tags');
+
+    if (error) {
+      console.error('❌ Error fetching tags:', error);
+      return c.json({ error: 'Failed to fetch tags' }, 500);
+    }
+
+    // Extract unique tags from all locations
+    const tagSet = new Set<string>();
+    locations?.forEach(loc => {
+      if (loc.tags && Array.isArray(loc.tags)) {
+        loc.tags.forEach(tag => tagSet.add(tag));
+      }
+    });
+
+    const uniqueTags = Array.from(tagSet).sort();
+    console.log('GET /tags - Found unique tags:', uniqueTags.length);
+    return c.json({ tags: uniqueTags });
   } catch (error) {
     console.error('❌ Error in GET /tags:', error);
     return c.json({ error: 'Failed to fetch tags' }, 500);
@@ -182,25 +258,39 @@ app.get('/make-server-48182530/user', verifyAuth, async (c) => {
   console.log('📍 User ID from context:', userId);
 
   try {
-    // Get user profile from KV store
-    const userProfile = await kv.get(`user:${userId}`);
-    console.log('📍 User profile from KV:', userProfile);
-    
-    if (!userProfile) {
-      // Create default user profile
-      const defaultProfile = {
-        id: userId,
-        email: userEmail,
-        role: 'user',
-        name: userEmail?.split('@')[0] || 'User',
-        createdAt: new Date().toISOString(),
-      };
-      console.log('📍 Creating default profile:', defaultProfile);
-      await kv.set(`user:${userId}`, defaultProfile);
-      return c.json({ user: defaultProfile }); // Wrapped for consistency
+    // Query the user_metadata table
+    const supabase = getSupabaseAdmin();
+    const { data: userData, error } = await supabase
+      .from('user_metadata')
+      .select('*')
+      .eq('user_id', userId)
+      .single();
+
+    if (error) {
+      console.error('❌ Error fetching user from user_metadata table:', error);
+      // If user doesn't exist in table, return default user data
+      return c.json({ 
+        user: {
+          id: userId,
+          email: userEmail,
+          role: 'user',
+          name: userEmail?.split('@')[0] || 'User',
+        }
+      });
     }
 
-    return c.json({ user: userProfile }); // Wrapped for consistency
+    // Map database columns to our API response format
+    const userProfile = {
+      id: userData.user_id,
+      email: userData.email,
+      role: userData.role,
+      name: userData.name,
+      createdAt: userData.created_at,
+      updatedAt: userData.updated_at,
+    };
+    
+    console.log('✅ User loaded from user_metadata table:', userProfile);
+    return c.json({ user: userProfile });
   } catch (error) {
     console.error('❌ Error in GET /user:', error);
     return c.json({ error: 'Failed to fetch user data' }, 500);
@@ -214,11 +304,39 @@ app.put('/make-server-48182530/user', verifyAuth, async (c) => {
   const updates = await c.req.json();
 
   try {
-    const existingUser = await kv.get(`user:${userId}`);
-    const updatedUser = { ...existingUser, ...updates, id: userId };
-    await kv.set(`user:${userId}`, updatedUser);
+    const supabase = getSupabaseAdmin();
+    
+    // Prepare updates (convert camelCase to snake_case)
+    const dbUpdates: any = {
+      updated_at: new Date().toISOString(),
+    };
+    
+    if (updates.name) dbUpdates.name = updates.name;
+    if (updates.email) dbUpdates.email = updates.email;
+    
+    const { data: updatedUser, error } = await supabase
+      .from('user_metadata')
+      .update(dbUpdates)
+      .eq('user_id', userId)
+      .select()
+      .single();
+
+    if (error) {
+      console.error('❌ Error updating user:', error);
+      return c.json({ error: 'Failed to update user' }, 500);
+    }
+
     console.log('✅ User updated:', userId);
-    return c.json(updatedUser);
+    
+    // Convert to camelCase for response
+    return c.json({
+      id: updatedUser.user_id,
+      email: updatedUser.email,
+      name: updatedUser.name,
+      role: updatedUser.role,
+      createdAt: updatedUser.created_at,
+      updatedAt: updatedUser.updated_at,
+    });
   } catch (error) {
     console.error('❌ Error in PUT /user:', error);
     return c.json({ error: 'Failed to update user' }, 500);
@@ -231,20 +349,52 @@ app.get('/make-server-48182530/favorites', verifyAuth, async (c) => {
   const userId = c.get('userId');
 
   try {
-    const favoriteRecords = await kv.getByPrefix(`favorite:${userId}:`);
-    console.log('GET /favorites - Found favorite records:', favoriteRecords.length);
+    const supabase = getSupabaseAdmin();
     
-    // Get the actual location data for each favorite
-    const favorites = [];
-    for (const fav of favoriteRecords) {
-      const location = await kv.get(`location:${fav.locationId}`);
-      if (location) {
-        favorites.push(location);
-      }
+    // Join favorites with locations table
+    const { data: favorites, error } = await supabase
+      .from('favorites')
+      .select(`
+        id,
+        created_at,
+        locations (*)
+      `)
+      .eq('user_id', userId)
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      console.error('❌ Error fetching favorites:', error);
+      return c.json({ error: 'Failed to fetch favorites' }, 500);
     }
+
+    console.log('GET /favorites - Found favorites:', favorites?.length || 0);
     
-    console.log('GET /favorites - Resolved locations:', favorites.length);
-    return c.json({ favorites });
+    // Extract and format location data
+    const formattedFavorites = favorites?.map(fav => {
+      const loc = fav.locations as any;
+      return {
+        id: loc.id,
+        name: loc.name,
+        description: loc.description,
+        lat: loc.lat,
+        lng: loc.lng,
+        lvEditorsScore: loc.lv_editors_score,
+        lvCrowdsourceScore: loc.lv_crowdsource_score,
+        googleRating: loc.google_rating,
+        michelinScore: loc.michelin_score,
+        tags: loc.tags || [],
+        cuisine: loc.cuisine,
+        area: loc.area,
+        image: loc.image,
+        placeId: loc.place_id,
+        createdBy: loc.created_by,
+        createdAt: loc.created_at,
+        updatedBy: loc.updated_by,
+        updatedAt: loc.updated_at,
+      };
+    }) || [];
+    
+    return c.json({ favorites: formattedFavorites });
   } catch (error) {
     console.error('❌ Error in GET /favorites:', error);
     return c.json({ error: 'Failed to fetch favorites' }, 500);
@@ -262,36 +412,38 @@ app.post('/make-server-48182530/favorites/:locationId', verifyAuth, async (c) =>
   }
 
   try {
-    // Check if location exists, if not create a minimal record
-    // This handles Google Place IDs that aren't in our database yet
-    const existingLocation = await kv.get(`location:${locationId}`);
-    if (!existingLocation) {
-      console.log('📍 Location not found, creating minimal record for:', locationId);
-      // Create a minimal location record - it will be enriched by frontend or editor later
-      const minimalLocation = {
-        id: locationId,
-        name: 'Google Place', // Frontend should update this
-        lat: 0,
-        lng: 0,
-        lvEditorsScore: 0,
-        lvCrowdsourceScore: 0,
-        googleRating: 0,
-        michelinScore: 0,
-        tags: [],
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-      };
-      await kv.set(`location:${locationId}`, minimalLocation);
+    const supabase = getSupabaseAdmin();
+    
+    // Check if location exists
+    const { data: location, error: locError } = await supabase
+      .from('locations')
+      .select('id')
+      .eq('id', locationId)
+      .single();
+
+    if (locError || !location) {
+      return c.json({ error: 'Location not found' }, 404);
     }
 
-    const favoriteKey = `favorite:${userId}:${locationId}`;
-    const favorite = {
-      userId,
-      locationId,
-      createdAt: new Date().toISOString(),
-    };
-    await kv.set(favoriteKey, favorite);
-    console.log('✅ Favorite added:', favoriteKey);
+    // Insert favorite (unique constraint will prevent duplicates)
+    const { error } = await supabase
+      .from('favorites')
+      .insert({
+        user_id: userId,
+        location_id: locationId,
+      });
+
+    if (error) {
+      // Check if it's a duplicate key error
+      if (error.code === '23505') {
+        console.log('📍 Favorite already exists');
+        return c.json({ success: true, message: 'Already favorited' });
+      }
+      console.error('❌ Error adding favorite:', error);
+      return c.json({ error: 'Failed to add favorite' }, 500);
+    }
+
+    console.log('✅ Favorite added:', locationId);
     return c.json({ success: true });
   } catch (error) {
     console.error('❌ Error in POST /favorites:', error);
@@ -306,9 +458,20 @@ app.delete('/make-server-48182530/favorites/:locationId', verifyAuth, async (c) 
   const locationId = c.req.param('locationId');
 
   try {
-    const favoriteKey = `favorite:${userId}:${locationId}`;
-    await kv.del(favoriteKey);
-    console.log('✅ Favorite removed:', favoriteKey);
+    const supabase = getSupabaseAdmin();
+    
+    const { error } = await supabase
+      .from('favorites')
+      .delete()
+      .eq('user_id', userId)
+      .eq('location_id', locationId);
+
+    if (error) {
+      console.error('❌ Error removing favorite:', error);
+      return c.json({ error: 'Failed to remove favorite' }, 500);
+    }
+
+    console.log('✅ Favorite removed:', locationId);
     return c.json({ success: true });
   } catch (error) {
     console.error('❌ Error in DELETE /favorites:', error);
@@ -326,20 +489,52 @@ app.get('/make-server-48182530/want-to-go', verifyAuth, async (c) => {
   const userId = c.get('userId');
 
   try {
-    const wantToGoRecords = await kv.getByPrefix(`wantToGo:${userId}:`);
-    console.log('GET /want-to-go - Found records:', wantToGoRecords.length);
+    const supabase = getSupabaseAdmin();
     
-    // Get the actual location data for each want to go item
-    const wantToGo = [];
-    for (const wtg of wantToGoRecords) {
-      const location = await kv.get(`location:${wtg.locationId}`);
-      if (location) {
-        wantToGo.push(location);
-      }
+    // Join want_to_go with locations table
+    const { data: wantToGo, error } = await supabase
+      .from('want_to_go')
+      .select(`
+        id,
+        created_at,
+        locations (*)
+      `)
+      .eq('user_id', userId)
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      console.error('❌ Error fetching want to go:', error);
+      return c.json({ error: 'Failed to fetch want to go list' }, 500);
     }
+
+    console.log('GET /want-to-go - Found items:', wantToGo?.length || 0);
     
-    console.log('GET /want-to-go - Resolved locations:', wantToGo.length);
-    return c.json({ wantToGo });
+    // Extract and format location data
+    const formattedWantToGo = wantToGo?.map(wtg => {
+      const loc = wtg.locations as any;
+      return {
+        id: loc.id,
+        name: loc.name,
+        description: loc.description,
+        lat: loc.lat,
+        lng: loc.lng,
+        lvEditorsScore: loc.lv_editors_score,
+        lvCrowdsourceScore: loc.lv_crowdsource_score,
+        googleRating: loc.google_rating,
+        michelinScore: loc.michelin_score,
+        tags: loc.tags || [],
+        cuisine: loc.cuisine,
+        area: loc.area,
+        image: loc.image,
+        placeId: loc.place_id,
+        createdBy: loc.created_by,
+        createdAt: loc.created_at,
+        updatedBy: loc.updated_by,
+        updatedAt: loc.updated_at,
+      };
+    }) || [];
+    
+    return c.json({ wantToGo: formattedWantToGo });
   } catch (error) {
     console.error('❌ Error in GET /want-to-go:', error);
     return c.json({ error: 'Failed to fetch want to go list' }, 500);
@@ -357,36 +552,38 @@ app.post('/make-server-48182530/want-to-go/:locationId', verifyAuth, async (c) =
   }
 
   try {
-    // Check if location exists, if not create a minimal record
-    // This handles Google Place IDs that aren't in our database yet
-    const existingLocation = await kv.get(`location:${locationId}`);
-    if (!existingLocation) {
-      console.log('📍 Location not found, creating minimal record for:', locationId);
-      // Create a minimal location record - it will be enriched by frontend or editor later
-      const minimalLocation = {
-        id: locationId,
-        name: 'Google Place', // Frontend should update this
-        lat: 0,
-        lng: 0,
-        lvEditorsScore: 0,
-        lvCrowdsourceScore: 0,
-        googleRating: 0,
-        michelinScore: 0,
-        tags: [],
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-      };
-      await kv.set(`location:${locationId}`, minimalLocation);
+    const supabase = getSupabaseAdmin();
+    
+    // Check if location exists
+    const { data: location, error: locError } = await supabase
+      .from('locations')
+      .select('id')
+      .eq('id', locationId)
+      .single();
+
+    if (locError || !location) {
+      return c.json({ error: 'Location not found' }, 404);
     }
 
-    const wantToGoKey = `wantToGo:${userId}:${locationId}`;
-    const wantToGoItem = {
-      userId,
-      locationId,
-      createdAt: new Date().toISOString(),
-    };
-    await kv.set(wantToGoKey, wantToGoItem);
-    console.log('✅ Want to go added:', wantToGoKey);
+    // Insert want to go (unique constraint will prevent duplicates)
+    const { error } = await supabase
+      .from('want_to_go')
+      .insert({
+        user_id: userId,
+        location_id: locationId,
+      });
+
+    if (error) {
+      // Check if it's a duplicate key error
+      if (error.code === '23505') {
+        console.log('📍 Want to go already exists');
+        return c.json({ success: true, message: 'Already in want to go list' });
+      }
+      console.error('❌ Error adding to want to go:', error);
+      return c.json({ error: 'Failed to add to want to go list' }, 500);
+    }
+
+    console.log('✅ Want to go added:', locationId);
     return c.json({ success: true });
   } catch (error) {
     console.error('❌ Error in POST /want-to-go:', error);
@@ -401,9 +598,20 @@ app.delete('/make-server-48182530/want-to-go/:locationId', verifyAuth, async (c)
   const locationId = c.req.param('locationId');
 
   try {
-    const wantToGoKey = `wantToGo:${userId}:${locationId}`;
-    await kv.del(wantToGoKey);
-    console.log('✅ Want to go removed:', wantToGoKey);
+    const supabase = getSupabaseAdmin();
+    
+    const { error } = await supabase
+      .from('want_to_go')
+      .delete()
+      .eq('user_id', userId)
+      .eq('location_id', locationId);
+
+    if (error) {
+      console.error('❌ Error removing from want to go:', error);
+      return c.json({ error: 'Failed to remove from want to go list' }, 500);
+    }
+
+    console.log('✅ Want to go removed:', locationId);
     return c.json({ success: true });
   } catch (error) {
     console.error('❌ Error in DELETE /want-to-go:', error);
@@ -415,43 +623,72 @@ app.delete('/make-server-48182530/want-to-go/:locationId', verifyAuth, async (c)
 // EDITOR-ONLY ROUTES
 // ============================================
 
-// Middleware to verify editor role
-async function verifyEditor(c: any, next: any) {
-  const userId = c.get('userId');
-  
-  try {
-    const user = await kv.get(`user:${userId}`);
-    if (!user || user.role !== 'editor') {
-      console.log('❌ User is not an editor:', userId);
-      return c.json({ error: 'Forbidden - Editor role required' }, 403);
-    }
-    await next();
-  } catch (error) {
-    console.error('❌ Error in verifyEditor:', error);
-    return c.json({ error: 'Failed to verify editor role' }, 500);
-  }
-}
-
 // Create a new location (editors only)
 app.post('/make-server-48182530/locations', verifyAuth, verifyEditor, async (c) => {
   console.log('📍 POST /locations - Start');
+  const userId = c.get('userId');
   const location = await c.req.json();
 
-  if (!location.name || !location.lat || !location.lng) {
+  if (!location.name || location.lat === undefined || location.lng === undefined) {
     return c.json({ error: 'name, lat, and lng are required' }, 400);
   }
 
   try {
-    const locationId = crypto.randomUUID();
-    const newLocation = {
-      ...location,
-      id: locationId,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
+    const supabase = getSupabaseAdmin();
+    
+    // Convert camelCase to snake_case for database
+    const dbLocation = {
+      name: location.name,
+      description: location.description,
+      lat: location.lat,
+      lng: location.lng,
+      lv_editors_score: location.lvEditorsScore || 0,
+      lv_crowdsource_score: location.lvCrowdsourceScore || 0,
+      google_rating: location.googleRating || 0,
+      michelin_score: location.michelinScore || 0,
+      tags: location.tags || [],
+      cuisine: location.cuisine,
+      area: location.area,
+      image: location.image,
+      place_id: location.placeId,
+      created_by: userId,
+      updated_by: userId,
     };
-    await kv.set(`location:${locationId}`, newLocation);
-    console.log('✅ Location created:', locationId);
-    return c.json(newLocation);
+    
+    const { data: newLocation, error } = await supabase
+      .from('locations')
+      .insert(dbLocation)
+      .select()
+      .single();
+
+    if (error) {
+      console.error('❌ Error creating location:', error);
+      return c.json({ error: 'Failed to create location' }, 500);
+    }
+
+    console.log('✅ Location created:', newLocation.id);
+    
+    // Convert to camelCase for response
+    return c.json({
+      id: newLocation.id,
+      name: newLocation.name,
+      description: newLocation.description,
+      lat: newLocation.lat,
+      lng: newLocation.lng,
+      lvEditorsScore: newLocation.lv_editors_score,
+      lvCrowdsourceScore: newLocation.lv_crowdsource_score,
+      googleRating: newLocation.google_rating,
+      michelinScore: newLocation.michelin_score,
+      tags: newLocation.tags || [],
+      cuisine: newLocation.cuisine,
+      area: newLocation.area,
+      image: newLocation.image,
+      placeId: newLocation.place_id,
+      createdBy: newLocation.created_by,
+      createdAt: newLocation.created_at,
+      updatedBy: newLocation.updated_by,
+      updatedAt: newLocation.updated_at,
+    });
   } catch (error) {
     console.error('❌ Error in POST /locations:', error);
     return c.json({ error: 'Failed to create location' }, 500);
@@ -461,24 +698,68 @@ app.post('/make-server-48182530/locations', verifyAuth, verifyEditor, async (c) 
 // Update a location (editors only)
 app.put('/make-server-48182530/locations/:id', verifyAuth, verifyEditor, async (c) => {
   console.log('📍 PUT /locations/:id - Start');
+  const userId = c.get('userId');
   const locationId = c.req.param('id');
   const updates = await c.req.json();
 
   try {
-    const existingLocation = await kv.get(`location:${locationId}`);
-    if (!existingLocation) {
-      return c.json({ error: 'Location not found' }, 404);
+    const supabase = getSupabaseAdmin();
+    
+    // Convert camelCase to snake_case for database
+    const dbUpdates: any = {
+      updated_by: userId,
+      updated_at: new Date().toISOString(),
+    };
+    
+    if (updates.name) dbUpdates.name = updates.name;
+    if (updates.description !== undefined) dbUpdates.description = updates.description;
+    if (updates.lat !== undefined) dbUpdates.lat = updates.lat;
+    if (updates.lng !== undefined) dbUpdates.lng = updates.lng;
+    if (updates.lvEditorsScore !== undefined) dbUpdates.lv_editors_score = updates.lvEditorsScore;
+    if (updates.lvCrowdsourceScore !== undefined) dbUpdates.lv_crowdsource_score = updates.lvCrowdsourceScore;
+    if (updates.googleRating !== undefined) dbUpdates.google_rating = updates.googleRating;
+    if (updates.michelinScore !== undefined) dbUpdates.michelin_score = updates.michelinScore;
+    if (updates.tags !== undefined) dbUpdates.tags = updates.tags;
+    if (updates.cuisine !== undefined) dbUpdates.cuisine = updates.cuisine;
+    if (updates.area !== undefined) dbUpdates.area = updates.area;
+    if (updates.image !== undefined) dbUpdates.image = updates.image;
+    if (updates.placeId !== undefined) dbUpdates.place_id = updates.placeId;
+    
+    const { data: updatedLocation, error } = await supabase
+      .from('locations')
+      .update(dbUpdates)
+      .eq('id', locationId)
+      .select()
+      .single();
+
+    if (error) {
+      console.error('❌ Error updating location:', error);
+      return c.json({ error: 'Failed to update location' }, 500);
     }
 
-    const updatedLocation = {
-      ...existingLocation,
-      ...updates,
-      id: locationId,
-      updatedAt: new Date().toISOString(),
-    };
-    await kv.set(`location:${locationId}`, updatedLocation);
     console.log('✅ Location updated:', locationId);
-    return c.json(updatedLocation);
+    
+    // Convert to camelCase for response
+    return c.json({
+      id: updatedLocation.id,
+      name: updatedLocation.name,
+      description: updatedLocation.description,
+      lat: updatedLocation.lat,
+      lng: updatedLocation.lng,
+      lvEditorsScore: updatedLocation.lv_editors_score,
+      lvCrowdsourceScore: updatedLocation.lv_crowdsource_score,
+      googleRating: updatedLocation.google_rating,
+      michelinScore: updatedLocation.michelin_score,
+      tags: updatedLocation.tags || [],
+      cuisine: updatedLocation.cuisine,
+      area: updatedLocation.area,
+      image: updatedLocation.image,
+      placeId: updatedLocation.place_id,
+      createdBy: updatedLocation.created_by,
+      createdAt: updatedLocation.created_at,
+      updatedBy: updatedLocation.updated_by,
+      updatedAt: updatedLocation.updated_at,
+    });
   } catch (error) {
     console.error('❌ Error in PUT /locations:', error);
     return c.json({ error: 'Failed to update location' }, 500);
@@ -491,7 +772,19 @@ app.delete('/make-server-48182530/locations/:id', verifyAuth, verifyEditor, asyn
   const locationId = c.req.param('id');
 
   try {
-    await kv.del(`location:${locationId}`);
+    const supabase = getSupabaseAdmin();
+    
+    // Foreign keys will cascade delete favorites/want_to_go
+    const { error } = await supabase
+      .from('locations')
+      .delete()
+      .eq('id', locationId);
+
+    if (error) {
+      console.error('❌ Error deleting location:', error);
+      return c.json({ error: 'Failed to delete location' }, 500);
+    }
+
     console.log('✅ Location deleted:', locationId);
     return c.json({ success: true });
   } catch (error) {
@@ -500,34 +793,10 @@ app.delete('/make-server-48182530/locations/:id', verifyAuth, verifyEditor, asyn
   }
 });
 
-// Create a new tag (editors only)
-app.post('/make-server-48182530/tags', verifyAuth, verifyEditor, async (c) => {
-  console.log('📍 POST /tags - Start');
-  const { name } = await c.req.json();
-
-  if (!name) {
-    return c.json({ error: 'name is required' }, 400);
-  }
-
-  try {
-    const tagId = crypto.randomUUID();
-    const newTag = {
-      id: tagId,
-      name: name.toLowerCase().trim(),
-      createdAt: new Date().toISOString(),
-    };
-    await kv.set(`tag:${tagId}`, newTag);
-    console.log('✅ Tag created:', tagId);
-    return c.json(newTag);
-  } catch (error) {
-    console.error('❌ Error in POST /tags:', error);
-    return c.json({ error: 'Failed to create tag' }, 500);
-  }
-});
-
 // Update location rating and tags (editors only)
 app.put('/make-server-48182530/locations/:id/rating', verifyAuth, verifyEditor, async (c) => {
   console.log('📍 PUT /locations/:id/rating - Start');
+  const userId = c.get('userId');
   const locationId = c.req.param('id');
   const { lvEditorsScore, tags } = await c.req.json();
 
@@ -536,20 +805,51 @@ app.put('/make-server-48182530/locations/:id/rating', verifyAuth, verifyEditor, 
   }
 
   try {
-    const existingLocation = await kv.get(`location:${locationId}`);
-    if (!existingLocation) {
-      return c.json({ error: 'Location not found' }, 404);
+    const supabase = getSupabaseAdmin();
+    
+    const dbUpdates: any = {
+      updated_by: userId,
+      updated_at: new Date().toISOString(),
+    };
+    
+    if (lvEditorsScore !== undefined) dbUpdates.lv_editors_score = lvEditorsScore;
+    if (tags !== undefined) dbUpdates.tags = tags;
+    
+    const { data: updatedLocation, error } = await supabase
+      .from('locations')
+      .update(dbUpdates)
+      .eq('id', locationId)
+      .select()
+      .single();
+
+    if (error) {
+      console.error('❌ Error updating location rating/tags:', error);
+      return c.json({ error: 'Failed to update location rating/tags' }, 500);
     }
 
-    const updatedLocation = {
-      ...existingLocation,
-      ...(lvEditorsScore !== undefined && { lvEditorsScore }),
-      ...(tags !== undefined && { tags }),
-      updatedAt: new Date().toISOString(),
-    };
-    await kv.set(`location:${locationId}`, updatedLocation);
     console.log('✅ Location rating/tags updated:', locationId);
-    return c.json(updatedLocation);
+    
+    // Convert to camelCase for response
+    return c.json({
+      id: updatedLocation.id,
+      name: updatedLocation.name,
+      description: updatedLocation.description,
+      lat: updatedLocation.lat,
+      lng: updatedLocation.lng,
+      lvEditorsScore: updatedLocation.lv_editors_score,
+      lvCrowdsourceScore: updatedLocation.lv_crowdsource_score,
+      googleRating: updatedLocation.google_rating,
+      michelinScore: updatedLocation.michelin_score,
+      tags: updatedLocation.tags || [],
+      cuisine: updatedLocation.cuisine,
+      area: updatedLocation.area,
+      image: updatedLocation.image,
+      placeId: updatedLocation.place_id,
+      createdBy: updatedLocation.created_by,
+      createdAt: updatedLocation.created_at,
+      updatedBy: updatedLocation.updated_by,
+      updatedAt: updatedLocation.updated_at,
+    });
   } catch (error) {
     console.error('❌ Error in PUT /locations/:id/rating:', error);
     return c.json({ error: 'Failed to update location rating/tags' }, 500);
@@ -571,6 +871,8 @@ app.post('/make-server-48182530/signup', async (c) => {
 
   try {
     const supabase = getSupabaseAdmin();
+    
+    // Create user in Supabase Auth
     const { data, error } = await supabase.auth.admin.createUser({
       email,
       password,
@@ -584,18 +886,32 @@ app.post('/make-server-48182530/signup', async (c) => {
       return c.json({ error: error.message }, 400);
     }
 
-    // Create user profile in KV store
-    const userProfile = {
-      id: data.user.id,
-      email: data.user.email,
-      role: 'user',
-      name: name || email.split('@')[0],
-      createdAt: new Date().toISOString(),
-    };
-    await kv.set(`user:${data.user.id}`, userProfile);
+    // Create user profile in user_metadata table
+    const { error: insertError } = await supabase
+      .from('user_metadata')
+      .insert({
+        user_id: data.user.id,
+        email: data.user.email,
+        name: name || email.split('@')[0],
+        role: 'user',
+      });
+
+    if (insertError) {
+      console.error('❌ Error creating user profile:', insertError);
+      // If profile creation fails, we should probably delete the auth user
+      // But for now, just log it
+    }
 
     console.log('✅ User created:', data.user.id);
-    return c.json({ user: userProfile });
+    
+    return c.json({ 
+      user: {
+        id: data.user.id,
+        email: data.user.email,
+        name: name || email.split('@')[0],
+        role: 'user',
+      }
+    });
   } catch (error) {
     console.error('❌ Error in POST /signup:', error);
     return c.json({ error: 'Failed to create user' }, 500);
@@ -607,28 +923,57 @@ app.post('/make-server-48182530/create-oauth-user', verifyAuth, async (c) => {
   console.log('📍 POST /create-oauth-user - Start');
   const userId = c.get('userId');
   const userEmail = c.get('userEmail');
-  const { id, email, name, role } = await c.req.json();
+  const { name, role } = await c.req.json();
 
   try {
+    const supabase = getSupabaseAdmin();
+    
     // Check if user already exists
-    const existingUser = await kv.get(`user:${userId}`);
+    const { data: existingUser, error: selectError } = await supabase
+      .from('user_metadata')
+      .select('*')
+      .eq('user_id', userId)
+      .single();
+
     if (existingUser) {
       console.log('User already exists:', userId);
-      return c.json({ user: existingUser });
+      return c.json({ 
+        user: {
+          id: existingUser.user_id,
+          email: existingUser.email,
+          name: existingUser.name,
+          role: existingUser.role,
+          createdAt: existingUser.created_at,
+          updatedAt: existingUser.updated_at,
+        }
+      });
     }
 
     // Create new user profile
-    const userProfile = {
-      id: userId,
-      email: email || userEmail,
-      name: name || userEmail?.split('@')[0] || 'User',
-      role: role || 'user',
-      createdAt: new Date().toISOString(),
-    };
-    await kv.set(`user:${userId}`, userProfile);
+    const { error: insertError } = await supabase
+      .from('user_metadata')
+      .insert({
+        user_id: userId,
+        email: userEmail,
+        name: name || userEmail?.split('@')[0] || 'User',
+        role: role || 'user',
+      });
+
+    if (insertError) {
+      console.error('❌ Error creating OAuth user profile:', insertError);
+      return c.json({ error: 'Failed to create user profile' }, 500);
+    }
 
     console.log('✅ OAuth user created:', userId);
-    return c.json({ user: userProfile });
+    
+    return c.json({ 
+      user: {
+        id: userId,
+        email: userEmail,
+        name: name || userEmail?.split('@')[0] || 'User',
+        role: role || 'user',
+      }
+    });
   } catch (error) {
     console.error('❌ Error in POST /create-oauth-user:', error);
     return c.json({ error: 'Failed to create OAuth user' }, 500);
@@ -640,20 +985,35 @@ app.post('/make-server-48182530/create-oauth-user', verifyAuth, async (c) => {
 // ============================================
 
 // Get all users (admin/editors)
-app.get('/make-server-48182530/admin/users', verifyAuth, async (c) => {
+app.get('/make-server-48182530/admin/users', verifyAuth, verifyEditor, async (c) => {
   console.log('📍 GET /admin/users - Start');
-  const userId = c.get('userId');
 
   try {
-    // Check if requesting user is an editor (we'll allow editors to see users for now)
-    const requestingUser = await kv.get(`user:${userId}`);
-    if (!requestingUser || requestingUser.role !== 'editor') {
-      return c.json({ error: 'Forbidden - Editor role required' }, 403);
+    const supabase = getSupabaseAdmin();
+    
+    const { data: users, error } = await supabase
+      .from('user_metadata')
+      .select('*')
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      console.error('❌ Error fetching users:', error);
+      return c.json({ error: 'Failed to fetch users' }, 500);
     }
 
-    const users = await kv.getByPrefix('user:');
-    console.log('GET /admin/users - Found users:', users.length);
-    return c.json({ users });
+    console.log('GET /admin/users - Found users:', users?.length || 0);
+    
+    // Convert to camelCase
+    const formattedUsers = users?.map(u => ({
+      id: u.user_id,
+      email: u.email,
+      name: u.name,
+      role: u.role,
+      createdAt: u.created_at,
+      updatedAt: u.updated_at,
+    })) || [];
+    
+    return c.json({ users: formattedUsers });
   } catch (error) {
     console.error('❌ Error in GET /admin/users:', error);
     return c.json({ error: 'Failed to fetch users' }, 500);
@@ -663,7 +1023,6 @@ app.get('/make-server-48182530/admin/users', verifyAuth, async (c) => {
 // Update user role by admin
 app.put('/make-server-48182530/admin/users/:userId/role', verifyAuth, async (c) => {
   console.log('📍 PUT /admin/users/:userId/role - Start');
-  const requestingUserId = c.get('userId');
   const targetUserId = c.req.param('userId');
   const { role } = await c.req.json();
 
@@ -672,22 +1031,36 @@ app.put('/make-server-48182530/admin/users/:userId/role', verifyAuth, async (c) 
   }
 
   try {
-    // For now, allow any authenticated user to become an editor (as per the "Become Editor" flow)
-    // In production, you'd want stricter controls here
-    const targetUser = await kv.get(`user:${targetUserId}`);
-    if (!targetUser) {
-      return c.json({ error: 'User not found' }, 404);
+    const supabase = getSupabaseAdmin();
+    
+    // Update user role
+    const { data: updatedUser, error } = await supabase
+      .from('user_metadata')
+      .update({ 
+        role,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('user_id', targetUserId)
+      .select()
+      .single();
+
+    if (error) {
+      console.error('❌ Error updating user role:', error);
+      return c.json({ error: 'Failed to update user role' }, 500);
     }
 
-    const updatedUser = {
-      ...targetUser,
-      role,
-      updatedAt: new Date().toISOString(),
-    };
-    await kv.set(`user:${targetUserId}`, updatedUser);
-
     console.log('✅ User role updated:', targetUserId, 'to', role);
-    return c.json({ user: updatedUser });
+    
+    return c.json({ 
+      user: {
+        id: updatedUser.user_id,
+        email: updatedUser.email,
+        name: updatedUser.name,
+        role: updatedUser.role,
+        createdAt: updatedUser.created_at,
+        updatedAt: updatedUser.updated_at,
+      }
+    });
   } catch (error) {
     console.error('❌ Error in PUT /admin/users/:userId/role:', error);
     return c.json({ error: 'Failed to update user role' }, 500);
@@ -699,58 +1072,56 @@ app.post('/make-server-48182530/seed', async (c) => {
   console.log('📍 POST /seed - Start');
   
   try {
+    const supabase = getSupabaseAdmin();
+    
     const sampleLocations = [
       {
-        id: crypto.randomUUID(),
         name: "Addison",
         lat: 32.9530,
         lng: -117.2394,
-        lvEditorsScore: 9.5,
-        lvCrowdsourceScore: 9.2,
-        googleRating: 4.8,
-        michelinScore: 0,
+        lv_editors_score: 9.5,
+        lv_crowdsource_score: 9.2,
+        google_rating: 4.8,
+        michelin_score: 0,
         tags: ["fine dining", "french", "del mar"],
         description: "Refined California-French cuisine in an elegant setting",
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
       },
       {
-        id: crypto.randomUUID(),
         name: "Animae",
         lat: 32.7142,
         lng: -117.1625,
-        lvEditorsScore: 8.8,
-        lvCrowdsourceScore: 8.5,
-        googleRating: 4.6,
-        michelinScore: 0,
+        lv_editors_score: 8.8,
+        lv_crowdsource_score: 8.5,
+        google_rating: 4.6,
+        michelin_score: 0,
         tags: ["asian fusion", "cocktails", "downtown"],
         description: "Modern Asian fusion with creative cocktails",
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
       },
       {
-        id: crypto.randomUUID(),
         name: "Born & Raised",
         lat: 32.7165,
         lng: -117.1611,
-        lvEditorsScore: 9.0,
-        lvCrowdsourceScore: 8.8,
-        googleRating: 4.7,
-        michelinScore: 0,
+        lv_editors_score: 9.0,
+        lv_crowdsource_score: 8.8,
+        google_rating: 4.7,
+        michelin_score: 0,
         tags: ["steakhouse", "rooftop", "little italy"],
         description: "Classic steakhouse with stunning rooftop views",
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
       },
     ];
 
-    // Save each location
-    for (const location of sampleLocations) {
-      await kv.set(`location:${location.id}`, location);
+    const { data: locations, error } = await supabase
+      .from('locations')
+      .insert(sampleLocations)
+      .select();
+
+    if (error) {
+      console.error('❌ Error seeding database:', error);
+      return c.json({ error: 'Failed to seed database' }, 500);
     }
 
-    console.log('✅ Database seeded with', sampleLocations.length, 'locations');
-    return c.json({ success: true, locations: sampleLocations });
+    console.log('✅ Database seeded with', locations?.length || 0, 'locations');
+    return c.json({ success: true, locations });
   } catch (error) {
     console.error('❌ Error in POST /seed:', error);
     return c.json({ error: 'Failed to seed database' }, 500);
@@ -763,9 +1134,8 @@ app.all('*', (c) => {
   return c.json({ error: 'Not Found' }, 404);
 });
 
-// Start the server with manual JWT verification (disable Supabase's built-in JWT verification)
-console.log('🚀 Server starting with manual JWT verification');
+// Start the server
+console.log('🚀 Server starting...');
 Deno.serve({
-  // Disable automatic JWT verification - we handle it manually in our middleware
   onListen: () => console.log('✅ Server is listening'),
 }, app.fetch);
