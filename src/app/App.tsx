@@ -57,6 +57,8 @@ export default function App() {
   const [wantToGoIds, setWantToGoIds] = useState<Set<string>>(new Set());
   const [locationPermissionGranted, setLocationPermissionGranted] = useState(false);
   const [mapBounds, setMapBounds] = useState<google.maps.LatLngBounds | null>(null);
+  const [searchResults, setSearchResults] = useState<google.maps.places.PlaceResult[]>([]);
+  const [showSearchResults, setShowSearchResults] = useState(false);
 
   useEffect(() => {
     initializeApp();
@@ -203,6 +205,87 @@ export default function App() {
     setSearchQuery('');
     setShowHeatMap(false);
     setHeatMapLocations([]);
+    setShowSearchResults(false);
+    setSearchResults([]);
+  };
+
+  const handleGenericSearch = async (query: string) => {
+    if (!mapBounds) {
+      toast.error('Please wait for map to load');
+      return;
+    }
+
+    setSearchQuery(query);
+    setShowSearchResults(false);
+    setSearchResults([]);
+    
+    try {
+      toast.info(`Searching for "${query}"...`);
+      
+      // Get center and radius from map bounds
+      const center = mapBounds.getCenter();
+      const ne = mapBounds.getNorthEast();
+      
+      // Calculate radius using Haversine formula
+      const R = 6371000; // Earth radius in meters
+      const dLat = (ne.lat() - center.lat()) * Math.PI / 180;
+      const dLng = (ne.lng() - center.lng()) * Math.PI / 180;
+      const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+              Math.cos(center.lat() * Math.PI / 180) * Math.cos(ne.lat() * Math.PI / 180) *
+              Math.sin(dLng / 2) * Math.sin(dLng / 2);
+      const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+      const radius = Math.min(Math.round(R * c), 50000); // Max 50km
+      
+      console.log('🔍 Searching with params:', {
+        query,
+        center: { lat: center.lat(), lng: center.lng() },
+        radius
+      });
+      
+      // Use the Places library correctly
+      const { Place } = await google.maps.importLibrary("places") as google.maps.PlacesLibrary;
+      
+      const request = {
+        textQuery: query,
+        fields: ['displayName', 'location', 'formattedAddress', 'id', 'rating', 'userRatingCount', 'types'],
+        locationBias: {
+          center: { lat: center.lat(), lng: center.lng() },
+          radius: radius
+        },
+        maxResultCount: 20,
+        language: 'en-US',
+      };
+      
+      const { places } = await Place.searchByText(request);
+      
+      if (places && places.length > 0) {
+        console.log('✅ Found places:', places.length);
+        
+        // Convert to PlaceResult format - places already have the fields we requested
+        const results: google.maps.places.PlaceResult[] = places.map((place) => {
+          return {
+            place_id: place.id,
+            name: place.displayName,
+            formatted_address: place.formattedAddress,
+            geometry: place.location ? {
+              location: place.location
+            } as google.maps.places.PlaceGeometry : undefined,
+            rating: place.rating,
+            user_ratings_total: place.userRatingCount,
+            types: place.types
+          };
+        });
+        
+        setSearchResults(results);
+        setShowSearchResults(true);
+        toast.success(`Found ${results.length} places for "${query}"`);
+      } else {
+        toast.info(`No results found for "${query}"`);
+      }
+    } catch (error) {
+      console.error('❌ Generic search error:', error);
+      toast.error('Search failed. Please try again.');
+    }
   };
 
   const handleSeedDatabase = async () => {
@@ -608,6 +691,9 @@ export default function App() {
                 onTagSelect={handleTagSelect}
                 onClear={handleSearchClear}
                 mapBounds={mapBounds}
+                onGenericSearch={handleGenericSearch}
+                searchResults={searchResults}
+                showSearchResults={showSearchResults}
               />
               {showHeatMap && heatMapLocations.length > 0 && (
                 <motion.div
@@ -667,6 +753,8 @@ export default function App() {
               selectedGooglePlace={selectedGooglePlace}
               onGooglePlaceClose={() => setSelectedGooglePlace(null)}
               onMapBoundsChange={setMapBounds}
+              searchResults={searchResults}
+              showSearchResults={showSearchResults}
             />
           </APIProvider>
         </div>

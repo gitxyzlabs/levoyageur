@@ -23,6 +23,8 @@ interface MapProps {
   onGooglePlaceClose?: () => void;
   onPOIClick?: (place: google.maps.places.PlaceResult) => void;
   onMapBoundsChange?: (bounds: google.maps.LatLngBounds) => void;
+  searchResults?: google.maps.places.PlaceResult[];
+  showSearchResults?: boolean;
 }
 
 // Helper functions for marker styling
@@ -62,7 +64,9 @@ export function Map({
   selectedGooglePlace,
   onGooglePlaceClose,
   onPOIClick,
-  onMapBoundsChange
+  onMapBoundsChange,
+  searchResults,
+  showSearchResults
 }: MapProps) {
   const [selectedLocation, setSelectedLocation] = useState<Location | null>(null);
   const [clickedPOI, setClickedPOI] = useState<google.maps.places.PlaceResult | null>(null);
@@ -289,6 +293,55 @@ export function Map({
           );
         })}
 
+        {/* Search Results Markers */}
+        {showSearchResults && searchResults && searchResults.map((place) => {
+          const lat = place.geometry?.location?.lat ? 
+            (typeof place.geometry.location.lat === 'function' ? place.geometry.location.lat() : place.geometry.location.lat) : null;
+          const lng = place.geometry?.location?.lng ? 
+            (typeof place.geometry.location.lng === 'function' ? place.geometry.location.lng() : place.geometry.location.lng) : null;
+          if (!lat || !lng) return null;
+          
+          return (
+            <AdvancedMarker
+              key={place.place_id}
+              position={{ lat, lng }}
+              onClick={() => setClickedPOI(place)}
+              zIndex={clickedPOI?.place_id === place.place_id ? 1000 : 50}
+            >
+              <div
+                className="relative cursor-pointer transition-all duration-200 hover:scale-110"
+                style={{
+                  width: '28px',
+                  height: '36px',
+                }}
+              >
+                {/* Search Result Pin (Blue) */}
+                <svg 
+                  viewBox="0 0 32 40" 
+                  className="drop-shadow-lg"
+                  style={{ filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.2))' }}
+                >
+                  <path
+                    d="M16 0C9.373 0 4 5.373 4 12c0 8.5 12 28 12 28s12-19.5 12-28c0-6.627-5.373-12-12-12z"
+                    fill="#3b82f6"
+                  />
+                  <circle cx="16" cy="12" r="4" fill="white" fillOpacity="0.9" />
+                </svg>
+                
+                {/* Google Rating Badge */}
+                {place.rating && (
+                  <div 
+                    className="absolute -top-2 -right-2 bg-white text-slate-900 text-xs font-semibold px-1.5 py-0.5 rounded-full shadow-md border border-blue-200"
+                    style={{ fontSize: '10px' }}
+                  >
+                    {place.rating.toFixed(1)}
+                  </div>
+                )}
+              </div>
+            </AdvancedMarker>
+          );
+        })}
+        
         {selectedLocation && !clickedPOI && (
           <LocationInfoWindow
             location={selectedLocation}

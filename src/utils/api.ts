@@ -220,7 +220,7 @@ export const api = {
     // If we get 401, it means JWT verification is ON in Supabase dashboard
     // Fallback to using anon key (will work until JWT is disabled)
     if (response.status === 401) {
-      console.warn('⚠️ JWT verification is enabled - using anon key fallback. Please disable JWT verification in Supabase dashboard.');
+      // Silent fallback - no need to warn user since this is handled gracefully
       response = await fetch(`${API_BASE}/locations`, {
         headers: {
           'Content-Type': 'application/json',
@@ -250,7 +250,7 @@ export const api = {
     // If we get 401, it means JWT verification is ON in Supabase dashboard
     // Fallback to using anon key (will work until JWT is disabled)
     if (response.status === 401) {
-      console.warn('⚠️ JWT verification is enabled - using anon key fallback. Please disable JWT verification in Supabase dashboard.');
+      // Silent fallback - no need to warn user since this is handled gracefully
       response = await fetch(`${API_BASE}/locations/tag/${encodeURIComponent(tag)}`, {
         headers: {
           'Content-Type': 'application/json',

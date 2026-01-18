@@ -10,9 +10,12 @@ interface SearchAutocompleteProps {
   onTagSelect: (tag: string) => void;
   onClear?: () => void;
   mapBounds?: google.maps.LatLngBounds | null;
+  onGenericSearch?: (query: string) => void;
+  searchResults?: google.maps.places.PlaceResult[];
+  showSearchResults?: boolean;
 }
 
-export function SearchAutocomplete({ onPlaceSelect, onTagSelect, onClear, mapBounds }: SearchAutocompleteProps) {
+export function SearchAutocomplete({ onPlaceSelect, onTagSelect, onClear, mapBounds, onGenericSearch, searchResults = [], showSearchResults = false }: SearchAutocompleteProps) {
   const [searchValue, setSearchValue] = useState('');
   const [showDropdown, setShowDropdown] = useState(false);
   const [googlePredictions, setGooglePredictions] = useState<any[]>([]);
@@ -36,19 +39,25 @@ export function SearchAutocomplete({ onPlaceSelect, onTagSelect, onClear, mapBou
       // Fetch Google Places predictions using new AutocompleteSuggestion API
       if (places) {
         try {
-          const { AutocompleteSuggestion } = places as any;
-          
-          const request = {
+          // Use the fetchAutocompleteSuggestions method from places library
+          const request: any = {
             input: searchValue,
             includedPrimaryTypes: ['restaurant', 'cafe', 'bar', 'bakery', 'meal_takeaway'],
-            bounds: mapBounds,
+            // Note: The new AutocompleteSuggestion API has limited support for geographic restrictions
+            // We'll rely on the search input quality and post-filter results if needed
           };
           
+          // Optional: Add region code for better results in specific countries
+          request.region = 'us'; // Can be made dynamic based on map location
+          
+          console.log('🔍 Fetching autocomplete suggestions for:', searchValue);
+          
+          // Access AutocompleteSuggestion from the places library
+          const { AutocompleteSuggestion } = await google.maps.importLibrary("places") as any;
           const { suggestions } = await AutocompleteSuggestion.fetchAutocompleteSuggestions(request);
           
           if (suggestions && suggestions.length > 0) {
-            console.log('Google predictions:', suggestions);
-            console.log('First suggestion structure:', JSON.stringify(suggestions[0], null, 2));
+            console.log('✅ Google predictions received:', suggestions.length);
             // Convert new format to old format for compatibility
             const predictions = suggestions.slice(0, 5).map((s: any) => {
               const placePrediction = s.placePrediction;
@@ -61,13 +70,14 @@ export function SearchAutocomplete({ onPlaceSelect, onTagSelect, onClear, mapBou
                 }
               };
             });
-            console.log('Converted predictions:', predictions);
+            console.log('✅ Converted predictions:', predictions.length);
             setGooglePredictions(predictions);
           } else {
+            console.log('⚠️ No Google predictions returned');
             setGooglePredictions([]);
           }
         } catch (error) {
-          console.error('Error fetching autocomplete suggestions:', error);
+          console.error('❌ Error fetching autocomplete suggestions:', error);
           setGooglePredictions([]);
         }
       }
@@ -80,16 +90,19 @@ export function SearchAutocomplete({ onPlaceSelect, onTagSelect, onClear, mapBou
         const matchingTags = uniqueTags.filter(tag => 
           tag.toLowerCase().includes(searchValue.toLowerCase())
         ).slice(0, 5);
+        console.log('✅ Matching tags found:', matchingTags.length);
         setSupabaseTags(matchingTags);
       } catch (error) {
-        console.error('Error fetching tags:', error);
+        console.error('❌ Error fetching tags:', error);
         setSupabaseTags([]);
       }
-
-      setShowDropdown(true);
     };
 
-    const timeoutId = setTimeout(fetchSuggestions, 300);
+    const timeoutId = setTimeout(async () => {
+      await fetchSuggestions();
+      // Always show dropdown after fetching, even if results are empty (will show "no results")
+      setShowDropdown(true);
+    }, 300);
     return () => clearTimeout(timeoutId);
   }, [searchValue, places, mapBounds]);
 
@@ -190,7 +203,7 @@ export function SearchAutocomplete({ onPlaceSelect, onTagSelect, onClear, mapBou
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
-    const totalItems = supabaseTags.length + googlePredictions.length;
+    const totalItems = supabaseTags.length + googlePredictions.length + 1; // +1 for generic search option
     
     if (e.key === 'ArrowDown') {
       e.preventDefault();
@@ -198,9 +211,12 @@ export function SearchAutocomplete({ onPlaceSelect, onTagSelect, onClear, mapBou
     } else if (e.key === 'ArrowUp') {
       e.preventDefault();
       setFocusedIndex(prev => (prev - 1 + totalItems) % totalItems);
-    } else if (e.key === 'Enter' && focusedIndex >= 0) {
+    } else if (e.key === 'Enter') {
       e.preventDefault();
-      if (focusedIndex < supabaseTags.length) {
+      if (focusedIndex === -1 || focusedIndex === totalItems - 1) {
+        // Generic search (last item or no selection + Enter)
+        handleGenericSearch();
+      } else if (focusedIndex < supabaseTags.length) {
         handleTagSelect(supabaseTags[focusedIndex]);
       } else {
         handleGooglePlaceSelect(googlePredictions[focusedIndex - supabaseTags.length]);
@@ -208,6 +224,20 @@ export function SearchAutocomplete({ onPlaceSelect, onTagSelect, onClear, mapBou
     } else if (e.key === 'Escape') {
       setShowDropdown(false);
     }
+  };
+
+  const handleGenericSearch = () => {
+    if (!searchValue.trim()) return;
+    
+    setShowDropdown(false);
+    setGooglePredictions([]);
+    setSupabaseTags([]);
+    
+    if (onGenericSearch) {
+      onGenericSearch(searchValue.trim());
+    }
+    
+    inputRef.current?.blur();
   };
 
   const hasResults = googlePredictions.length > 0 || supabaseTags.length > 0;
@@ -245,7 +275,7 @@ export function SearchAutocomplete({ onPlaceSelect, onTagSelect, onClear, mapBou
       </div>
 
       <AnimatePresence>
-        {showDropdown && hasResults && (
+        {showDropdown && (hasResults || searchValue.trim()) && (
           <motion.div
             ref={dropdownRef}
             initial={{ opacity: 0, y: -10 }}
@@ -254,6 +284,24 @@ export function SearchAutocomplete({ onPlaceSelect, onTagSelect, onClear, mapBou
             transition={{ duration: 0.2 }}
             className="absolute z-50 w-full mt-2 bg-white rounded-xl shadow-2xl border border-slate-200 overflow-hidden"
           >
+            {/* Generic Search Button - Now at the top */}
+            {searchValue.trim() && onGenericSearch && (
+              <button
+                onClick={handleGenericSearch}
+                className={`w-full px-4 py-3 flex items-center gap-3 hover:bg-blue-50 transition-colors text-left border-b border-slate-100 ${
+                  focusedIndex === 0 ? 'bg-blue-50' : ''
+                }`}
+              >
+                <div className="flex items-center justify-center w-8 h-8 rounded-full bg-blue-100 flex-shrink-0">
+                  <Search className="w-4 h-4 text-blue-600" />
+                </div>
+                <div className="flex-1">
+                  <div className="font-medium text-gray-900">Search for "{searchValue}"</div>
+                  <div className="text-xs text-gray-500">Find top 20 places in this area</div>
+                </div>
+              </button>
+            )}
+          
             {/* Supabase Tags Section */}
             {supabaseTags.length > 0 && (
               <div className="border-b border-slate-100">
@@ -264,7 +312,7 @@ export function SearchAutocomplete({ onPlaceSelect, onTagSelect, onClear, mapBou
                   </div>
                 </div>
                 {supabaseTags.map((tag, index) => {
-                  const itemIndex = index;
+                  const itemIndex = index + 1; // +1 because generic search is now at index 0
                   return (
                     <button
                       key={tag}
@@ -289,7 +337,7 @@ export function SearchAutocomplete({ onPlaceSelect, onTagSelect, onClear, mapBou
 
             {/* Google Places Section */}
             {googlePredictions.length > 0 && (
-              <div>
+              <div className="border-b border-slate-100">
                 <div className="px-4 py-2 bg-slate-50 border-b border-slate-100">
                   <div className="text-xs font-semibold text-slate-600 uppercase tracking-wide">
                     Google Places
@@ -300,7 +348,7 @@ export function SearchAutocomplete({ onPlaceSelect, onTagSelect, onClear, mapBou
                     key={prediction.place_id}
                     onClick={() => handleGooglePlaceSelect(prediction)}
                     className={`w-full px-4 py-3 flex items-center gap-3 hover:bg-slate-50 transition-colors text-left ${
-                      focusedIndex === index + supabaseTags.length ? 'bg-slate-50' : ''
+                      focusedIndex === index + supabaseTags.length + 1 ? 'bg-slate-50' : ''
                     }`}
                   >
                     <div className="flex items-center justify-center w-8 h-8 rounded-full bg-slate-100 flex-shrink-0">
