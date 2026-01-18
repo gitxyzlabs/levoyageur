@@ -451,7 +451,7 @@ app.get('/make-server-48182530/favorites', verifyAuth, async (c) => {
 app.post('/make-server-48182530/favorites/:locationId', verifyAuth, async (c) => {
   console.log('📍 POST /favorites/:locationId - Start');
   const userId = c.get('userId');
-  const locationId = c.req.param('locationId'); // This might be a place_id (string) or UUID
+  const locationId = c.req.param('locationId'); // This should be a UUID for LV locations only
 
   if (!locationId) {
     return c.json({ error: 'locationId is required' }, 400);
@@ -460,97 +460,41 @@ app.post('/make-server-48182530/favorites/:locationId', verifyAuth, async (c) =>
   try {
     const supabase = getSupabaseAdmin();
     
-    // Get place data from request body
-    const body = await c.req.json().catch(() => ({}));
-    const placeData = body as { name?: string; lat?: number; lng?: number; formatted_address?: string };
-    
-    console.log('📍 Place data received:', placeData);
-    
-    let actualLocationId = locationId;
-    
-    // Check if this is a Google place_id (starts with ChIJ) or a UUID
-    const isGooglePlaceId = locationId.startsWith('ChIJ') || locationId.startsWith('EI') || locationId.startsWith('GI');
-    
-    if (isGooglePlaceId) {
-      console.log('📍 This is a Google place_id, checking if location exists...');
-      
-      // Check if location exists by place_id
-      const { data: existingLocation, error: searchError } = await supabase
-        .from('locations')
-        .select('id')
-        .eq('place_id', locationId)
-        .single();
+    // Only allow favoriting of existing LV locations (UUID)
+    // This separates "favoriting" from "rating" - only editors can create LV locations with ratings
+    const { data: location, error: locError } = await supabase
+      .from('locations')
+      .select('id, name')
+      .eq('id', locationId)
+      .single();
 
-      if (existingLocation) {
-        console.log('📍 Found existing location with UUID:', existingLocation.id);
-        actualLocationId = existingLocation.id;
-      } else {
-        console.log('📍 Location not found in database, creating new entry for place_id:', locationId);
-        
-        // Create a new location entry with the place data
-        const { data: newLocation, error: createError } = await supabase
-          .from('locations')
-          .insert({
-            name: placeData.name || 'Pending Location Data',
-            lat: placeData.lat || 0,
-            lng: placeData.lng || 0,
-            lv_editors_score: 0,
-            lv_crowdsource_score: 0,
-            google_rating: 0,
-            michelin_score: 0,
-            tags: [],
-            place_id: locationId,
-            description: placeData.formatted_address || '',
-          })
-          .select('id')
-          .single();
-        
-        if (createError) {
-          console.error('❌ Error creating location:', createError);
-          return c.json({ error: 'Failed to create location', details: createError.message }, 500);
-        }
-        
-        if (!newLocation) {
-          console.error('❌ Location created but no ID returned');
-          return c.json({ error: 'Failed to get location ID' }, 500);
-        }
-        
-        console.log('✅ New location created with UUID:', newLocation.id);
-        actualLocationId = newLocation.id;
-      }
-    } else {
-      // It's already a UUID, just verify it exists
-      const { data: location, error: locError } = await supabase
-        .from('locations')
-        .select('id')
-        .eq('id', locationId)
-        .single();
-
-      if (locError || !location) {
-        console.error('❌ Location UUID not found:', locationId);
-        return c.json({ error: 'Location not found' }, 404);
-      }
+    if (locError || !location) {
+      console.error('❌ LV Location not found:', locationId);
+      return c.json({ 
+        error: 'This location has not been added to Le Voyageur database yet. Only editors can add and rate locations.',
+        requiresEditor: true
+      }, 404);
     }
 
-    // Insert favorite using the actual UUID
+    // Insert favorite using the UUID
     const { error } = await supabase
       .from('favorites')
       .insert({
         user_id: userId,
-        location_id: actualLocationId,
+        location_id: locationId,
       });
 
     if (error) {
       // Check if it's a duplicate key error
       if (error.code === '23505') {
-        console.log('📍 Favorite already exists');
+        console.log('📍 Location already favorited');
         return c.json({ success: true, message: 'Already favorited' });
       }
       console.error('❌ Error adding favorite:', error);
       return c.json({ error: 'Failed to add favorite', details: error.message }, 500);
     }
 
-    console.log('✅ Favorite added:', actualLocationId);
+    console.log('✅ Favorite added:', locationId);
     return c.json({ success: true });
   } catch (error) {
     console.error('❌ Error in POST /favorites:', error);

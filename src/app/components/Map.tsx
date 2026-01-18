@@ -188,37 +188,68 @@ export function Map({
   }, [map, onPOIClick, onGooglePlaceClose]);
 
   const handleMarkerClick = async (location: Location) => {
-    setSelectedLocation(location);
-    setClickedPOI(null); // Close any POI info window
+    // Close any POI info window
+    setClickedPOI(null);
     
-    // Fetch Google rating if place_id exists
-    if (!location.place_id || 
-        location.place_id === '' || 
-        location.place_id === 'undefined' || 
-        location.place_id === 'null') {
-      console.log('Invalid place_id format for location:', location.name);
-      setGoogleRating({ rating: null, count: null });
-    } else {
+    // Convert LV Location to Google Place format
+    if (location.place_id) {
+      // Fetch Google place details
       try {
-        // Use the new Place API instead of deprecated PlacesService
         const { Place } = await google.maps.importLibrary("places") as google.maps.PlacesLibrary;
         
         const place = new Place({
           id: location.place_id,
         });
-
+        
         await place.fetchFields({
-          fields: ['rating', 'userRatingCount']
+          fields: ['displayName', 'formattedAddress', 'location', 'rating', 'userRatingCount', 'types', 'websiteURI', 'nationalPhoneNumber']
         });
-
-        setGoogleRating({ 
-          rating: place.rating ?? null, 
-          count: place.userRatingCount ?? null 
-        });
+        
+        // Convert to PlaceResult format and show in Google Place InfoWindow
+        const placeResult: google.maps.places.PlaceResult = {
+          place_id: location.place_id,
+          name: place.displayName || location.name,
+          formatted_address: place.formattedAddress || location.description,
+          geometry: place.location ? {
+            location: place.location
+          } : {
+            location: new google.maps.LatLng(location.lat, location.lng)
+          },
+          rating: place.rating,
+          user_ratings_total: place.userRatingCount,
+          types: place.types,
+          website: place.websiteURI,
+          formatted_phone_number: place.nationalPhoneNumber,
+        };
+        
+        setClickedPOI(placeResult);
+        setSelectedLocation(null);
       } catch (error) {
-        console.error('Error fetching Google rating:', error);
-        setGoogleRating({ rating: null, count: null });
+        console.error('Error fetching place details for LV location:', error);
+        // Fallback: create a minimal place result from LV location data
+        const placeResult: google.maps.places.PlaceResult = {
+          place_id: location.place_id,
+          name: location.name,
+          formatted_address: location.description,
+          geometry: {
+            location: new google.maps.LatLng(location.lat, location.lng)
+          },
+        };
+        setClickedPOI(placeResult);
+        setSelectedLocation(null);
       }
+    } else {
+      // No place_id, just show basic location info in Google Place InfoWindow
+      const placeResult: google.maps.places.PlaceResult = {
+        place_id: location.id, // Use LV location ID as fallback
+        name: location.name,
+        formatted_address: location.description,
+        geometry: {
+          location: new google.maps.LatLng(location.lat, location.lng)
+        },
+      };
+      setClickedPOI(placeResult);
+      setSelectedLocation(null);
     }
     
     if (onLocationClick) {

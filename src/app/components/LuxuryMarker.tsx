@@ -11,54 +11,78 @@ interface LuxuryMarkerProps {
 
 // Color palette for different rating tiers
 const getMarkerStyle = (rating: number) => {
-  // Luxury color palette with gradients
+  // Luxury color palette based on PANTONE® colors
   if (rating >= 10.5) return {
-    primary: '#1e293b',
-    secondary: '#0f172a',
-    accent: '#f8fafc',
-    gradient: 'linear-gradient(135deg, #1e293b 0%, #0f172a 100%)',
-    glow: 'rgba(15, 23, 42, 0.4)',
+    // Amaranth - Legendary (10-11)
+    primary: '#9b2743',
+    secondary: '#7a1f35',
+    accent: '#fce7ec',
+    gradient: 'linear-gradient(135deg, #9b2743 0%, #7a1f35 100%)',
+    glow: 'rgba(155, 39, 67, 0.4)',
     label: 'Legendary'
   };
   if (rating >= 9.5) return {
-    primary: '#065f46',
-    secondary: '#064e3b',
-    accent: '#ecfdf5',
-    gradient: 'linear-gradient(135deg, #065f46 0%, #064e3b 100%)',
-    glow: 'rgba(6, 95, 70, 0.4)',
+    // Lava Falls - Exceptional (9-10)
+    primary: '#8e4452',
+    secondary: '#6e3340',
+    accent: '#fdeef1',
+    gradient: 'linear-gradient(135deg, #8e4452 0%, #6e3340 100%)',
+    glow: 'rgba(142, 68, 82, 0.4)',
     label: 'Exceptional'
   };
   if (rating >= 8.5) return {
-    primary: '#0f766e',
-    secondary: '#115e59',
-    accent: '#f0fdfa',
-    gradient: 'linear-gradient(135deg, #0f766e 0%, #115e59 100%)',
-    glow: 'rgba(15, 118, 110, 0.4)',
+    // Burnt Sienna - Outstanding (8-9)
+    primary: '#c97b63',
+    secondary: '#a8624f',
+    accent: '#fef0ec',
+    gradient: 'linear-gradient(135deg, #c97b63 0%, #a8624f 100%)',
+    glow: 'rgba(201, 123, 99, 0.4)',
     label: 'Outstanding'
   };
   if (rating >= 7.5) return {
-    primary: '#b87333',
-    secondary: '#92591f',
-    accent: '#fef3c7',
-    gradient: 'linear-gradient(135deg, #b87333 0%, #92591f 100%)',
-    glow: 'rgba(184, 115, 51, 0.4)',
+    // Muskmelon - Excellent (7-8)
+    primary: '#d99370',
+    secondary: '#c17a59',
+    accent: '#fef3ed',
+    gradient: 'linear-gradient(135deg, #d99370 0%, #c17a59 100%)',
+    glow: 'rgba(217, 147, 112, 0.4)',
     label: 'Excellent'
   };
   if (rating >= 6.5) return {
-    primary: '#78716c',
-    secondary: '#57534e',
-    accent: '#fafaf9',
-    gradient: 'linear-gradient(135deg, #78716c 0%, #57534e 100%)',
-    glow: 'rgba(120, 113, 108, 0.4)',
+    // Alexandrite - Very Good (6-7)
+    primary: '#2d6261',
+    secondary: '#224a49',
+    accent: '#e8f3f3',
+    gradient: 'linear-gradient(135deg, #2d6261 0%, #224a49 100%)',
+    glow: 'rgba(45, 98, 97, 0.4)',
     label: 'Very Good'
   };
-  return {
-    primary: '#94a3b8',
-    secondary: '#64748b',
-    accent: '#f8fafc',
-    gradient: 'linear-gradient(135deg, #94a3b8 0%, #64748b 100%)',
-    glow: 'rgba(148, 163, 184, 0.4)',
+  if (rating >= 4) return {
+    // Marina - Good (4-6)
+    primary: '#5383a8',
+    secondary: '#416888',
+    accent: '#edf4f9',
+    gradient: 'linear-gradient(135deg, #5383a8 0%, #416888 100%)',
+    glow: 'rgba(83, 131, 168, 0.4)',
     label: 'Good'
+  };
+  if (rating >= 2) return {
+    // Silver Sage - Fair (2-4) - transitional between cool and warm
+    primary: '#8a9a9d',
+    secondary: '#6d7d80',
+    accent: '#f4f6f6',
+    gradient: 'linear-gradient(135deg, #8a9a9d 0%, #6d7d80 100%)',
+    glow: 'rgba(138, 154, 157, 0.3)',
+    label: 'Fair'
+  };
+  return {
+    // Cloud Dancer - Poor (0-2) - PANTONE Color of the Year 2026
+    primary: '#f0f1f2',
+    secondary: '#e0e1e2',
+    accent: '#ffffff',
+    gradient: 'linear-gradient(135deg, #f0f1f2 0%, #e0e1e2 100%)',
+    glow: 'rgba(240, 241, 242, 0.2)',
+    label: 'Poor'
   };
 };
 

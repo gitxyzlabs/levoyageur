@@ -419,14 +419,22 @@ export default function App() {
         });
         toast.success('Removed from favorites');
       } else {
-        // Add to favorites with place data if available
+        // Add to favorites (only works for LV locations)
         await api.addFavorite(locationId, placeData);
         setFavoriteIds(prev => new Set([...prev, locationId]));
         toast.success('Added to favorites!');
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('❌ Error toggling favorite:', error);
-      toast.error('Failed to update favorites');
+      
+      // Check if this is a "not in LV database" error
+      if (error.message && error.message.includes('not been added to Le Voyageur')) {
+        toast.error('This location must be rated by an LV editor before it can be favorited', {
+          duration: 5000,
+        });
+      } else {
+        toast.error('Failed to update favorites');
+      }
     }
   };
 
