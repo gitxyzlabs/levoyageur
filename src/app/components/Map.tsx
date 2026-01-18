@@ -172,13 +172,20 @@ export function Map({
         } catch (error) {
           console.error('Error fetching place details:', error);
         }
+      } else {
+        // Click was on the map (not a POI) - close all info windows
+        setSelectedLocation(null);
+        setClickedPOI(null);
+        if (onGooglePlaceClose) {
+          onGooglePlaceClose();
+        }
       }
     });
 
     return () => {
       google.maps.event.removeListener(listener);
     };
-  }, [map, onPOIClick]);
+  }, [map, onPOIClick, onGooglePlaceClose]);
 
   const handleMarkerClick = async (location: Location) => {
     setSelectedLocation(location);

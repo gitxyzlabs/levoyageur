@@ -202,6 +202,8 @@ export function LocationInfoWindow({
       position={{ lat: location.lat, lng: location.lng }}
       onCloseClick={onClose}
       headerDisabled
+      disableAutoPan={false}
+      pixelOffset={[0, -10]}
     >
       <div className="max-w-sm">
         {/* Header with Title and Heart */}

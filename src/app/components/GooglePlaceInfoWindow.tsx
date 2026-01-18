@@ -119,6 +119,8 @@ export function GooglePlaceInfoWindow({
       position={{ lat, lng }}
       onCloseClick={onClose}
       headerDisabled
+      disableAutoPan={false}
+      pixelOffset={[0, -10]}
     >
       <div className="max-w-sm">
         {/* Header with Title */}

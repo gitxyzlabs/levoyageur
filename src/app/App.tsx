@@ -62,6 +62,7 @@ export default function App() {
 
   useEffect(() => {
     initializeApp();
+    checkExistingSession(); // Check for existing session on mount
     
     // Listen for auth state changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
@@ -119,6 +120,47 @@ export default function App() {
       subscription.unsubscribe();
     };
   }, []);
+
+  // Check for existing session on app load
+  const checkExistingSession = async () => {
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      console.log('🔍 Checking for existing session on load:', {
+        hasSession: !!session,
+        hasUser: !!session?.user,
+        userId: session?.user?.id,
+      });
+      
+      if (session?.user) {
+        // User has an active session - load their profile
+        try {
+          const { user: userProfile } = await api.getCurrentUser();
+          setUser(userProfile);
+          console.log('✅ Restored user profile from session:', userProfile);
+          
+          // Load user's favorites and want-to-go lists
+          await loadUserLists();
+          
+          // Load saved location for logged-in user
+          loadSavedLocation(session.user.id);
+        } catch (error) {
+          console.error('Failed to fetch user profile on session restore:', error);
+          // Fallback to basic user data
+          setUser({
+            id: session.user.id,
+            email: session.user.email || '',
+            name: session.user.user_metadata?.name || session.user.email || 'User',
+            role: 'user',
+          });
+        }
+      } else {
+        // No session - request location without saving
+        requestGeolocation();
+      }
+    } catch (error) {
+      console.error('Error checking existing session:', error);
+    }
+  };
 
   const initializeApp = async () => {
     try {

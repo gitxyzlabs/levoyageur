@@ -914,6 +914,29 @@ app.put('/make-server-48182530/locations/:id/rating', verifyAuth, verifyEditor, 
   try {
     const supabase = getSupabaseAdmin();
     
+    // Check if locationId is a UUID or a Google Place ID
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    const isUUID = uuidRegex.test(locationId);
+    
+    let query = supabase.from('locations').select('*');
+    
+    if (isUUID) {
+      // It's a UUID, query by id
+      query = query.eq('id', locationId);
+    } else {
+      // It's a Google Place ID, query by place_id
+      query = query.eq('place_id', locationId);
+    }
+    
+    const { data: existingLocation, error: fetchError } = await query.single();
+    
+    if (fetchError || !existingLocation) {
+      console.error('❌ Location not found:', locationId, fetchError);
+      return c.json({ 
+        error: 'Location not found in database. Please add it first using the "Add to LV Database" button.' 
+      }, 404);
+    }
+    
     const dbUpdates: any = {
       updated_by: userId,
       updated_at: new Date().toISOString(),
@@ -925,7 +948,7 @@ app.put('/make-server-48182530/locations/:id/rating', verifyAuth, verifyEditor, 
     const { data: updatedLocation, error } = await supabase
       .from('locations')
       .update(dbUpdates)
-      .eq('id', locationId)
+      .eq('id', existingLocation.id) // Always use the UUID for the update
       .select()
       .single();
 
@@ -934,7 +957,7 @@ app.put('/make-server-48182530/locations/:id/rating', verifyAuth, verifyEditor, 
       return c.json({ error: 'Failed to update location rating/tags' }, 500);
     }
 
-    console.log('✅ Location rating/tags updated:', locationId);
+    console.log('✅ Location rating/tags updated:', existingLocation.id);
     
     // Convert to camelCase for response
     return c.json({
