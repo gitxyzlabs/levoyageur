@@ -45,6 +45,8 @@ const fetchWithAuth = async (url: string, options: RequestInit = {}) => {
   console.log('=== fetchWithAuth Debug ===');
   console.log('URL:', url);
   console.log('Full session:', session);
+  console.log('Session keys:', session ? Object.keys(session) : 'null');
+  console.log('Has access_token:', !!session?.access_token);
   console.log('Using token:', session?.access_token?.substring(0, 30) + '...');
   console.log('Has session:', !!session);
   console.log('Using token type:', session?.access_token ? 'ACCESS_TOKEN' : 'NO_TOKEN');
@@ -53,7 +55,8 @@ const fetchWithAuth = async (url: string, options: RequestInit = {}) => {
   // Don't use anon key as Bearer token - it's not a JWT!
   if (!session?.access_token) {
     console.error('❌ No access token available');
-    throw new Error('Not authenticated');
+    console.error('Session data:', JSON.stringify(session, null, 2));
+    throw new Error('Not authenticated - no access token');
   }
   
   const headers = {
