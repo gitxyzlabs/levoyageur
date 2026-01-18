@@ -250,17 +250,48 @@ app.get('/make-server-48182530/tags', async (c) => {
 // AUTHENTICATED ROUTES
 // ============================================
 
-// Get current user info
-app.get('/make-server-48182530/user', verifyAuth, async (c) => {
+// Get current user info (handles auth internally to bypass platform JWT verification)
+app.get('/make-server-48182530/user', async (c) => {
   console.log('📍 GET /user - Start');
-  const userId = c.get('userId');
-  const userEmail = c.get('userEmail');
-  console.log('📍 User ID from context:', userId);
+  
+  // Extract and verify token manually
+  const authHeader = c.req.header('Authorization');
+  console.log('📍 Authorization header present:', !!authHeader);
+  
+  if (!authHeader) {
+    console.log('❌ No Authorization header');
+    return c.json({ error: 'Missing Authorization header' }, 401);
+  }
+
+  const token = authHeader.replace('Bearer ', '');
+  console.log('📍 Token extracted (first 20 chars):', token.substring(0, 20));
 
   try {
+    // Use Supabase's built-in getUser method (works with OAuth tokens)
+    const supabase = getSupabaseClient();
+    
+    console.log('📍 Calling supabase.auth.getUser() with token');
+    const { data: { user }, error: authError } = await supabase.auth.getUser(token);
+    
+    if (authError) {
+      console.log('❌ Supabase getUser error:', authError.message);
+      return c.json({ error: 'Unauthorized', details: authError.message }, 401);
+    }
+    
+    if (!user) {
+      return c.json({ error: 'No user returned from getUser()' }, 401);
+    }
+
+    console.log('✅ User verified successfully:', user.id);
+    console.log('✅ User email:', user.email);
+    
+    const userId = user.id;
+    const userEmail = user.email;
+    console.log('📍 User ID from context:', userId);
+
     // Query the user_metadata table
-    const supabase = getSupabaseAdmin();
-    const { data: userData, error } = await supabase
+    const supabaseAdmin = getSupabaseAdmin();
+    const { data: userData, error } = await supabaseAdmin
       .from('user_metadata')
       .select('*')
       .eq('user_id', userId)
@@ -291,9 +322,9 @@ app.get('/make-server-48182530/user', verifyAuth, async (c) => {
     
     console.log('✅ User loaded from user_metadata table:', userProfile);
     return c.json({ user: userProfile });
-  } catch (error) {
+  } catch (error: any) {
     console.error('❌ Error in GET /user:', error);
-    return c.json({ error: 'Failed to fetch user data' }, 500);
+    return c.json({ error: 'Failed to fetch user data', details: error.message }, 500);
   }
 });
 

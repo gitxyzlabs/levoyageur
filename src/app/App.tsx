@@ -64,6 +64,15 @@ export default function App() {
     // Listen for auth state changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
       console.log('Auth state changed:', event, session);
+      console.log('🔍 Session details:', {
+        hasSession: !!session,
+        hasUser: !!session?.user,
+        hasAccessToken: !!session?.access_token,
+        tokenLength: session?.access_token?.length,
+        tokenExpiry: session?.expires_at,
+        now: Math.floor(Date.now() / 1000),
+        isExpired: session?.expires_at ? (session.expires_at < Math.floor(Date.now() / 1000)) : 'N/A',
+      });
       
       if (session?.user) {
         // User is logged in - fetch full user profile from backend
