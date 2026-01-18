@@ -50,6 +50,24 @@ export function GooglePlaceInfoWindow({
   const fetchGooglePlaceDetails = async () => {
     if (!place.place_id || !window.google) return;
 
+    // Helper function to check if a string is a valid Google Place ID (not a UUID)
+    const isValidGooglePlaceId = (id: string): boolean => {
+      // Google Place IDs don't look like UUIDs (no dashes in that pattern)
+      // UUIDs look like: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
+      const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+      return !uuidPattern.test(id) && id !== 'undefined' && id !== 'null' && id !== '';
+    };
+
+    // If the place_id is a UUID (LV location ID), skip Google API call
+    if (!isValidGooglePlaceId(place.place_id)) {
+      console.log('Skipping Google API call for non-Google place_id:', place.place_id);
+      setGoogleRating({
+        rating: place.rating ?? null,
+        count: null,
+      });
+      return;
+    }
+
     try {
       const { Place } = await google.maps.importLibrary("places") as google.maps.PlacesLibrary;
       

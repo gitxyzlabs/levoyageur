@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Map as GoogleMap, AdvancedMarker, useMap } from '@vis.gl/react-google-maps';
 import type { Location, User } from '../../utils/api';
-import { LocationInfoWindow } from './LocationInfoWindow';
 import { GooglePlaceInfoWindow } from './GooglePlaceInfoWindow';
 import { LuxuryMarker } from './LuxuryMarker';
 
@@ -69,9 +68,7 @@ export function Map({
   searchResults,
   showSearchResults
 }: MapProps) {
-  const [selectedLocation, setSelectedLocation] = useState<Location | null>(null);
   const [clickedPOI, setClickedPOI] = useState<google.maps.places.PlaceResult | null>(null);
-  const [googleRating, setGoogleRating] = useState<{ rating: number | null; count: number | null }>({ rating: null, count: null });
   const map = useMap();
 
   const displayLocations = showHeatMap && heatMapData ? heatMapData : locations;
@@ -161,7 +158,7 @@ export function Map({
           };
           
           // Close any open LV location info window
-          setSelectedLocation(null);
+          setClickedPOI(null);
           
           // Show the LV custom info window for this Google Place
           setClickedPOI(placeResult);
@@ -174,7 +171,6 @@ export function Map({
         }
       } else {
         // Click was on the map (not a POI) - close all info windows
-        setSelectedLocation(null);
         setClickedPOI(null);
         if (onGooglePlaceClose) {
           onGooglePlaceClose();
@@ -188,21 +184,44 @@ export function Map({
   }, [map, onPOIClick, onGooglePlaceClose]);
 
   const handleMarkerClick = async (location: Location) => {
-    // Close any POI info window
+    // Close any POI info window and clear selectedGooglePlace
     setClickedPOI(null);
+    if (onGooglePlaceClose) {
+      onGooglePlaceClose();
+    }
+    
+    // Helper function to check if a string is a valid Google Place ID (not a UUID)
+    const isValidGooglePlaceId = (id: string | undefined): boolean => {
+      if (!id) return false;
+      // Google Place IDs don't look like UUIDs (no dashes in that pattern)
+      // UUIDs look like: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
+      const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+      return !uuidPattern.test(id) && id !== 'undefined' && id !== 'null' && id !== '';
+    };
     
     // Convert LV Location to Google Place format
-    if (location.place_id) {
-      // Fetch Google place details
+    if (isValidGooglePlaceId(location.place_id)) {
+      // Has valid Google Place ID - fetch Google place details
       try {
+        console.log('🔍 Fetching Google Place details for LV location:', {
+          name: location.name,
+          place_id: location.place_id
+        });
+        
         const { Place } = await google.maps.importLibrary("places") as google.maps.PlacesLibrary;
         
         const place = new Place({
-          id: location.place_id,
+          id: location.place_id!,
         });
         
         await place.fetchFields({
           fields: ['displayName', 'formattedAddress', 'location', 'rating', 'userRatingCount', 'types', 'websiteURI', 'nationalPhoneNumber']
+        });
+        
+        console.log('✅ Successfully fetched Google Place data:', {
+          displayName: place.displayName,
+          rating: place.rating,
+          userRatingCount: place.userRatingCount
         });
         
         // Convert to PlaceResult format and show in Google Place InfoWindow
@@ -223,9 +242,12 @@ export function Map({
         };
         
         setClickedPOI(placeResult);
-        setSelectedLocation(null);
       } catch (error) {
-        console.error('Error fetching place details for LV location:', error);
+        console.error('❌ Error fetching place details for LV location:', {
+          name: location.name,
+          place_id: location.place_id,
+          error: error
+        });
         // Fallback: create a minimal place result from LV location data
         const placeResult: google.maps.places.PlaceResult = {
           place_id: location.place_id,
@@ -236,12 +258,15 @@ export function Map({
           },
         };
         setClickedPOI(placeResult);
-        setSelectedLocation(null);
       }
     } else {
-      // No place_id, just show basic location info in Google Place InfoWindow
+      console.log('⚠️ LV location has no valid Google place_id:', {
+        name: location.name,
+        place_id: location.place_id
+      });
+      // No valid Google Place ID - just show basic location info in Google Place InfoWindow
       const placeResult: google.maps.places.PlaceResult = {
-        place_id: location.id, // Use LV location ID as fallback
+        place_id: location.place_id || location.id, // Use place_id if available, otherwise LV location ID
         name: location.name,
         formatted_address: location.description,
         geometry: {
@@ -249,7 +274,6 @@ export function Map({
         },
       };
       setClickedPOI(placeResult);
-      setSelectedLocation(null);
     }
     
     if (onLocationClick) {
@@ -297,7 +321,7 @@ export function Map({
               key={location.id}
               position={{ lat: location.lat, lng: location.lng }}
               onClick={() => handleMarkerClick(location)}
-              zIndex={selectedLocation?.id === location.id ? 1000 : 100}
+              zIndex={clickedPOI?.place_id === location.place_id ? 1000 : 100}
             >
               <LuxuryMarker
                 rating={rating}
@@ -335,27 +359,9 @@ export function Map({
           );
         })}
         
-        {selectedLocation && !clickedPOI && (
-          <LocationInfoWindow
-            location={selectedLocation}
-            googleRating={googleRating.rating}
-            googleRatingCount={googleRating.count}
-            onClose={() => {
-              setSelectedLocation(null);
-              setGoogleRating({ rating: null, count: null });
-            }}
-            user={user}
-            isAuthenticated={isAuthenticated}
-            onFavoriteToggle={onFavoriteToggle}
-            onWantToGoToggle={onWantToGoToggle}
-            favoriteIds={favoriteIds}
-            wantToGoIds={wantToGoIds}
-          />
-        )}
-
-        {(selectedGooglePlace || clickedPOI) && !selectedLocation && (
+        {clickedPOI && (
           <GooglePlaceInfoWindow
-            place={clickedPOI || selectedGooglePlace!}
+            place={clickedPOI}
             onClose={() => {
               setClickedPOI(null);
               if (onGooglePlaceClose) {
