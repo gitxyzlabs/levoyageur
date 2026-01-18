@@ -16,12 +16,22 @@ export function WantToGo({ user, userLocation, onLocationClick }: WantToGoProps)
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    // Don't load from backend - showing empty state
+    loadWantToGo();
   }, [user]);
 
   const loadWantToGo = async () => {
-    // Removed backend call - want to go is client-side only for now
-    setLoading(false);
+    setLoading(true);
+    try {
+      const { wantToGo: fetchedWantToGo } = await api.getWantToGo();
+      console.log('✅ Want to go loaded:', fetchedWantToGo);
+      setWantToGo(fetchedWantToGo);
+    } catch (error) {
+      console.error('❌ Failed to load want to go:', error);
+      // Silently fail - don't show error to user
+      setWantToGo([]);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const calculateDistance = (lat1: number, lon1: number, lat2: number, lon2: number): number => {

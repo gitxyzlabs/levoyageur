@@ -664,6 +664,7 @@ export default function App() {
                 {/* Logged in: Show selected view content */}
                 {sidebarView === 'favorites' && (
                   <Favorites 
+                    key={favoriteIds.size} // Force reload when favorites change
                     user={user} 
                     userLocation={userLocation}
                     onLocationClick={(location) => {
@@ -675,6 +676,7 @@ export default function App() {
 
                 {sidebarView === 'wantToGo' && (
                   <WantToGo 
+                    key={wantToGoIds.size} // Force reload when want to go list changes
                     user={user} 
                     userLocation={userLocation}
                     onLocationClick={(location) => {

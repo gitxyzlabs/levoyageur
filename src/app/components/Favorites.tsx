@@ -16,12 +16,22 @@ export function Favorites({ user, userLocation, onLocationClick }: FavoritesProp
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    // Don't load favorites from backend - showing empty state
+    loadFavorites();
   }, [user]);
 
   const loadFavorites = async () => {
-    // Removed backend call - favorites are client-side only for now
-    setLoading(false);
+    setLoading(true);
+    try {
+      const { favorites: fetchedFavorites } = await api.getFavorites();
+      console.log('✅ Favorites loaded:', fetchedFavorites);
+      setFavorites(fetchedFavorites);
+    } catch (error) {
+      console.error('❌ Failed to load favorites:', error);
+      // Silently fail - don't show error to user
+      setFavorites([]);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const calculateDistance = (lat1: number, lon1: number, lat2: number, lon2: number): number => {

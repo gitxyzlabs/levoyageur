@@ -1,3 +1,4 @@
+import { useState, useEffect } from 'react';
 import { InfoWindow } from '@vis.gl/react-google-maps';
 import { Heart, Award, Users, Star, ChevronLeft, ChevronRight, Navigation, Bookmark, Calendar } from 'lucide-react';
 import type { Location, User } from '../../utils/api';

@@ -3,6 +3,7 @@ import { Map as GoogleMap, AdvancedMarker, useMap } from '@vis.gl/react-google-m
 import type { Location, User } from '../../utils/api';
 import { LocationInfoWindow } from './LocationInfoWindow';
 import { GooglePlaceInfoWindow } from './GooglePlaceInfoWindow';
+import { LuxuryMarker } from './LuxuryMarker';
 
 interface MapProps {
   locations: Location[];
@@ -249,8 +250,9 @@ export function Map({
       >
         {displayLocations.map((location) => {
           const rating = location.lvEditorsScore || 5;
-          const color = getMarkerColor(rating);
-          const scale = showHeatMap ? 1 : 1.2;
+          const scale = showHeatMap ? 0.8 : 1;
+          const isFavorite = favoriteIds?.has(location.id);
+          const isWantToGo = wantToGoIds?.has(location.id);
           
           return (
             <AdvancedMarker
@@ -259,36 +261,14 @@ export function Map({
               onClick={() => handleMarkerClick(location)}
               zIndex={selectedLocation?.id === location.id ? 1000 : 100}
             >
-              <div
-                className="relative cursor-pointer transition-all duration-200 hover:scale-110"
-                style={{
-                  width: `${32 * scale}px`,
-                  height: `${40 * scale}px`,
-                }}
-              >
-                {/* Marker Pin */}
-                <svg 
-                  viewBox="0 0 32 40" 
-                  className="drop-shadow-lg"
-                  style={{ filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.2))' }}
-                >
-                  <path
-                    d="M16 0C9.373 0 4 5.373 4 12c0 8.5 12 28 12 28s12-19.5 12-28c0-6.627-5.373-12-12-12z"
-                    fill={color}
-                  />
-                  <circle cx="16" cy="12" r="4" fill="white" fillOpacity="0.9" />
-                </svg>
-                
-                {/* Rating Badge */}
-                {!showHeatMap && (
-                  <div 
-                    className="absolute -top-2 -right-2 bg-white text-slate-900 text-xs font-semibold px-1.5 py-0.5 rounded-full shadow-md border border-slate-200"
-                    style={{ fontSize: '10px' }}
-                  >
-                    {rating.toFixed(1)}
-                  </div>
-                )}
-              </div>
+              <LuxuryMarker
+                rating={rating}
+                scale={scale}
+                showHeatMap={showHeatMap}
+                isFavorite={isFavorite}
+                isWantToGo={isWantToGo}
+                type="lv-location"
+              />
             </AdvancedMarker>
           );
         })}
@@ -308,36 +288,11 @@ export function Map({
               onClick={() => setClickedPOI(place)}
               zIndex={clickedPOI?.place_id === place.place_id ? 1000 : 50}
             >
-              <div
-                className="relative cursor-pointer transition-all duration-200 hover:scale-110"
-                style={{
-                  width: '28px',
-                  height: '36px',
-                }}
-              >
-                {/* Search Result Pin (Blue) */}
-                <svg 
-                  viewBox="0 0 32 40" 
-                  className="drop-shadow-lg"
-                  style={{ filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.2))' }}
-                >
-                  <path
-                    d="M16 0C9.373 0 4 5.373 4 12c0 8.5 12 28 12 28s12-19.5 12-28c0-6.627-5.373-12-12-12z"
-                    fill="#3b82f6"
-                  />
-                  <circle cx="16" cy="12" r="4" fill="white" fillOpacity="0.9" />
-                </svg>
-                
-                {/* Google Rating Badge */}
-                {place.rating && (
-                  <div 
-                    className="absolute -top-2 -right-2 bg-white text-slate-900 text-xs font-semibold px-1.5 py-0.5 rounded-full shadow-md border border-blue-200"
-                    style={{ fontSize: '10px' }}
-                  >
-                    {place.rating.toFixed(1)}
-                  </div>
-                )}
-              </div>
+              <LuxuryMarker
+                rating={place.rating || 5}
+                scale={0.9}
+                type="search-result"
+              />
             </AdvancedMarker>
           );
         })}
