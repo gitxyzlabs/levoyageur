@@ -82,6 +82,9 @@ export default function App() {
           const { user: userProfile } = await api.getCurrentUser();
           setUser(userProfile);
           console.log('✅ User profile loaded:', userProfile);
+          
+          // Load user's favorites and want-to-go lists
+          await loadUserLists();
         } catch (error) {
           console.error('Failed to fetch user profile:', error);
           // Fallback to basic user data
@@ -363,17 +366,25 @@ export default function App() {
     
     const isFavorite = favoriteIds.has(locationId);
     
-    // Update local state only (no backend call)
-    if (isFavorite) {
-      setFavoriteIds(prev => {
-        const newSet = new Set(prev);
-        newSet.delete(locationId);
-        return newSet;
-      });
-      toast.success('Removed from favorites');
-    } else {
-      setFavoriteIds(prev => new Set([...prev, locationId]));
-      toast.success('Added to favorites!');
+    try {
+      if (isFavorite) {
+        // Remove from favorites
+        await api.removeFavorite(locationId);
+        setFavoriteIds(prev => {
+          const newSet = new Set(prev);
+          newSet.delete(locationId);
+          return newSet;
+        });
+        toast.success('Removed from favorites');
+      } else {
+        // Add to favorites
+        await api.addFavorite(locationId);
+        setFavoriteIds(prev => new Set([...prev, locationId]));
+        toast.success('Added to favorites!');
+      }
+    } catch (error) {
+      console.error('❌ Error toggling favorite:', error);
+      toast.error('Failed to update favorites');
     }
   };
 
@@ -385,17 +396,25 @@ export default function App() {
     
     const isWantToGo = wantToGoIds.has(locationId);
     
-    // Update local state only (no backend call)
-    if (isWantToGo) {
-      setWantToGoIds(prev => {
-        const newSet = new Set(prev);
-        newSet.delete(locationId);
-        return newSet;
-      });
-      toast.success('Removed from Want to Go');
-    } else {
-      setWantToGoIds(prev => new Set([...prev, locationId]));
-      toast.success('Added to Want to Go!');
+    try {
+      if (isWantToGo) {
+        // Remove from Want to Go
+        await api.removeWantToGo(locationId);
+        setWantToGoIds(prev => {
+          const newSet = new Set(prev);
+          newSet.delete(locationId);
+          return newSet;
+        });
+        toast.success('Removed from Want to Go');
+      } else {
+        // Add to Want to Go
+        await api.addWantToGo(locationId);
+        setWantToGoIds(prev => new Set([...prev, locationId]));
+        toast.success('Added to Want to Go!');
+      }
+    } catch (error) {
+      console.error('❌ Error toggling Want to Go:', error);
+      toast.error('Failed to update Want to Go');
     }
   };
 
