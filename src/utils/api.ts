@@ -2,7 +2,16 @@ import { createClient } from '@supabase/supabase-js';
 import { projectId, publicAnonKey } from '../../utils/supabase/info.tsx';
 
 const supabaseUrl = `https://${projectId}.supabase.co`;
-export const supabase = createClient(supabaseUrl, publicAnonKey);
+
+// Create a singleton Supabase client with a unique storage key to avoid conflicts
+export const supabase = createClient(supabaseUrl, publicAnonKey, {
+  auth: {
+    storageKey: 'lv-auth-token', // Unique key for this app
+    autoRefreshToken: true,
+    persistSession: true,
+    detectSessionInUrl: true,
+  },
+});
 
 const API_BASE = `${supabaseUrl}/functions/v1/make-server-48182530`;
 
@@ -82,10 +91,21 @@ const fetchWithAuth = async (url: string, options: RequestInit = {}) => {
 export const api = {
   // Auth
   signUp: async (email: string, password: string, name: string) => {
-    return fetchWithAuth(`${API_BASE}/signup`, {
+    // Public endpoint - doesn't require auth
+    const response = await fetch(`${API_BASE}/signup`, {
       method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
       body: JSON.stringify({ email, password, name }),
     });
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ error: response.statusText }));
+      throw new Error(error.error || `HTTP error! status: ${response.status}`);
+    }
+
+    return response.json();
   },
 
   createOAuthUser: async (user: User) => {
@@ -190,12 +210,24 @@ export const api = {
   // Locations
   getLocations: async (): Promise<{ locations: Location[] }> => {
     // Public endpoint - doesn't require auth
-    const response = await fetch(`${API_BASE}/locations`, {
+    // Try without auth first, then fallback to anon key if JWT verification is enabled
+    let response = await fetch(`${API_BASE}/locations`, {
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${publicAnonKey}`,
       },
     });
+
+    // If we get 401, it means JWT verification is ON in Supabase dashboard
+    // Fallback to using anon key (will work until JWT is disabled)
+    if (response.status === 401) {
+      console.warn('⚠️ JWT verification is enabled - using anon key fallback. Please disable JWT verification in Supabase dashboard.');
+      response = await fetch(`${API_BASE}/locations`, {
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${publicAnonKey}`,
+        },
+      });
+    }
 
     if (!response.ok) {
       const error = await response.json().catch(() => ({ error: response.statusText }));
@@ -208,12 +240,24 @@ export const api = {
 
   getLocationsByTag: async (tag: string): Promise<{ locations: Location[] }> => {
     // Public endpoint - doesn't require auth
-    const response = await fetch(`${API_BASE}/locations/tag/${encodeURIComponent(tag)}`, {
+    // Try without auth first, then fallback to anon key if JWT verification is enabled
+    let response = await fetch(`${API_BASE}/locations/tag/${encodeURIComponent(tag)}`, {
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${publicAnonKey}`,
       },
     });
+
+    // If we get 401, it means JWT verification is ON in Supabase dashboard
+    // Fallback to using anon key (will work until JWT is disabled)
+    if (response.status === 401) {
+      console.warn('⚠️ JWT verification is enabled - using anon key fallback. Please disable JWT verification in Supabase dashboard.');
+      response = await fetch(`${API_BASE}/locations/tag/${encodeURIComponent(tag)}`, {
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${publicAnonKey}`,
+        },
+      });
+    }
 
     if (!response.ok) {
       const error = await response.json().catch(() => ({ error: response.statusText }));
@@ -289,7 +333,6 @@ export const api = {
     const response = await fetch(`${API_BASE}/tags`, {
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${publicAnonKey}`,
       },
     });
 

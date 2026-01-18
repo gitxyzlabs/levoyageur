@@ -3,6 +3,21 @@ import { cors } from "npm:hono/cors";
 import { logger } from "npm:hono/logger";
 import { createClient } from "npm:@supabase/supabase-js@2";
 
+/**
+ * IMPORTANT: Platform-level JWT verification is DISABLED
+ * 
+ * Supabase Edge Functions can automatically verify JWTs at the platform level
+ * before requests reach your code. However, this verification uses legacy JWT
+ * validation that may not work with all token formats (especially OAuth tokens).
+ * 
+ * We've disabled platform-level JWT verification (see config.toml and deno.json)
+ * and handle authentication manually using supabase.auth.getUser() instead.
+ * 
+ * If JWT verification gets re-enabled in the Supabase dashboard, requests will
+ * fail with 401 before reaching our code. Solution: Go to Edge Functions settings
+ * in Supabase dashboard and ensure "Verify JWT" is toggled OFF for this function.
+ */
+
 const app = new Hono();
 
 // Enable logger
