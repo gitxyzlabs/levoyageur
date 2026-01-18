@@ -298,9 +298,10 @@ export const api = {
     return fetchWithAuth(`${API_BASE}/favorites`);
   },
 
-  addFavorite: async (locationId: string) => {
+  addFavorite: async (locationId: string, placeData?: { name?: string; lat?: number; lng?: number; formatted_address?: string }) => {
     return fetchWithAuth(`${API_BASE}/favorites/${locationId}`, {
       method: 'POST',
+      body: JSON.stringify(placeData || {}),
     });
   },
 

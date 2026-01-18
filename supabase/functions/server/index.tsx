@@ -460,6 +460,12 @@ app.post('/make-server-48182530/favorites/:locationId', verifyAuth, async (c) =>
   try {
     const supabase = getSupabaseAdmin();
     
+    // Get place data from request body
+    const body = await c.req.json().catch(() => ({}));
+    const placeData = body as { name?: string; lat?: number; lng?: number; formatted_address?: string };
+    
+    console.log('📍 Place data received:', placeData);
+    
     // Check if location exists
     const { data: location, error: locError } = await supabase
       .from('locations')
@@ -470,25 +476,26 @@ app.post('/make-server-48182530/favorites/:locationId', verifyAuth, async (c) =>
     if (locError || !location) {
       console.log('📍 Location not found in database, creating placeholder for:', locationId);
       
-      // Create a placeholder location - it will be enriched by editors later
+      // Create a placeholder location with actual data if provided
       const { error: createError } = await supabase
         .from('locations')
         .insert({
           id: locationId,
-          name: 'Pending Location Data',
-          lat: 0,
-          lng: 0,
+          name: placeData.name || 'Pending Location Data',
+          lat: placeData.lat || 0,
+          lng: placeData.lng || 0,
           lv_editors_score: 0,
           lv_crowdsource_score: 0,
           google_rating: 0,
           michelin_score: 0,
           tags: [],
           place_id: locationId,
+          description: placeData.formatted_address || '',
         });
       
       if (createError && createError.code !== '23505') { // Ignore duplicate key error
         console.error('❌ Error creating placeholder location:', createError);
-        return c.json({ error: 'Failed to create location placeholder' }, 500);
+        return c.json({ error: 'Failed to create location placeholder', details: createError.message }, 500);
       }
       
       console.log('✅ Placeholder location created:', locationId);

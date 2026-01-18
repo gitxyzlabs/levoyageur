@@ -10,7 +10,7 @@ interface GooglePlaceInfoWindowProps {
   onClose: () => void;
   user: { id: string; email: string; name: string; role: 'user' | 'editor' } | null;
   isAuthenticated: boolean;
-  onFavoriteToggle?: (locationId: string) => void;
+  onFavoriteToggle?: (locationId: string, placeData?: { name?: string; lat?: number; lng?: number; formatted_address?: string }) => void;
   onWantToGoToggle?: (locationId: string) => void;
   favoriteIds?: Set<string>;
   wantToGoIds?: Set<string>;
@@ -233,7 +233,12 @@ export function GooglePlaceInfoWindow({
                 }
 
                 if (onFavoriteToggle) {
-                  onFavoriteToggle(place.place_id);
+                  onFavoriteToggle(place.place_id, {
+                    name: place.name,
+                    lat,
+                    lng,
+                    formatted_address: place.formatted_address
+                  });
                 }
               }}
               className={`flex items-center justify-center gap-1.5 px-3 py-2.5 border rounded-lg text-xs font-medium transition-all ${

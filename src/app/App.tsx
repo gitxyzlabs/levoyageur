@@ -358,7 +358,7 @@ export default function App() {
     }
   };
 
-  const handleToggleFavorite = async (locationId: string) => {
+  const handleToggleFavorite = async (locationId: string, placeData?: { name?: string; lat?: number; lng?: number; formatted_address?: string }) => {
     if (!user) {
       toast.error('Please sign in to save favorites');
       return;
@@ -377,8 +377,8 @@ export default function App() {
         });
         toast.success('Removed from favorites');
       } else {
-        // Add to favorites
-        await api.addFavorite(locationId);
+        // Add to favorites with place data if available
+        await api.addFavorite(locationId, placeData);
         setFavoriteIds(prev => new Set([...prev, locationId]));
         toast.success('Added to favorites!');
       }

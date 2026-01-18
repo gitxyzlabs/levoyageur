@@ -11,9 +11,9 @@ interface MapProps {
   googleMapsApiKey: string;
   onLocationClick?: (location: Location) => void;
   onAddLocationRequest?: (place: any) => void;
-  user: User | null;
-  isAuthenticated: boolean;
-  onFavoriteToggle?: (locationId: string) => void;
+  user?: { id: string; email: string; name: string; role: 'user' | 'editor' } | null;
+  isAuthenticated?: boolean;
+  onFavoriteToggle?: (locationId: string, placeData?: { name?: string; lat?: number; lng?: number; formatted_address?: string }) => void;
   onWantToGoToggle?: (locationId: string) => void;
   favoriteIds?: Set<string>;
   wantToGoIds?: Set<string>;
