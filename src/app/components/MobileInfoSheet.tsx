@@ -12,6 +12,7 @@ interface MobileInfoSheetProps {
   isAuthenticated: boolean;
   onFavoriteToggle?: (locationId: string, placeData?: { name?: string; lat?: number; lng?: number; formatted_address?: string; place_id?: string }) => void;
   onWantToGoToggle?: (locationId: string) => void;
+  onRatingAdded?: () => void;
   favoriteIds?: Set<string>; 
   wantToGoIds?: Set<string>;
   lvLocation?: Location | null;
@@ -24,6 +25,7 @@ export function MobileInfoSheet({
   isAuthenticated,
   onFavoriteToggle,
   onWantToGoToggle,
+  onRatingAdded,
   favoriteIds,
   wantToGoIds,
   lvLocation
@@ -254,7 +256,7 @@ export function MobileInfoSheet({
                 <Bookmark className={`w-5 h-5 ${
                   wantToGoIds?.has(place.place_id || '') ? 'fill-green-500 stroke-green-500' : ''
                 }`} />
-                {wantToGoIds?.has(place.place_id || '') ? 'Want to Go' : 'Add to Go'}
+                Want to Go
               </button>
             </div>
 
@@ -379,6 +381,9 @@ export function MobileInfoSheet({
             onSuccess={() => {
               setShowEditorModal(false);
               toast.success('Rating updated successfully!');
+              if (onRatingAdded) {
+                onRatingAdded();
+              }
             }}
           />
         )}

@@ -19,6 +19,7 @@ interface MapProps {
   isAuthenticated?: boolean;
   onFavoriteToggle?: (locationId: string, placeData?: { name?: string; lat?: number; lng?: number; formatted_address?: string }) => void;
   onWantToGoToggle?: (locationId: string) => void;
+  onRatingAdded?: () => void;
   favoriteIds?: Set<string>;
   wantToGoIds?: Set<string>;
   mapCenter?: { lat: number; lng: number } | null;
@@ -64,6 +65,7 @@ export function Map({
   isAuthenticated,
   onFavoriteToggle,
   onWantToGoToggle,
+  onRatingAdded,
   favoriteIds,
   wantToGoIds,
   mapCenter,
@@ -483,6 +485,7 @@ export function Map({
               isAuthenticated={isAuthenticated}
               onFavoriteToggle={onFavoriteToggle}
               onWantToGoToggle={onWantToGoToggle}
+              onRatingAdded={onRatingAdded}
               favoriteIds={favoriteIds}
               wantToGoIds={wantToGoIds}
               lvLocation={selectedLVLocation} // We'll need to pass this from App.tsx
@@ -521,6 +524,7 @@ export function Map({
             isAuthenticated={isAuthenticated}
             onFavoriteToggle={onFavoriteToggle}
             onWantToGoToggle={onWantToGoToggle}
+            onRatingAdded={onRatingAdded}
             favoriteIds={favoriteIds}
             wantToGoIds={wantToGoIds}
             lvLocation={selectedLVLocation}

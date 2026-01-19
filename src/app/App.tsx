@@ -581,6 +581,8 @@ export default function App() {
         setFavoriteIds(prev => new Set([...prev, locationId]));
         toast.success('Added to favorites!');
       }
+      // Refresh locations to update markers
+      await loadLocations();
     } catch (error: any) {
       console.error('❌ Error toggling favorite:', error);
       toast.error('Failed to update favorites');
@@ -611,6 +613,8 @@ export default function App() {
         setWantToGoIds(prev => new Set([...prev, locationId]));
         toast.success('Added to Want to Go!');
       }
+      // Refresh locations to update markers
+      await loadLocations();
     } catch (error) {
       console.error('❌ Error toggling Want to Go:', error);
       toast.error('Failed to update Want to Go');
@@ -1004,6 +1008,7 @@ export default function App() {
               isAuthenticated={!!user}
               onFavoriteToggle={handleToggleFavorite}
               onWantToGoToggle={handleToggleWantToGo}
+              onRatingAdded={loadLocations}
               favoriteIds={favoriteIds}
               wantToGoIds={wantToGoIds}
               mapCenter={mapCenter}

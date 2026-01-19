@@ -12,9 +12,10 @@ interface GooglePlaceInfoWindowProps {
   isAuthenticated: boolean;
   onFavoriteToggle?: (locationId: string, placeData?: { name?: string; lat?: number; lng?: number; formatted_address?: string; place_id?: string }) => void;
   onWantToGoToggle?: (locationId: string) => void;
+  onRatingAdded?: () => void;
   favoriteIds?: Set<string>;
   wantToGoIds?: Set<string>;
-  lvLocation?: Location | null; // LV location data if this is an LV marker
+  lvLocation?: Location | null;
 }
 
 export function GooglePlaceInfoWindow({ 
@@ -24,6 +25,7 @@ export function GooglePlaceInfoWindow({
   isAuthenticated,
   onFavoriteToggle,
   onWantToGoToggle,
+  onRatingAdded,
   favoriteIds,
   wantToGoIds,
   lvLocation
@@ -474,6 +476,9 @@ export function GooglePlaceInfoWindow({
               onSuccess={() => {
                 toast.success('Rating updated successfully!');
                 setShowEditorModal(false);
+                if (onRatingAdded) {
+                  onRatingAdded();
+                }
               }}
             />
           )}
