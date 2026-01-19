@@ -315,6 +315,27 @@ export const api = {
     });
   },
 
+  // Get total favorites count for locations in a city
+  getCityFavorites: async (locationIds: string[]): Promise<{ totalFavorites: number }> => {
+    // Public endpoint - use anon key for access
+    const response = await fetch(`${API_BASE}/favorites/city-stats`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${publicAnonKey}`,
+      },
+      body: JSON.stringify({ locationIds }),
+    });
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ error: response.statusText }));
+      console.error('❌ getCityFavorites error:', error);
+      throw new Error(error.error || `HTTP error! status: ${response.status}`);
+    }
+
+    return response.json();
+  },
+
   // Want to Go
   getWantToGo: async (): Promise<{ wantToGo: Location[] }> => {
     return fetchWithAuth(`${API_BASE}/want-to-go`);

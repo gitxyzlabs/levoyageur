@@ -322,13 +322,18 @@ export function GooglePlaceInfoWindow({
 
           {/* LV Tags - Show when available */}
           {lvLocation?.tags && lvLocation.tags.length > 0 && (
-            <div className="mb-3">
-              <p className="text-xs font-medium text-amber-700 mb-1.5">LV Tags</p>
+            <div className="mb-4">
+              <div className="flex items-center gap-1.5 mb-2">
+                <svg className="w-3.5 h-3.5 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
+                </svg>
+                <p className="text-xs font-semibold text-amber-700">tags</p>
+              </div>
               <div className="flex flex-wrap gap-1.5">
                 {lvLocation.tags.map((tag, idx) => (
                   <span 
                     key={idx}
-                    className="text-xs px-2.5 py-1 bg-gradient-to-r from-amber-100 to-rose-100 text-amber-900 rounded-full font-medium border border-amber-200"
+                    className="text-xs px-3 py-1.5 bg-gradient-to-r from-amber-50 to-orange-50 text-amber-800 rounded-full font-medium border border-amber-300 shadow-sm"
                   >
                     {tag}
                   </span>
@@ -340,12 +345,12 @@ export function GooglePlaceInfoWindow({
           {/* Types/Categories */}
           {place.types && place.types.length > 0 && (
             <div className="mb-3">
-              <p className="text-xs font-medium text-gray-600 mb-1">Categories</p>
+              <p className="text-xs font-medium text-gray-500 mb-1.5 uppercase tracking-wide">Categories</p>
               <div className="flex flex-wrap gap-1">
                 {place.types.slice(0, 3).map((type, idx) => (
                   <span 
                     key={idx}
-                    className="text-xs px-2 py-0.5 bg-gray-100 text-gray-700 rounded-full"
+                    className="text-xs px-2.5 py-1 bg-gray-100 text-gray-600 rounded-full"
                   >
                     {type.replace(/_/g, ' ')}
                   </span>

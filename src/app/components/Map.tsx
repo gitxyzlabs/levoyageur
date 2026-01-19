@@ -1,7 +1,10 @@
+import React from 'react';
 import { useEffect, useState } from 'react';
 import { Map as GoogleMap, AdvancedMarker, useMap } from '@vis.gl/react-google-maps';
 import type { Location, User } from '../../utils/api';
 import { GooglePlaceInfoWindow } from './GooglePlaceInfoWindow';
+import { MobileInfoSheet } from './MobileInfoSheet';
+import { CityInfoWindow } from './CityInfoWindow';
 import { LuxuryMarker } from './LuxuryMarker';
 import { Locate } from 'lucide-react';
 
@@ -22,6 +25,8 @@ interface MapProps {
   mapZoom?: number;
   selectedGooglePlace?: google.maps.places.PlaceResult | null;
   selectedLVLocation?: Location | null; // LV location data for the selected place
+  selectedCity?: google.maps.places.PlaceResult | null; // City/region selection
+  cityStats?: { totalLVRatings: number; totalFavorites: number }; // Stats for selected city
   onGooglePlaceClose?: () => void;
   onPOIClick?: (place: google.maps.places.PlaceResult, lvLocation?: Location) => void;
   onMapBoundsChange?: (bounds: google.maps.LatLngBounds) => void;
@@ -65,6 +70,8 @@ export function Map({
   mapZoom,
   selectedGooglePlace,
   selectedLVLocation,
+  selectedCity,
+  cityStats,
   onGooglePlaceClose,
   onPOIClick,
   onMapBoundsChange,
@@ -76,6 +83,17 @@ export function Map({
   const [locationPermissionDenied, setLocationPermissionDenied] = useState(false);
 
   const displayLocations = showHeatMap && heatMapData ? heatMapData : locations;
+
+  // Debug logging for marker filtering
+  useEffect(() => {
+    console.log('🗺️ Map Display Logic:', {
+      showHeatMap,
+      totalLocations: locations.length,
+      heatMapDataCount: heatMapData?.length || 0,
+      displayingCount: displayLocations.length,
+      isFiltered: showHeatMap && heatMapData ? true : false
+    });
+  }, [showHeatMap, locations, heatMapData, displayLocations]);
 
   // Get user's current location
   const getUserLocation = () => {
@@ -373,8 +391,13 @@ export function Map({
           zoomControl: true,
         }}
       >
-        {/* LV Location Markers */}
-        {displayLocations.map((location) => {
+        {/* LV Location Markers - Show when heat map is active OR when no search results */}
+        {(showHeatMap || !showSearchResults) && displayLocations
+          .filter((location) => {
+            // Only show markers for locations that have an LV rating
+            return !!(location.lvEditorsScore || location.lvCrowdsourceScore);
+          })
+          .map((location) => {
           const rating = location.lvEditorsScore || 5;
           const scale = showHeatMap ? 0.8 : 1;
           const isFavorite = favoriteIds?.has(location.id) || favoriteIds?.has(location.place_id || '');
@@ -446,9 +469,48 @@ export function Map({
           </AdvancedMarker>
         )}
         
-        {/* Single InfoWindow - controlled by parent's selectedGooglePlace */}
+        {/* Single InfoWindow - controlled by parent's selectedGooglePlace - DESKTOP ONLY */}
+        <div className="hidden md:block">
+          {selectedGooglePlace && (
+            <GooglePlaceInfoWindow
+              place={selectedGooglePlace}
+              onClose={() => {
+                if (onGooglePlaceClose) {
+                  onGooglePlaceClose();
+                }
+              }}
+              user={user}
+              isAuthenticated={isAuthenticated}
+              onFavoriteToggle={onFavoriteToggle}
+              onWantToGoToggle={onWantToGoToggle}
+              favoriteIds={favoriteIds}
+              wantToGoIds={wantToGoIds}
+              lvLocation={selectedLVLocation} // We'll need to pass this from App.tsx
+            />
+          )}
+        </div>
+        
+        {/* City/Region InfoWindow - controlled by parent's selectedCity - DESKTOP ONLY */}
+        <div className="hidden md:block">
+          {selectedCity && cityStats && (
+            <CityInfoWindow
+              place={selectedCity}
+              onClose={() => {
+                if (onGooglePlaceClose) {
+                  onGooglePlaceClose();
+                }
+              }}
+              totalLVRatings={cityStats.totalLVRatings}
+              totalFavorites={cityStats.totalFavorites}
+            />
+          )}
+        </div>
+      </GoogleMap>
+      
+      {/* Mobile Info Sheet - MOBILE ONLY */}
+      <div className="md:hidden">
         {selectedGooglePlace && (
-          <GooglePlaceInfoWindow
+          <MobileInfoSheet
             place={selectedGooglePlace}
             onClose={() => {
               if (onGooglePlaceClose) {
@@ -461,10 +523,10 @@ export function Map({
             onWantToGoToggle={onWantToGoToggle}
             favoriteIds={favoriteIds}
             wantToGoIds={wantToGoIds}
-            lvLocation={selectedLVLocation} // We'll need to pass this from App.tsx
+            lvLocation={selectedLVLocation}
           />
         )}
-      </GoogleMap>
+      </div>
     </div>
   );
 }

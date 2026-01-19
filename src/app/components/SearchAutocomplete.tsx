@@ -42,9 +42,8 @@ export function SearchAutocomplete({ onPlaceSelect, onTagSelect, onClear, mapBou
           // Use the fetchAutocompleteSuggestions method from places library
           const request: any = {
             input: searchValue,
-            includedPrimaryTypes: ['restaurant', 'cafe', 'bar', 'bakery', 'meal_takeaway'],
-            // Note: The new AutocompleteSuggestion API has limited support for geographic restrictions
-            // We'll rely on the search input quality and post-filter results if needed
+            // Remove type restrictions to allow cities, regions, and all place types
+            // This allows searches like "Austin, TX" to work alongside "tacos"
           };
           
           // Optional: Add region code for better results in specific countries
@@ -259,7 +258,7 @@ export function SearchAutocomplete({ onPlaceSelect, onTagSelect, onClear, mapBou
               setShowDropdown(true);
             }
           }}
-          placeholder="Search tags or places"
+          placeholder="Search cities, tags, or places"
           className="w-full pl-12 pr-12 py-4 text-base rounded-2xl bg-white/95 backdrop-blur-2xl border-2 border-white/40 shadow-2xl focus:outline-none focus:ring-4 focus:ring-amber-400/30 focus:border-amber-400/50 text-gray-900 placeholder-gray-400 transition-all duration-300 hover:shadow-amber-200/50"
         />
         {searchValue && (

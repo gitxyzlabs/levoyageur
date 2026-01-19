@@ -7,9 +7,17 @@ interface ProfileProps {
   user: User;
   locationPermissionEnabled?: boolean;
   onLocationPermissionToggle?: (enabled: boolean) => void;
+  favoritesCount?: number;
+  wantToGoCount?: number;
 }
 
-export function Profile({ user, locationPermissionEnabled, onLocationPermissionToggle }: ProfileProps) {
+export function Profile({ 
+  user, 
+  locationPermissionEnabled, 
+  onLocationPermissionToggle,
+  favoritesCount = 0,
+  wantToGoCount = 0,
+}: ProfileProps) {
   return (
     <div className="space-y-6">
       {/* Profile Header */}
@@ -83,12 +91,12 @@ export function Profile({ user, locationPermissionEnabled, onLocationPermissionT
         <CardContent>
           <div className="grid grid-cols-2 gap-4">
             <div className="text-center p-4 bg-slate-50 rounded-lg">
-              <div className="text-2xl font-light mb-1">0</div>
+              <div className="text-2xl font-light mb-1">{favoritesCount}</div>
               <p className="text-xs text-muted-foreground">Favorites</p>
             </div>
             <div className="text-center p-4 bg-slate-50 rounded-lg">
-              <div className="text-2xl font-light mb-1">0</div>
-              <p className="text-xs text-muted-foreground">Reviews</p>
+              <div className="text-2xl font-light mb-1">{wantToGoCount}</div>
+              <p className="text-xs text-muted-foreground">Want to Go</p>
             </div>
           </div>
         </CardContent>

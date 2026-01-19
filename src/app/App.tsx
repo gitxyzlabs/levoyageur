@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { motion } from 'motion/react';
+import { motion, AnimatePresence } from 'motion/react';
 import { APIProvider } from '@vis.gl/react-google-maps';
 import { toast, Toaster } from 'sonner';
 import { 
@@ -15,7 +15,8 @@ import {
   Home,
   Heart,
   Bookmark,
-  Settings
+  Settings,
+  Menu
 } from 'lucide-react';
 
 import { Map } from './components/Map';
@@ -61,6 +62,70 @@ export default function App() {
   const [mapBounds, setMapBounds] = useState<google.maps.LatLngBounds | null>(null);
   const [searchResults, setSearchResults] = useState<google.maps.places.PlaceResult[]>([]);
   const [showSearchResults, setShowSearchResults] = useState(false);
+  const [selectedCity, setSelectedCity] = useState<google.maps.places.PlaceResult | null>(null);
+  const [cityStats, setCityStats] = useState<{ totalLVRatings: number; totalFavorites: number }>({ totalLVRatings: 0, totalFavorites: 0 });
+  const [mobileDrawerOpen, setMobileDrawerOpen] = useState(false);
+
+  // Calculate city stats when a city is selected
+  useEffect(() => {
+    if (selectedCity && selectedCity.geometry?.location) {
+      calculateCityStats(selectedCity.geometry.location);
+    }
+  }, [selectedCity, locations]);
+
+  const calculateCityStats = async (cityCenter: google.maps.LatLng | google.maps.LatLngLiteral) => {
+    const lat = typeof cityCenter.lat === 'function' ? cityCenter.lat() : cityCenter.lat;
+    const lng = typeof cityCenter.lng === 'function' ? cityCenter.lng() : cityCenter.lng;
+    
+    // Calculate locations within ~50km radius of city center
+    const CITY_RADIUS_KM = 50;
+    const locationsInCity = locations.filter(location => {
+      const distance = calculateDistance(lat, lng, location.lat, location.lng);
+      return distance <= CITY_RADIUS_KM;
+    });
+    
+    console.log('📊 City Stats:', {
+      totalLocations: locationsInCity.length,
+      cityCenter: { lat, lng },
+      radius: CITY_RADIUS_KM
+    });
+    
+    // Count LV rated venues (locations with editor scores)
+    const lvRatedCount = locationsInCity.filter(loc => 
+      loc.lvEditorsScore !== null && loc.lvEditorsScore !== undefined && loc.lvEditorsScore > 0
+    ).length;
+    
+    // Fetch total favorites count from backend for locations in this city
+    try {
+      const locationIds = locationsInCity.map(loc => loc.id);
+      const { totalFavorites } = await api.getCityFavorites(locationIds);
+      
+      setCityStats({
+        totalLVRatings: lvRatedCount,
+        totalFavorites: totalFavorites
+      });
+    } catch (error) {
+      console.error('Error fetching city favorites:', error);
+      // Fallback: just show LV ratings count
+      setCityStats({
+        totalLVRatings: lvRatedCount,
+        totalFavorites: 0
+      });
+    }
+  };
+
+  // Haversine formula to calculate distance between two coordinates
+  const calculateDistance = (lat1: number, lng1: number, lat2: number, lng2: number): number => {
+    const R = 6371; // Earth's radius in km
+    const dLat = (lat2 - lat1) * Math.PI / 180;
+    const dLng = (lng2 - lng1) * Math.PI / 180;
+    const a = 
+      Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+      Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+      Math.sin(dLng / 2) * Math.sin(dLng / 2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    return R * c;
+  };
 
   useEffect(() => {
     initializeApp();
@@ -234,18 +299,44 @@ export default function App() {
   };
 
   const handlePlaceSelect = (place: google.maps.places.PlaceResult) => {
-    // Store the selected Google place to show in Map
-    setSelectedGooglePlace(place);
-    setSelectedLVLocation(null); // Clear LV location when Google place is selected
+    console.log('🏙️ Place selected:', place.name, 'Types:', place.types);
     
-    // Pan map to the selected place location
-    if (place.geometry?.location) {
-      const location = place.geometry.location;
-      const lat = typeof location.lat === 'function' ? location.lat() : location.lat;
-      const lng = typeof location.lng === 'function' ? location.lng() : location.lng;
+    // Check if this is a city/region (not a specific establishment)
+    const cityTypes = ['locality', 'administrative_area_level_1', 'administrative_area_level_2', 'political', 'sublocality'];
+    const isCity = place.types?.some(type => cityTypes.includes(type)) && 
+                   !place.types?.some(type => ['restaurant', 'cafe', 'bar', 'establishment', 'point_of_interest'].includes(type));
+    
+    if (isCity) {
+      console.log('✅ Detected as city/region - showing city info window');
+      setSelectedCity(place);
+      setSelectedGooglePlace(null);
+      setSelectedLVLocation(null);
       
-      setMapCenter({ lat, lng });
-      setMapZoom(15);
+      // Pan and zoom out to show the city area
+      if (place.geometry?.location) {
+        const location = place.geometry.location;
+        const lat = typeof location.lat === 'function' ? location.lat() : location.lat;
+        const lng = typeof location.lng === 'function' ? location.lng() : location.lng;
+        
+        setMapCenter({ lat, lng });
+        setMapZoom(12); // Zoom out more for cities
+      }
+    } else {
+      console.log('✅ Detected as specific place - showing place info window');
+      // Store the selected Google place to show in Map
+      setSelectedGooglePlace(place);
+      setSelectedLVLocation(null);
+      setSelectedCity(null);
+      
+      // Pan map to the selected place location
+      if (place.geometry?.location) {
+        const location = place.geometry.location;
+        const lat = typeof location.lat === 'function' ? location.lat() : location.lat;
+        const lng = typeof location.lng === 'function' ? location.lng() : location.lng;
+        
+        setMapCenter({ lat, lng });
+        setMapZoom(15);
+      }
     }
   };
 
@@ -314,6 +405,23 @@ export default function App() {
     try {
       toast.info(`Searching for "${query}"...`);
       
+      // Also search for LV locations with matching tags
+      try {
+        const { locations: taggedLocations } = await api.getLocationsByTag(query);
+        if (taggedLocations.length > 0) {
+          console.log(`📍 Found ${taggedLocations.length} LV locations tagged with "${query}"`);
+          setHeatMapLocations(taggedLocations);
+          setShowHeatMap(true);
+        } else {
+          setHeatMapLocations([]);
+          setShowHeatMap(false);
+        }
+      } catch (tagError) {
+        console.log('No LV locations found for this tag');
+        setHeatMapLocations([]);
+        setShowHeatMap(false);
+      }
+      
       // Get center and radius from map bounds
       const center = mapBounds.getCenter();
       const ne = mapBounds.getNorthEast();
@@ -339,7 +447,7 @@ export default function App() {
       
       const request = {
         textQuery: query,
-        fields: ['displayName', 'location', 'formattedAddress', 'id', 'rating', 'userRatingCount', 'types'],
+        fields: ['displayName', 'location', 'formattedAddress', 'id', 'rating', 'userRatingCount', 'types', 'photos'],
         locationBias: {
           center: { lat: center.lat(), lng: center.lng() },
           radius: radius
@@ -364,7 +472,8 @@ export default function App() {
             } as google.maps.places.PlaceGeometry : undefined,
             rating: place.rating,
             user_ratings_total: place.userRatingCount,
-            types: place.types
+            types: place.types,
+            photos: place.photos // Add photos to the result
           };
         });
         
@@ -627,8 +736,8 @@ export default function App() {
     <div className="size-full flex flex-col bg-white">
       <Toaster position="top-center" richColors />
 
-      {/* Header */}
-      <header className="bg-white border-b border-slate-200 shadow-sm">
+      {/* Header - Hidden on mobile, visible on desktop */}
+      <header className="hidden md:block bg-white border-b border-slate-200 shadow-sm">
         <div className="flex items-center justify-between px-6 py-4">
           <h1 className="text-2xl font-light tracking-wider">
             LE VOYAGEUR
@@ -662,9 +771,9 @@ export default function App() {
         </div>
       </header>
 
-      <div className="flex-1 flex overflow-hidden">
-        {/* Sidebar */}
-        <div className={`${sidebarCollapsed ? 'w-0' : 'w-96'} bg-slate-50 border-r border-slate-200 overflow-y-auto transition-all duration-300`}>
+      <div className="flex-1 flex overflow-hidden relative">
+        {/* Desktop Sidebar */}
+        <div className={`hidden md:block ${sidebarCollapsed ? 'w-0' : 'w-96'} bg-slate-50 border-r border-slate-200 overflow-y-auto transition-all duration-300`}>
           <div className={`p-6 space-y-6 ${sidebarCollapsed ? 'hidden' : ''}`}>
             {/* Sign In Prompt (when not logged in) */}
             {!user && (
@@ -813,6 +922,8 @@ export default function App() {
                     user={user}
                     locationPermissionEnabled={locationPermissionEnabled}
                     onLocationPermissionToggle={handleLocationPermissionToggle}
+                    favoritesCount={favoriteIds.size}
+                    wantToGoCount={wantToGoIds.size}
                   />
                 )}
               </>
@@ -828,9 +939,9 @@ export default function App() {
               initial={{ opacity: 0, y: -20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.4 }}
-              className="absolute top-6 left-1/2 -translate-x-1/2 z-10 w-full px-4 sm:px-6"
+              className="absolute top-6 md:top-6 top-20 left-1/2 -translate-x-1/2 z-10 w-full px-4 sm:px-6"
               style={{ 
-                maxWidth: 'min(640px, calc(100vw - 160px))',
+                maxWidth: 'min(640px, calc(100vw - 32px))',
               }}
             >
               <SearchAutocomplete
@@ -874,7 +985,7 @@ export default function App() {
               animate={{ opacity: 1, x: 0 }}
               transition={{ duration: 0.4 }}
               onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
-              className="absolute top-6 left-4 sm:left-6 z-20 p-3 bg-white/95 backdrop-blur-2xl rounded-xl shadow-lg border border-slate-200 hover:bg-white hover:shadow-xl transition-all duration-300"
+              className="hidden md:block absolute top-6 left-4 sm:left-6 z-20 p-3 bg-white/95 backdrop-blur-2xl rounded-xl shadow-lg border border-slate-200 hover:bg-white hover:shadow-xl transition-all duration-300"
             >
               {sidebarCollapsed ? (
                 <ChevronRight className="h-5 w-5 text-slate-600" />
@@ -899,9 +1010,12 @@ export default function App() {
               mapZoom={mapZoom}
               selectedGooglePlace={selectedGooglePlace}
               selectedLVLocation={selectedLVLocation}
+              selectedCity={selectedCity}
+              cityStats={cityStats}
               onGooglePlaceClose={() => {
                 setSelectedGooglePlace(null);
                 setSelectedLVLocation(null);
+                setSelectedCity(null);
               }}
               onMapBoundsChange={setMapBounds}
               searchResults={searchResults}
@@ -910,6 +1024,251 @@ export default function App() {
             />
           </APIProvider>
         </div>
+
+        {/* Mobile Header - Only visible on mobile */}
+        <div className="md:hidden absolute top-0 left-0 right-0 z-30 bg-white/95 backdrop-blur-lg border-b border-slate-200 shadow-sm">
+          <div className="flex items-center justify-between px-4 py-3">
+            <h1 className="text-lg font-light tracking-wider">LE VOYAGEUR</h1>
+            {!user ? (
+              <Button
+                onClick={handleLogin}
+                size="sm"
+                className="gap-1.5 bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700"
+              >
+                <LogIn className="h-3.5 w-3.5" />
+                Sign in
+              </Button>
+            ) : (
+              <button
+                onClick={() => setMobileDrawerOpen(true)}
+                className="p-2 hover:bg-slate-100 rounded-lg transition-colors"
+              >
+                <Menu className="h-5 w-5 text-gray-700" />
+              </button>
+            )}
+          </div>
+        </div>
+
+        {/* Mobile Slide-Up Drawer */}
+        <AnimatePresence>
+          {mobileDrawerOpen && (
+            <>
+              {/* Backdrop */}
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                onClick={() => setMobileDrawerOpen(false)}
+                className="md:hidden fixed inset-0 bg-black/40 z-40"
+              />
+              
+              {/* Drawer */}
+              <motion.div
+                initial={{ y: '100%' }}
+                animate={{ y: 0 }}
+                exit={{ y: '100%' }}
+                transition={{ type: 'spring', damping: 30, stiffness: 300 }}
+                className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-white rounded-t-3xl shadow-2xl max-h-[85vh] overflow-hidden flex flex-col"
+              >
+                {/* Drawer Handle */}
+                <div className="flex justify-center pt-3 pb-2">
+                  <div className="w-12 h-1.5 bg-slate-300 rounded-full" />
+                </div>
+
+                {/* Drawer Header */}
+                <div className="px-6 py-4 border-b border-slate-200">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center">
+                        <User className="h-5 w-5 text-white" />
+                      </div>
+                      <div>
+                        <p className="text-sm font-medium text-gray-900">{user?.name}</p>
+                        <p className="text-xs text-gray-500">{user?.email}</p>
+                      </div>
+                    </div>
+                    <Button
+                      onClick={() => setMobileDrawerOpen(false)}
+                      variant="ghost"
+                      size="sm"
+                      className="h-8 w-8 p-0"
+                    >
+                      <X className="h-5 w-5" />
+                    </Button>
+                  </div>
+                </div>
+
+                {/* Navigation Tabs */}
+                <div className="flex gap-2 p-4 border-b border-slate-100">
+                  <button
+                    onClick={() => setSidebarView('favorites')}
+                    className={`flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-xl text-sm font-medium transition-all ${
+                      sidebarView === 'favorites'
+                        ? 'bg-slate-900 text-white shadow-lg'
+                        : 'bg-slate-50 text-gray-600 hover:bg-slate-100'
+                    }`}
+                  >
+                    <Heart className="h-4 w-4" />
+                    Favorites
+                  </button>
+                  <button
+                    onClick={() => setSidebarView('wantToGo')}
+                    className={`flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-xl text-sm font-medium transition-all ${
+                      sidebarView === 'wantToGo'
+                        ? 'bg-slate-900 text-white shadow-lg'
+                        : 'bg-slate-50 text-gray-600 hover:bg-slate-100'
+                    }`}
+                  >
+                    <Bookmark className="h-4 w-4" />
+                    Want to Go
+                  </button>
+                  <button
+                    onClick={() => setSidebarView('profile')}
+                    className={`flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-xl text-sm font-medium transition-all ${
+                      sidebarView === 'profile'
+                        ? 'bg-slate-900 text-white shadow-lg'
+                        : 'bg-slate-50 text-gray-600 hover:bg-slate-100'
+                    }`}
+                  >
+                    <Settings className="h-4 w-4" />
+                    Profile
+                  </button>
+                </div>
+
+                {/* Drawer Content */}
+                <div className="flex-1 overflow-y-auto px-4 py-2">
+                  {sidebarView === 'favorites' && (
+                    <Favorites 
+                      key={favoriteIds.size}
+                      user={user!} 
+                      userLocation={userLocation}
+                      onLocationClick={(location) => {
+                        setMapCenter({ lat: location.lat, lng: location.lng });
+                        setMapZoom(15);
+                        setMobileDrawerOpen(false);
+                      }}
+                    />
+                  )}
+
+                  {sidebarView === 'wantToGo' && (
+                    <WantToGo 
+                      key={wantToGoIds.size}
+                      user={user!} 
+                      userLocation={userLocation}
+                      onLocationClick={(location) => {
+                        setMapCenter({ lat: location.lat, lng: location.lng });
+                        setMapZoom(15);
+                        setMobileDrawerOpen(false);
+                      }}
+                    />
+                  )}
+
+                  {sidebarView === 'profile' && (
+                    <Profile 
+                      user={user!}
+                      locationPermissionEnabled={locationPermissionEnabled}
+                      onLocationPermissionToggle={handleLocationPermissionToggle}
+                      favoritesCount={favoriteIds.size}
+                      wantToGoCount={wantToGoIds.size}
+                    />
+                  )}
+                </div>
+
+                {/* Logout Button */}
+                <div className="p-4 border-t border-slate-200 bg-slate-50">
+                  <Button
+                    onClick={() => {
+                      handleLogout();
+                      setMobileDrawerOpen(false);
+                    }}
+                    variant="outline"
+                    className="w-full gap-2"
+                  >
+                    <LogOut className="h-4 w-4" />
+                    Logout
+                  </Button>
+                </div>
+              </motion.div>
+            </>
+          )}
+        </AnimatePresence>
+
+        {/* Mobile Bottom Navigation - Only visible when logged in */}
+        {user && (
+          <div className="md:hidden fixed bottom-0 left-0 right-0 z-30 bg-white/95 backdrop-blur-lg border-t border-slate-200 shadow-lg">
+            <div className="flex items-center justify-around px-2 py-3 safe-area-inset-bottom">
+              <button
+                onClick={() => {
+                  setSidebarView('favorites');
+                  setMobileDrawerOpen(true);
+                }}
+                className={`flex flex-col items-center gap-1 px-4 py-2 rounded-lg transition-all ${
+                  sidebarView === 'favorites' && mobileDrawerOpen
+                    ? 'bg-slate-100'
+                    : 'hover:bg-slate-50'
+                }`}
+              >
+                <Heart className={`h-5 w-5 ${sidebarView === 'favorites' && mobileDrawerOpen ? 'text-red-500' : 'text-gray-600'}`} />
+                <span className="text-xs font-medium text-gray-700">Favorites</span>
+                {favoriteIds.size > 0 && (
+                  <div className="absolute top-1 right-3 min-w-[18px] h-[18px] bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center px-1">
+                    {favoriteIds.size}
+                  </div>
+                )}
+              </button>
+
+              <button
+                onClick={() => {
+                  // Center on user location if available
+                  if (userLocation) {
+                    setMapCenter(userLocation);
+                    setMapZoom(13);
+                  }
+                  setMobileDrawerOpen(false);
+                }}
+                className="flex flex-col items-center gap-1 px-4 py-2 rounded-lg hover:bg-slate-50 transition-all"
+              >
+                <MapPin className="h-5 w-5 text-blue-500" />
+                <span className="text-xs font-medium text-gray-700">Map</span>
+              </button>
+
+              <button
+                onClick={() => {
+                  setSidebarView('wantToGo');
+                  setMobileDrawerOpen(true);
+                }}
+                className={`flex flex-col items-center gap-1 px-4 py-2 rounded-lg transition-all ${
+                  sidebarView === 'wantToGo' && mobileDrawerOpen
+                    ? 'bg-slate-100'
+                    : 'hover:bg-slate-50'
+                }`}
+              >
+                <Bookmark className={`h-5 w-5 ${sidebarView === 'wantToGo' && mobileDrawerOpen ? 'text-blue-500' : 'text-gray-600'}`} />
+                <span className="text-xs font-medium text-gray-700">Want to Go</span>
+                {wantToGoIds.size > 0 && (
+                  <div className="absolute top-1 right-3 min-w-[18px] h-[18px] bg-blue-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center px-1">
+                    {wantToGoIds.size}
+                  </div>
+                )}
+              </button>
+
+              <button
+                onClick={() => {
+                  setSidebarView('profile');
+                  setMobileDrawerOpen(true);
+                }}
+                className={`flex flex-col items-center gap-1 px-4 py-2 rounded-lg transition-all ${
+                  sidebarView === 'profile' && mobileDrawerOpen
+                    ? 'bg-slate-100'
+                    : 'hover:bg-slate-50'
+                }`}
+              >
+                <Settings className={`h-5 w-5 ${sidebarView === 'profile' && mobileDrawerOpen ? 'text-gray-900' : 'text-gray-600'}`} />
+                <span className="text-xs font-medium text-gray-700">Profile</span>
+              </button>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
