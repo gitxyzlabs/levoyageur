@@ -350,13 +350,6 @@ export const api = {
     return response.json();
   },
 
-  createTag: async (name: string) => {
-    return fetchWithAuth(`${API_BASE}/tags`, {
-      method: 'POST',
-      body: JSON.stringify({ name }),
-    });
-  },
-
   // Editor: Update location rating and tags
   updateLocationRating: async (locationId: string, lvEditorsScore?: number, tags?: string[]) => {
     return fetchWithAuth(`${API_BASE}/locations/${locationId}/rating`, {

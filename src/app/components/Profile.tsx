@@ -1,13 +1,15 @@
 import React from 'react';
-import { User as UserIcon, Mail, Shield, Calendar } from 'lucide-react';
+import { User as UserIcon, Mail, Shield, Calendar, MapPin } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import type { User } from '../../utils/api';
 
 interface ProfileProps {
   user: User;
+  locationPermissionEnabled?: boolean;
+  onLocationPermissionToggle?: (enabled: boolean) => void;
 }
 
-export function Profile({ user }: ProfileProps) {
+export function Profile({ user, locationPermissionEnabled, onLocationPermissionToggle }: ProfileProps) {
   return (
     <div className="space-y-6">
       {/* Profile Header */}
@@ -88,6 +90,46 @@ export function Profile({ user }: ProfileProps) {
               <div className="text-2xl font-light mb-1">0</div>
               <p className="text-xs text-muted-foreground">Reviews</p>
             </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Location Settings */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-lg">Location Settings</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="flex items-center justify-between">
+            <div className="flex items-start gap-3 flex-1">
+              <MapPin className="h-5 w-5 text-blue-500 mt-0.5" />
+              <div>
+                <p className="text-sm font-medium text-gray-700">Auto-detect Location</p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Automatically show your location on the map when you open the app
+                </p>
+              </div>
+            </div>
+            
+            {/* Toggle Switch */}
+            <button
+              onClick={() => {
+                if (onLocationPermissionToggle) {
+                  onLocationPermissionToggle(!locationPermissionEnabled);
+                }
+              }}
+              className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 ${
+                locationPermissionEnabled ? 'bg-blue-600' : 'bg-gray-300'
+              }`}
+              role="switch"
+              aria-checked={locationPermissionEnabled}
+            >
+              <span
+                className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                  locationPermissionEnabled ? 'translate-x-6' : 'translate-x-1'
+                }`}
+              />
+            </button>
           </div>
         </CardContent>
       </Card>

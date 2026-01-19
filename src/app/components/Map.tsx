@@ -1,8 +1,9 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { Map as GoogleMap, AdvancedMarker, useMap } from '@vis.gl/react-google-maps';
 import type { Location, User } from '../../utils/api';
 import { GooglePlaceInfoWindow } from './GooglePlaceInfoWindow';
 import { LuxuryMarker } from './LuxuryMarker';
+import { Locate } from 'lucide-react';
 
 interface MapProps {
   locations: Location[];
@@ -71,8 +72,48 @@ export function Map({
   showSearchResults
 }: MapProps) {
   const map = useMap();
+  const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
+  const [locationPermissionDenied, setLocationPermissionDenied] = useState(false);
 
   const displayLocations = showHeatMap && heatMapData ? heatMapData : locations;
+
+  // Get user's current location
+  const getUserLocation = () => {
+    if ('geolocation' in navigator) {
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          const location = {
+            lat: position.coords.latitude,
+            lng: position.coords.longitude
+          };
+          console.log('📍 User location:', location);
+          setUserLocation(location);
+          setLocationPermissionDenied(false);
+          
+          // Pan map to user's location
+          if (map) {
+            map.panTo(location);
+          }
+        },
+        (error) => {
+          console.log('ℹ️ User location not available');
+          setLocationPermissionDenied(true);
+        },
+        {
+          enableHighAccuracy: true,
+          timeout: 5000,
+          maximumAge: 0
+        }
+      );
+    }
+  };
+
+  // Don't auto-request location on mount (causes permission errors)
+  // Users can click the "My Location" button instead
+  useEffect(() => {
+    // Optionally auto-request if you want, but it's better to let users control this
+    // getUserLocation();
+  }, []);
 
   // Set map padding to avoid InfoWindows being covered by search bar
   useEffect(() => {
@@ -309,7 +350,16 @@ export function Map({
   };
 
   return (
-    <div className="size-full">
+    <div className="size-full relative">
+      {/* My Location Button */}
+      <button
+        onClick={getUserLocation}
+        className="absolute bottom-6 right-6 z-50 p-3 bg-white hover:bg-gray-50 rounded-full shadow-lg border border-gray-200 transition-all hover:scale-105"
+        title="My Location"
+      >
+        <Locate className={`w-5 h-5 ${userLocation ? 'text-blue-500' : 'text-gray-600'}`} />
+      </button>
+      
       <GoogleMap
         defaultZoom={mapZoom ?? 13}
         defaultCenter={mapCenter ?? { lat: 32.7157, lng: -117.1611 }}
@@ -378,6 +428,23 @@ export function Map({
             </AdvancedMarker>
           );
         })}
+        
+        {/* User's Current Location Marker */}
+        {userLocation && (
+          <AdvancedMarker
+            position={userLocation}
+            zIndex={200}
+          >
+            <div className="relative">
+              {/* Pulsing blue dot */}
+              <div className="absolute inset-0 flex items-center justify-center">
+                <div className="w-8 h-8 bg-blue-500/30 rounded-full animate-ping" />
+              </div>
+              {/* Static blue dot with white border */}
+              <div className="relative w-5 h-5 bg-blue-500 rounded-full border-3 border-white shadow-lg" />
+            </div>
+          </AdvancedMarker>
+        )}
         
         {/* Single InfoWindow - controlled by parent's selectedGooglePlace */}
         {selectedGooglePlace && (

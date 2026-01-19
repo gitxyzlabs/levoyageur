@@ -66,16 +66,10 @@ export function EditorRatingModal({
     const normalizedTag = tagName.toLowerCase().trim();
     if (!normalizedTag || selectedTags.includes(normalizedTag)) return;
 
-    // If tag doesn't exist, create it
+    // Add tag to selected tags (will be saved to location when submitted)
+    // No need to create tag separately - tags are stored as arrays on locations
     if (!availableTags.includes(normalizedTag)) {
-      try {
-        await api.createTag(normalizedTag);
-        setAvailableTags([...availableTags, normalizedTag]);
-      } catch (error) {
-        console.error('Failed to create tag:', error);
-        setError('Failed to create new tag');
-        return;
-      }
+      setAvailableTags([...availableTags, normalizedTag]);
     }
 
     setSelectedTags([...selectedTags, normalizedTag]);

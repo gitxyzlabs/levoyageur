@@ -57,6 +57,7 @@ export default function App() {
   const [favoriteIds, setFavoriteIds] = useState<Set<string>>(new Set());
   const [wantToGoIds, setWantToGoIds] = useState<Set<string>>(new Set());
   const [locationPermissionGranted, setLocationPermissionGranted] = useState(false);
+  const [locationPermissionEnabled, setLocationPermissionEnabled] = useState(false);
   const [mapBounds, setMapBounds] = useState<google.maps.LatLngBounds | null>(null);
   const [searchResults, setSearchResults] = useState<google.maps.places.PlaceResult[]>([]);
   const [showSearchResults, setShowSearchResults] = useState(false);
@@ -509,6 +510,12 @@ export default function App() {
 
   const loadSavedLocation = async (userId: string) => {
     try {
+      // Load location permission preference
+      const permissionPref = localStorage.getItem(`lv_location_perm_${userId}`);
+      if (permissionPref === 'true') {
+        setLocationPermissionEnabled(true);
+      }
+      
       const savedLocation = localStorage.getItem(`lv_location_${userId}`);
       
       if (savedLocation) {
@@ -518,10 +525,13 @@ export default function App() {
         setUserLocation(userPos);
         setLocationPermissionGranted(true);
         console.log('✅ Using saved location for user:', userPos);
-      } else {
-        // No saved location, request fresh geolocation
-        console.log('No saved location, requesting permission...');
+      } else if (permissionPref === 'true') {
+        // Auto-request location if permission enabled
+        console.log('📍 Location permission enabled, auto-requesting...');
         requestGeolocation(userId);
+      } else {
+        // No saved location and permission not enabled
+        console.log('No saved location, permission not enabled');
       }
     } catch (error) {
       console.error('Failed to load saved location:', error);
@@ -561,6 +571,29 @@ export default function App() {
           console.log('⚠️ Using fallback location (San Diego)');
         }
       );
+    }
+  };
+
+  const handleLocationPermissionToggle = async (enabled: boolean) => {
+    if (!user) return;
+    
+    setLocationPermissionEnabled(enabled);
+    
+    // Save preference to localStorage
+    try {
+      localStorage.setItem(`lv_location_perm_${user.id}`, enabled.toString());
+      console.log('✅ Location permission preference saved:', enabled);
+      
+      if (enabled) {
+        // Request location immediately when enabled
+        toast.info('Requesting your location...');
+        requestGeolocation(user.id);
+      } else {
+        toast.success('Location auto-detection disabled');
+      }
+    } catch (error) {
+      console.error('Failed to save location permission preference:', error);
+      toast.error('Failed to save preference');
     }
   };
 
@@ -776,7 +809,11 @@ export default function App() {
                 )}
 
                 {sidebarView === 'profile' && (
-                  <Profile user={user} />
+                  <Profile 
+                    user={user}
+                    locationPermissionEnabled={locationPermissionEnabled}
+                    onLocationPermissionToggle={handleLocationPermissionToggle}
+                  />
                 )}
               </>
             )}
