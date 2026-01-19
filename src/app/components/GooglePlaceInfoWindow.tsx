@@ -10,7 +10,7 @@ interface GooglePlaceInfoWindowProps {
   onClose: () => void;
   user: { id: string; email: string; name: string; role: 'user' | 'editor' } | null;
   isAuthenticated: boolean;
-  onFavoriteToggle?: (locationId: string, placeData?: { name?: string; lat?: number; lng?: number; formatted_address?: string }) => void;
+  onFavoriteToggle?: (locationId: string, placeData?: { name?: string; lat?: number; lng?: number; formatted_address?: string; place_id?: string }) => void;
   onWantToGoToggle?: (locationId: string) => void;
   favoriteIds?: Set<string>;
   wantToGoIds?: Set<string>;
@@ -109,11 +109,12 @@ export function GooglePlaceInfoWindow({
       headerDisabled
       disableAutoPan={false}
       pixelOffset={[0, -10]}
+      zIndex={9999}
     >
-      <div className="max-w-sm">
-        {/* Header with Title */}
-        <div className="flex items-start justify-between mb-3 px-4 pt-4">
-          <div className="flex-1">
+      <div className="w-[380px] max-h-[calc(100vh-120px)] overflow-y-auto">
+        {/* Header with Title and Quick Actions */}
+        <div className="flex items-start justify-between mb-3 px-4 pt-4 sticky top-0 bg-white z-10">
+          <div className="flex-1 min-w-0 pr-3">
             <h3 className="font-bold text-lg text-gray-900 mb-1">{place.name || 'Unknown Place'}</h3>
             {place.formatted_address && (
               <button
@@ -128,19 +129,93 @@ export function GooglePlaceInfoWindow({
               </button>
             )}
           </div>
-          {isAuthenticated && user?.role === 'editor' && (
-            <button 
-              onClick={() => setShowEditorModal(true)}
-              className="text-gray-500 hover:text-gray-700"
+          
+          {/* Quick Access Icons */}
+          <div className="flex items-center gap-2">
+            {/* Favorite Heart Icon */}
+            <button
+              onClick={async () => {
+                if (!isAuthenticated) {
+                  toast.error('Please sign in to add favorites');
+                  return;
+                }
+                
+                if (!place.place_id) {
+                  toast.error('Unable to save this location');
+                  return;
+                }
+
+                if (onFavoriteToggle) {
+                  onFavoriteToggle(place.place_id, {
+                    name: place.name,
+                    lat,
+                    lng,
+                    formatted_address: place.formatted_address,
+                    place_id: place.place_id
+                  });
+                }
+              }}
+              className={`p-2 rounded-full transition-all hover:scale-110 ${
+                favoriteIds?.has(place.place_id || '')
+                  ? 'bg-red-50 hover:bg-red-100'
+                  : 'bg-gray-100 hover:bg-gray-200'
+              }`}
+              title="Favorite"
             >
-              <Edit3 className="w-4 h-4" />
+              <Heart className={`w-4 h-4 ${
+                favoriteIds?.has(place.place_id || '') 
+                  ? 'fill-red-500 stroke-red-500' 
+                  : 'stroke-gray-600'
+              }`} />
             </button>
-          )}
+            
+            {/* Want to Go Bookmark Icon */}
+            <button
+              onClick={async () => {
+                if (!isAuthenticated) {
+                  toast.error('Please sign in to add to Want to Go');
+                  return;
+                }
+
+                if (!place.place_id) {
+                  toast.error('Unable to save this location');
+                  return;
+                }
+
+                if (onWantToGoToggle) {
+                  onWantToGoToggle(place.place_id);
+                }
+              }}
+              className={`p-2 rounded-full transition-all hover:scale-110 ${
+                wantToGoIds?.has(place.place_id || '')
+                  ? 'bg-green-50 hover:bg-green-100'
+                  : 'bg-gray-100 hover:bg-gray-200'
+              }`}
+              title="Want to Go"
+            >
+              <Bookmark className={`w-4 h-4 ${
+                wantToGoIds?.has(place.place_id || '') 
+                  ? 'fill-green-500 stroke-green-500' 
+                  : 'stroke-gray-600'
+              }`} />
+            </button>
+            
+            {/* Editor Icon (if editor) */}
+            {isAuthenticated && user?.role === 'editor' && (
+              <button 
+                onClick={() => setShowEditorModal(true)}
+                className="p-2 rounded-full bg-amber-50 hover:bg-amber-100 transition-all hover:scale-110"
+                title="Edit LV Rating"
+              >
+                <Edit3 className="w-4 h-4 text-amber-600" />
+              </button>
+            )}
+          </div>
         </div>
 
         {/* Photo Carousel */}
         {photos.length > 0 ? (
-          <div className="relative mb-4 bg-gray-100 rounded-lg overflow-hidden">
+          <div className="relative mb-3 bg-gray-100 rounded-lg overflow-hidden mx-4">
             <div className="aspect-video">
               <img
                 src={photos[currentPhotoIndex].photoReference}
@@ -183,45 +258,47 @@ export function GooglePlaceInfoWindow({
             )}
           </div>
         ) : (
-          <div className="mb-4 bg-gradient-to-br from-amber-50 to-rose-50 rounded-lg p-8 text-center">
-            <Award className="w-12 h-12 text-amber-500 mx-auto mb-2" />
+          <div className="mb-3 bg-gradient-to-br from-amber-50 to-rose-50 rounded-lg p-6 text-center mx-4">
+            <Award className="w-10 h-10 text-amber-500 mx-auto mb-2" />
             <p className="text-sm text-gray-600">No photos available</p>
           </div>
         )}
 
         <div className="px-4 pb-4">
-          {/* LV Ratings - Show PROMINENTLY when available */}
-          {lvLocation && (lvLocation.lvEditorsScore || lvLocation.lvCrowdsourceScore) && (
-            <div className="space-y-2 mb-4 p-3 bg-gradient-to-br from-amber-50 to-rose-50 rounded-lg border border-amber-200">
-              {lvLocation.lvEditorsScore && (
-                <div className="flex items-center justify-between text-sm">
-                  <div className="flex items-center gap-2">
-                    <Award className="w-4 h-4 text-amber-600" />
-                    <span className="text-gray-700 font-medium">LV Editors Score</span>
-                  </div>
-                  <span className="text-lg font-bold text-amber-700">
+          {/* Ratings Section - Unified Style */}
+          <div className="space-y-2 mb-3">
+            {/* LV Editors Score - if available */}
+            {lvLocation?.lvEditorsScore && (
+              <div className="flex items-center justify-between text-sm pb-2 border-b border-gray-100">
+                <div className="flex items-center gap-2">
+                  <Award className="w-4 h-4 text-amber-600" />
+                  <span className="text-gray-600">Le Voyageur</span>
+                </div>
+                <div className="flex items-center gap-1">
+                  <span className="text-sm font-medium text-amber-700 w-8 text-right">
                     {lvLocation.lvEditorsScore.toFixed(1)}
-                    <span className="text-xs text-gray-600 ml-1">/11.0</span>
                   </span>
+                  <span className="text-xs text-gray-500">/10</span>
                 </div>
-              )}
-              {lvLocation.lvCrowdsourceScore && (
-                <div className="flex items-center justify-between text-sm">
-                  <div className="flex items-center gap-2">
-                    <Users className="w-4 h-4 text-rose-600" />
-                    <span className="text-gray-700 font-medium">LV Crowd Score</span>
-                  </div>
-                  <span className="text-lg font-bold text-rose-700">
-                    {lvLocation.lvCrowdsourceScore.toFixed(1)}
-                    <span className="text-xs text-gray-600 ml-1">/10.0</span>
-                  </span>
-                </div>
-              )}
-            </div>
-          )}
+              </div>
+            )}
 
-          {/* Google Rating */}
-          <div className="space-y-2 mb-4">
+            {/* Favorites Counter - only show if count > 0 */}
+            {lvLocation && lvLocation.favoritesCount && lvLocation.favoritesCount > 0 && (
+              <div className="flex items-center justify-between text-sm pb-2 border-b border-gray-100">
+                <div className="flex items-center gap-2">
+                  <Heart className="w-4 h-4 text-red-500" />
+                  <span className="text-gray-600">Favorite</span>
+                </div>
+                <div className="flex items-center gap-1">
+                  <span className="text-sm font-medium text-red-600">
+                    {lvLocation.favoritesCount}
+                  </span>
+                </div>
+              </div>
+            )}
+
+            {/* Google Rating */}
             <div className="flex items-center justify-between text-sm">
               <div className="flex items-center gap-2">
                 <Star className="w-4 h-4 text-amber-600" />
@@ -229,14 +306,16 @@ export function GooglePlaceInfoWindow({
               </div>
               <div className="flex items-center gap-2">
                 {renderStars(place.rating ?? null)}
-                <span className="text-sm font-medium text-gray-900">
-                  {place.rating?.toFixed(1) || 'N/A'}
-                </span>
-                {place.user_ratings_total && (
-                  <span className="text-xs text-gray-500">
-                    ({place.user_ratings_total.toLocaleString()})
+                <div className="flex items-center gap-1">
+                  <span className="text-sm font-medium text-gray-900 w-8 text-right">
+                    {place.rating?.toFixed(1) || 'N/A'}
                   </span>
-                )}
+                  {place.user_ratings_total && (
+                    <span className="text-xs text-gray-500">
+                      ({place.user_ratings_total.toLocaleString()})
+                    </span>
+                  )}
+                </div>
               </div>
             </div>
           </div>
@@ -260,7 +339,7 @@ export function GooglePlaceInfoWindow({
 
           {/* Types/Categories */}
           {place.types && place.types.length > 0 && (
-            <div className="mb-4">
+            <div className="mb-3">
               <p className="text-xs font-medium text-gray-600 mb-1">Categories</p>
               <div className="flex flex-wrap gap-1">
                 {place.types.slice(0, 3).map((type, idx) => (
@@ -276,7 +355,7 @@ export function GooglePlaceInfoWindow({
           )}
 
           {/* Action Buttons */}
-          <div className="grid grid-cols-2 gap-2 mb-4">
+          <div className="grid grid-cols-2 gap-2 mb-3">
             <button
               onClick={async () => {
                 if (!isAuthenticated) {
@@ -294,7 +373,8 @@ export function GooglePlaceInfoWindow({
                     name: place.name,
                     lat,
                     lng,
-                    formatted_address: place.formatted_address
+                    formatted_address: place.formatted_address,
+                    place_id: place.place_id
                   });
                 }
               }}
@@ -358,7 +438,7 @@ export function GooglePlaceInfoWindow({
 
           {/* Editor Rating Section - Only visible to editors */}
           {isAuthenticated && user?.role === 'editor' && (
-            <div className="mt-4">
+            <div className="mt-3">
               <button
                 onClick={() => setShowEditorModal(true)}
                 className="w-full p-3 bg-gradient-to-br from-amber-50 to-rose-50 hover:from-amber-100 hover:to-rose-100 rounded-lg border border-amber-200 transition-all"

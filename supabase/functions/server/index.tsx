@@ -150,6 +150,24 @@ app.get('/make-server-48182530/locations', async (c) => {
 
     console.log('GET /locations - Found locations:', locations?.length || 0);
     
+    // Get favorites count for each location
+    const { data: favoriteCounts, error: favCountError } = await supabase
+      .from('favorites')
+      .select('location_id');
+    
+    if (favCountError) {
+      console.error('❌ Error fetching favorite counts:', favCountError);
+    }
+    
+    // Create a map of location_id to favorites count
+    const favCountMap = new Map<string, number>();
+    favoriteCounts?.forEach(fav => {
+      const count = favCountMap.get(fav.location_id) || 0;
+      favCountMap.set(fav.location_id, count + 1);
+    });
+    
+    console.log('📊 Favorites count map:', Object.fromEntries(favCountMap));
+    
     // Convert snake_case from DB to camelCase for frontend
     const formattedLocations = locations?.map(loc => ({
       id: loc.id,
@@ -170,6 +188,7 @@ app.get('/make-server-48182530/locations', async (c) => {
       createdAt: loc.created_at,
       updatedBy: loc.updated_by,
       updatedAt: loc.updated_at,
+      favoritesCount: favCountMap.get(loc.id) || 0, // Use loc.id (UUID), not place_id
     })) || [];
     
     return c.json({ locations: formattedLocations });
@@ -201,6 +220,22 @@ app.get('/make-server-48182530/locations/tag/:tag', async (c) => {
     
     console.log('GET /locations/tag - Found locations:', locations?.length || 0);
     
+    // Get favorites count for each location
+    const { data: favoriteCounts, error: favCountError } = await supabase
+      .from('favorites')
+      .select('location_id');
+    
+    if (favCountError) {
+      console.error('❌ Error fetching favorite counts:', favCountError);
+    }
+    
+    // Create a map of location_id to favorites count
+    const favCountMap = new Map<string, number>();
+    favoriteCounts?.forEach(fav => {
+      const count = favCountMap.get(fav.location_id) || 0;
+      favCountMap.set(fav.location_id, count + 1);
+    });
+    
     // Convert snake_case to camelCase
     const formattedLocations = locations?.map(loc => ({
       id: loc.id,
@@ -221,6 +256,7 @@ app.get('/make-server-48182530/locations/tag/:tag', async (c) => {
       createdAt: loc.created_at,
       updatedBy: loc.updated_by,
       updatedAt: loc.updated_at,
+      favoritesCount: favCountMap.get(loc.id) || 0, // Use loc.id (UUID), not place_id
     })) || [];
     
     return c.json({ locations: formattedLocations });
@@ -479,13 +515,28 @@ app.post('/make-server-48182530/favorites/:locationId', verifyAuth, async (c) =>
     if (locError || !location) {
       const { data: lvLoc, error: lvError } = await supabase
         .from('locations')
-        .select('id, name')
+        .select('id, name, place_id')
         .eq('id', locationId)
         .single();
-      
+
       if (!lvError && lvLoc) {
         location = lvLoc;
-        locError = null;
+        console.log('✅ Found location by UUID:', location.id);
+        
+        // If this location doesn't have a place_id yet, and we have one in placeData, update it
+        if (!location.place_id && placeData?.place_id) {
+          console.log('💾 Updating location with place_id:', placeData.place_id);
+          const { error: updateError } = await supabase
+            .from('locations')
+            .update({ place_id: placeData.place_id })
+            .eq('id', location.id);
+            
+          if (updateError) {
+            console.error('⚠️ Failed to update place_id:', updateError);
+          } else {
+            console.log('✅ place_id saved to location');
+          }
+        }
       }
     }
 
@@ -501,7 +552,7 @@ app.post('/make-server-48182530/favorites/:locationId', verifyAuth, async (c) =>
             lat: placeData.lat,
             lng: placeData.lng,
             description: placeData.formatted_address || '',
-            place_id: locationId,
+            place_id: placeData.place_id || locationId, // Save place_id from placeData or use locationId
             // Leave ratings null - only editors can rate
             lv_editors_score: null,
             lv_crowdsource_score: null,

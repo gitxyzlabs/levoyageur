@@ -26,10 +26,14 @@ export interface Location {
   michelinScore: number;
   tags: string[];
   description?: string;
+  placeId?: string; // Google Place ID (camelCase to match backend)
+  place_id?: string; // Also support snake_case for Map component
+  address?: string;
   createdBy?: string;
   createdAt?: string;
   updatedBy?: string;
   updatedAt?: string;
+  favoritesCount?: number; // Number of users who have favorited this location
 }
 
 export interface User {
@@ -298,7 +302,7 @@ export const api = {
     return fetchWithAuth(`${API_BASE}/favorites`);
   },
 
-  addFavorite: async (locationId: string, placeData?: { name?: string; lat?: number; lng?: number; formatted_address?: string }) => {
+  addFavorite: async (locationId: string, placeData?: { name?: string; lat?: number; lng?: number; formatted_address?: string; place_id?: string }) => {
     return fetchWithAuth(`${API_BASE}/favorites/${locationId}`, {
       method: 'POST',
       body: JSON.stringify(placeData || {}),

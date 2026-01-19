@@ -202,19 +202,40 @@ export function Map({
     try {
       console.log('\n🎯 === LV MARKER CLICKED ===');
       console.log('📍 Location:', location.name);
-      console.log('🆔 Place ID:', location.place_id);
+      console.log('🆔 Place ID (place_id):', location.place_id);
+      console.log('🆔 Place ID (placeId):', location.placeId);
       console.log('⭐ LV Editors Score:', location.lvEditorsScore);
       console.log('👥 LV Crowd Score:', location.lvCrowdsourceScore);
       
-      // Fetch Google Place details for this LV location
-      if (!location.place_id) {
-        console.warn('⚠️ No place_id for this LV location');
+      // Support both placeId (camelCase from backend) and place_id (snake_case)
+      const placeId = location.placeId || location.place_id;
+      
+      // If no place_id, create a minimal PlaceResult from LV data
+      if (!placeId) {
+        console.log('⚠️ No place_id - showing LV-only InfoWindow');
+        
+        const minimalPlaceResult: google.maps.places.PlaceResult = {
+          place_id: location.id, // Use LV location ID as fallback
+          name: location.name,
+          formatted_address: location.address || undefined,
+          geometry: {
+            location: new google.maps.LatLng(location.lat, location.lng)
+          },
+          // No Google photos, ratings, or other data
+        };
+        
+        console.log('📤 Sending minimal PlaceResult (LV only)');
+        
+        if (onPOIClick) {
+          onPOIClick(minimalPlaceResult, location);
+        }
         return;
       }
 
+      // Fetch Google Place details for this LV location
       const { Place } = await google.maps.importLibrary("places") as google.maps.PlacesLibrary;
       const place = new Place({
-        id: location.place_id,
+        id: placeId,
       });
 
       // Fetch full place details including photos
@@ -239,7 +260,7 @@ export function Map({
 
       // Convert to PlaceResult format
       const placeResult: google.maps.places.PlaceResult = {
-        place_id: location.place_id,
+        place_id: placeId,
         name: place.displayName || location.name,
         formatted_address: place.formattedAddress || location.address || undefined,
         geometry: place.location ? {
@@ -266,6 +287,20 @@ export function Map({
       }
     } catch (error) {
       console.error('❌ Error fetching Google Place details for LV marker:', error);
+      
+      // On error, still show InfoWindow with LV-only data
+      const fallbackPlaceResult: google.maps.places.PlaceResult = {
+        place_id: location.placeId || location.place_id || location.id,
+        name: location.name,
+        formatted_address: location.address || undefined,
+        geometry: {
+          location: new google.maps.LatLng(location.lat, location.lng)
+        },
+      };
+      
+      if (onPOIClick) {
+        onPOIClick(fallbackPlaceResult, location);
+      }
     }
     
     if (onLocationClick) {
