@@ -50,6 +50,7 @@ export default function App() {
   const [mapCenter, setMapCenter] = useState<{ lat: number; lng: number } | null>(null);
   const [mapZoom, setMapZoom] = useState(10);
   const [selectedGooglePlace, setSelectedGooglePlace] = useState<google.maps.places.PlaceResult | null>(null);
+  const [selectedLVLocation, setSelectedLVLocation] = useState<Location | null>(null);
   const [user, setUser] = useState<APIUser | null>(null);
   const [sidebarView, setSidebarView] = useState<'favorites' | 'wantToGo' | 'profile'>('favorites');
   const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
@@ -234,6 +235,7 @@ export default function App() {
   const handlePlaceSelect = (place: google.maps.places.PlaceResult) => {
     // Store the selected Google place to show in Map
     setSelectedGooglePlace(place);
+    setSelectedLVLocation(null); // Clear LV location when Google place is selected
     
     // Pan map to the selected place location
     if (place.geometry?.location) {
@@ -244,6 +246,50 @@ export default function App() {
       setMapCenter({ lat, lng });
       setMapZoom(15);
     }
+  };
+
+  const handlePOIClick = (place: google.maps.places.PlaceResult, lvLocation?: Location) => {
+    // Called when ANY POI/marker is clicked (Google POI, LV marker, or search result)
+    console.log('\n🎯 === APP.TSX: POI CLICK HANDLER ===');
+    console.log('📍 Place:', place.name);
+    console.log('🆔 Place ID:', place.place_id);
+    console.log('📸 Photos in place object:', place.photos?.length || 0);
+    console.log('⭐ Google rating:', place.rating);
+    console.log('🏷️ Has LV data passed?', !!lvLocation);
+    
+    setSelectedGooglePlace(place);
+    
+    // If lvLocation was passed (from LV marker click), use it
+    if (lvLocation) {
+      console.log('✅ Using passed LV location:', {
+        name: lvLocation.name,
+        lvEditorsScore: lvLocation.lvEditorsScore,
+        lvCrowdScore: lvLocation.lvCrowdsourceScore
+      });
+      setSelectedLVLocation(lvLocation);
+    } else if (place.place_id) {
+      // Otherwise, search our locations array for matching place_id
+      const matchingLocation = locations.find(loc => loc.place_id === place.place_id);
+      if (matchingLocation) {
+        console.log('✅ Found matching LV location for Google POI:', {
+          name: matchingLocation.name,
+          lvEditorsScore: matchingLocation.lvEditorsScore,
+          lvCrowdScore: matchingLocation.lvCrowdsourceScore
+        });
+        setSelectedLVLocation(matchingLocation);
+      } else {
+        console.log('⚠️ No LV location found for this Google POI');
+        setSelectedLVLocation(null);
+      }
+    } else {
+      setSelectedLVLocation(null);
+    }
+    
+    console.log('📊 Final state being set:', {
+      googlePlace: place.name,
+      hasPhotos: !!(place.photos?.length),
+      hasLVLocation: !!(lvLocation || locations.find(loc => loc.place_id === place.place_id))
+    });
   };
 
   const handleSearchClear = () => {
@@ -814,10 +860,15 @@ export default function App() {
               mapCenter={mapCenter}
               mapZoom={mapZoom}
               selectedGooglePlace={selectedGooglePlace}
-              onGooglePlaceClose={() => setSelectedGooglePlace(null)}
+              selectedLVLocation={selectedLVLocation}
+              onGooglePlaceClose={() => {
+                setSelectedGooglePlace(null);
+                setSelectedLVLocation(null);
+              }}
               onMapBoundsChange={setMapBounds}
               searchResults={searchResults}
               showSearchResults={showSearchResults}
+              onPOIClick={handlePOIClick}
             />
           </APIProvider>
         </div>

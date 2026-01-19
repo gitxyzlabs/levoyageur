@@ -1,5 +1,5 @@
 import { toast } from 'sonner';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { InfoWindow } from '@vis.gl/react-google-maps';
 import { Award, Users, Star, ChevronLeft, ChevronRight, MapPin, Edit3, Navigation, Heart, Bookmark, Calendar } from 'lucide-react';
 import { EditorRatingModal } from './EditorRatingModal';
@@ -14,12 +14,7 @@ interface GooglePlaceInfoWindowProps {
   onWantToGoToggle?: (locationId: string) => void;
   favoriteIds?: Set<string>;
   wantToGoIds?: Set<string>;
-}
-
-interface GooglePhoto {
-  photoReference: string;
-  width: number;
-  height: number;
+  lvLocation?: Location | null; // LV location data if this is an LV marker
 }
 
 export function GooglePlaceInfoWindow({ 
@@ -30,78 +25,39 @@ export function GooglePlaceInfoWindow({
   onFavoriteToggle,
   onWantToGoToggle,
   favoriteIds,
-  wantToGoIds
+  wantToGoIds,
+  lvLocation
 }: GooglePlaceInfoWindowProps) {
-  const [photos, setPhotos] = useState<GooglePhoto[]>([]);
   const [currentPhotoIndex, setCurrentPhotoIndex] = useState(0);
-  const [googleRating, setGoogleRating] = useState<{ rating: number | null; count: number | null }>({ 
-    rating: null, 
-    count: null 
-  });
   const [showEditorModal, setShowEditorModal] = useState(false);
-  const [lvLocation, setLvLocation] = useState<Location | null>(null);
 
-  useEffect(() => {
-    if (place.place_id) {
-      fetchGooglePlaceDetails();
-    }
-  }, [place]);
-
-  const fetchGooglePlaceDetails = async () => {
-    if (!place.place_id || !window.google) return;
-
-    // Helper function to check if a string is a valid Google Place ID (not a UUID)
-    const isValidGooglePlaceId = (id: string): boolean => {
-      // Google Place IDs don't look like UUIDs (no dashes in that pattern)
-      // UUIDs look like: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
-      const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-      return !uuidPattern.test(id) && id !== 'undefined' && id !== 'null' && id !== '';
-    };
-
-    // If the place_id is a UUID (LV location ID), skip Google API call
-    if (!isValidGooglePlaceId(place.place_id)) {
-      console.log('Skipping Google API call for non-Google place_id:', place.place_id);
-      setGoogleRating({
-        rating: place.rating ?? null,
-        count: null,
-      });
-      return;
-    }
-
-    try {
-      const { Place } = await google.maps.importLibrary("places") as google.maps.PlacesLibrary;
-      
-      const placeObj = new Place({
-        id: place.place_id,
-      });
-
-      await placeObj.fetchFields({
-        fields: ['photos', 'rating', 'userRatingCount'],
-      });
-
-      // Convert photos
-      if (placeObj.photos && placeObj.photos.length > 0) {
-        const photoData = placeObj.photos.slice(0, 5).map((photo: any) => ({
+  // Process photos from the place object (already fetched by Map component)
+  const photos = useMemo(() => {
+    if (!place.photos || place.photos.length === 0) return [];
+    
+    return place.photos.slice(0, 5).map((photo: any) => {
+      // Handle both old and new Places API photo formats
+      if (typeof photo.getURI === 'function') {
+        return {
           photoReference: photo.getURI({ maxWidth: 400 }),
           width: photo.widthPx || 400,
           height: photo.heightPx || 300,
-        }));
-        setPhotos(photoData);
+        };
+      } else if (photo.getUrl) {
+        return {
+          photoReference: photo.getUrl({ maxWidth: 400 }),
+          width: 400,
+          height: 300,
+        };
       }
+      return null;
+    }).filter(Boolean);
+  }, [place.photos]);
 
-      setGoogleRating({
-        rating: placeObj.rating ?? place.rating ?? null,
-        count: placeObj.userRatingCount ?? null,
-      });
-    } catch (error) {
-      console.error('Error fetching Google place details:', error);
-      // Use fallback data from place object
-      setGoogleRating({
-        rating: place.rating ?? null,
-        count: null,
-      });
-    }
-  };
+  // Reset photo index when place changes
+  useEffect(() => {
+    setCurrentPhotoIndex(0);
+  }, [place.place_id]);
 
   const nextPhoto = () => {
     setCurrentPhotoIndex((prev) => (prev + 1) % photos.length);
@@ -132,6 +88,20 @@ export function GooglePlaceInfoWindow({
     ? (typeof place.geometry.location.lng === 'function' ? place.geometry.location.lng() : place.geometry.location.lng)
     : 0;
 
+  console.log('📊 InfoWindow Render:', {
+    name: place.name,
+    hasLVLocation: !!lvLocation,
+    lvEditorsScore: lvLocation?.lvEditorsScore,
+    lvCrowdScore: lvLocation?.lvCrowdsourceScore,
+    googleRating: place.rating,
+    googleRatingCount: place.user_ratings_total,
+    photoCount: photos.length,
+    rawPhotosLength: place.photos?.length || 0,
+    tags: lvLocation?.tags,
+    types: place.types,
+    placeId: place.place_id
+  });
+
   return (
     <InfoWindow
       position={{ lat, lng }}
@@ -159,7 +129,10 @@ export function GooglePlaceInfoWindow({
             )}
           </div>
           {isAuthenticated && user?.role === 'editor' && (
-            <button className="text-gray-500 hover:text-gray-700">
+            <button 
+              onClick={() => setShowEditorModal(true)}
+              className="text-gray-500 hover:text-gray-700"
+            >
               <Edit3 className="w-4 h-4" />
             </button>
           )}
@@ -217,6 +190,36 @@ export function GooglePlaceInfoWindow({
         )}
 
         <div className="px-4 pb-4">
+          {/* LV Ratings - Show PROMINENTLY when available */}
+          {lvLocation && (lvLocation.lvEditorsScore || lvLocation.lvCrowdsourceScore) && (
+            <div className="space-y-2 mb-4 p-3 bg-gradient-to-br from-amber-50 to-rose-50 rounded-lg border border-amber-200">
+              {lvLocation.lvEditorsScore && (
+                <div className="flex items-center justify-between text-sm">
+                  <div className="flex items-center gap-2">
+                    <Award className="w-4 h-4 text-amber-600" />
+                    <span className="text-gray-700 font-medium">LV Editors Score</span>
+                  </div>
+                  <span className="text-lg font-bold text-amber-700">
+                    {lvLocation.lvEditorsScore.toFixed(1)}
+                    <span className="text-xs text-gray-600 ml-1">/11.0</span>
+                  </span>
+                </div>
+              )}
+              {lvLocation.lvCrowdsourceScore && (
+                <div className="flex items-center justify-between text-sm">
+                  <div className="flex items-center gap-2">
+                    <Users className="w-4 h-4 text-rose-600" />
+                    <span className="text-gray-700 font-medium">LV Crowd Score</span>
+                  </div>
+                  <span className="text-lg font-bold text-rose-700">
+                    {lvLocation.lvCrowdsourceScore.toFixed(1)}
+                    <span className="text-xs text-gray-600 ml-1">/10.0</span>
+                  </span>
+                </div>
+              )}
+            </div>
+          )}
+
           {/* Google Rating */}
           <div className="space-y-2 mb-4">
             <div className="flex items-center justify-between text-sm">
@@ -225,18 +228,52 @@ export function GooglePlaceInfoWindow({
                 <span className="text-gray-600">Google Rating</span>
               </div>
               <div className="flex items-center gap-2">
-                {renderStars(googleRating.rating)}
+                {renderStars(place.rating ?? null)}
                 <span className="text-sm font-medium text-gray-900">
-                  {googleRating.rating?.toFixed(1) || 'N/A'}
+                  {place.rating?.toFixed(1) || 'N/A'}
                 </span>
-                {googleRating.count && (
+                {place.user_ratings_total && (
                   <span className="text-xs text-gray-500">
-                    ({googleRating.count.toLocaleString()})
+                    ({place.user_ratings_total.toLocaleString()})
                   </span>
                 )}
               </div>
             </div>
           </div>
+
+          {/* LV Tags - Show when available */}
+          {lvLocation?.tags && lvLocation.tags.length > 0 && (
+            <div className="mb-3">
+              <p className="text-xs font-medium text-amber-700 mb-1.5">LV Tags</p>
+              <div className="flex flex-wrap gap-1.5">
+                {lvLocation.tags.map((tag, idx) => (
+                  <span 
+                    key={idx}
+                    className="text-xs px-2.5 py-1 bg-gradient-to-r from-amber-100 to-rose-100 text-amber-900 rounded-full font-medium border border-amber-200"
+                  >
+                    {tag}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Types/Categories */}
+          {place.types && place.types.length > 0 && (
+            <div className="mb-4">
+              <p className="text-xs font-medium text-gray-600 mb-1">Categories</p>
+              <div className="flex flex-wrap gap-1">
+                {place.types.slice(0, 3).map((type, idx) => (
+                  <span 
+                    key={idx}
+                    className="text-xs px-2 py-0.5 bg-gray-100 text-gray-700 rounded-full"
+                  >
+                    {type.replace(/_/g, ' ')}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
 
           {/* Action Buttons */}
           <div className="grid grid-cols-2 gap-2 mb-4">
@@ -328,7 +365,7 @@ export function GooglePlaceInfoWindow({
               >
                 <p className="text-xs text-gray-700 text-center font-medium flex items-center justify-center gap-2">
                   <Award className="w-4 h-4 text-amber-600" />
-                  {lvLocation?.lvEditorsScore ? 'Update Rating' : 'No LV Rating Yet'}
+                  {lvLocation?.lvEditorsScore ? 'Update LV Rating' : 'Add LV Rating'}
                 </p>
               </button>
             </div>
@@ -347,23 +384,6 @@ export function GooglePlaceInfoWindow({
                 setShowEditorModal(false);
               }}
             />
-          )}
-
-          {/* Types/Categories */}
-          {place.types && place.types.length > 0 && (
-            <div className="mt-3">
-              <p className="text-xs font-medium text-gray-600 mb-1">Categories</p>
-              <div className="flex flex-wrap gap-1">
-                {place.types.slice(0, 3).map((type, idx) => (
-                  <span 
-                    key={idx}
-                    className="text-xs px-2 py-0.5 bg-gray-100 text-gray-700 rounded-full"
-                  >
-                    {type.replace(/_/g, ' ')}
-                  </span>
-                ))}
-              </div>
-            </div>
           )}
         </div>
       </div>

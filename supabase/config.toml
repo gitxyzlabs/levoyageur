@@ -1,0 +1,5 @@
+[project]
+ref = "vwikyikicmfefzntshsl"
+
+[functions.server]
+verify_jwt = false

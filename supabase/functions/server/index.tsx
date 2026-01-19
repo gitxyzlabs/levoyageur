@@ -451,7 +451,7 @@ app.get('/make-server-48182530/favorites', verifyAuth, async (c) => {
 app.post('/make-server-48182530/favorites/:locationId', verifyAuth, async (c) => {
   console.log('📍 POST /favorites/:locationId - Start');
   const userId = c.get('userId');
-  const locationId = c.req.param('locationId'); // This should be a UUID for LV locations only
+  const locationId = c.req.param('locationId'); // This can be a place_id or UUID
 
   if (!locationId) {
     return c.json({ error: 'locationId is required' }, 400);
@@ -460,20 +460,69 @@ app.post('/make-server-48182530/favorites/:locationId', verifyAuth, async (c) =>
   try {
     const supabase = getSupabaseAdmin();
     
-    // Only allow favoriting of existing LV locations (UUID)
-    // This separates "favoriting" from "rating" - only editors can create LV locations with ratings
-    const { data: location, error: locError } = await supabase
+    // Parse body to get optional place data
+    let placeData;
+    try {
+      placeData = await c.req.json();
+    } catch (e) {
+      placeData = null;
+    }
+    
+    // First, try to find the location by place_id (Google Place ID)
+    let { data: location, error: locError } = await supabase
       .from('locations')
       .select('id, name')
-      .eq('id', locationId)
+      .eq('place_id', locationId)
       .single();
 
+    // If not found by place_id, try by UUID (for LV locations)
     if (locError || !location) {
-      console.error('❌ LV Location not found:', locationId);
-      return c.json({ 
-        error: 'This location has not been added to Le Voyageur database yet. Only editors can add and rate locations.',
-        requiresEditor: true
-      }, 404);
+      const { data: lvLoc, error: lvError } = await supabase
+        .from('locations')
+        .select('id, name')
+        .eq('id', locationId)
+        .single();
+      
+      if (!lvError && lvLoc) {
+        location = lvLoc;
+        locError = null;
+      }
+    }
+
+    // If location still doesn't exist and we have place data, create it
+    if (locError || !location) {
+      if (placeData && placeData.name && placeData.lat && placeData.lng) {
+        console.log('📍 Creating new location for favoriting:', placeData.name);
+        
+        const { data: newLocation, error: createError } = await supabase
+          .from('locations')
+          .insert({
+            name: placeData.name,
+            lat: placeData.lat,
+            lng: placeData.lng,
+            description: placeData.formatted_address || '',
+            place_id: locationId,
+            // Leave ratings null - only editors can rate
+            lv_editors_score: null,
+            lv_crowdsource_score: null,
+            tags: []
+          })
+          .select('id, name')
+          .single();
+
+        if (createError) {
+          console.error('❌ Error creating location:', createError);
+          return c.json({ error: 'Failed to create location for favoriting' }, 500);
+        }
+
+        location = newLocation;
+        console.log('✅ Location created:', newLocation.id);
+      } else {
+        console.error('❌ Location not found and no place data provided');
+        return c.json({ 
+          error: 'Location not found and insufficient data to create it',
+        }, 404);
+      }
     }
 
     // Insert favorite using the UUID
@@ -481,7 +530,7 @@ app.post('/make-server-48182530/favorites/:locationId', verifyAuth, async (c) =>
       .from('favorites')
       .insert({
         user_id: userId,
-        location_id: locationId,
+        location_id: location.id, // Use the UUID
       });
 
     if (error) {
@@ -494,7 +543,7 @@ app.post('/make-server-48182530/favorites/:locationId', verifyAuth, async (c) =>
       return c.json({ error: 'Failed to add favorite', details: error.message }, 500);
     }
 
-    console.log('✅ Favorite added:', locationId);
+    console.log('✅ Favorite added:', location.id);
     return c.json({ success: true });
   } catch (error) {
     console.error('❌ Error in POST /favorites:', error);

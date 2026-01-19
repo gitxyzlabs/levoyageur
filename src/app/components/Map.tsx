@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useEffect } from 'react';
 import { Map as GoogleMap, AdvancedMarker, useMap } from '@vis.gl/react-google-maps';
 import type { Location, User } from '../../utils/api';
 import { GooglePlaceInfoWindow } from './GooglePlaceInfoWindow';
@@ -20,8 +20,9 @@ interface MapProps {
   mapCenter?: { lat: number; lng: number } | null;
   mapZoom?: number;
   selectedGooglePlace?: google.maps.places.PlaceResult | null;
+  selectedLVLocation?: Location | null; // LV location data for the selected place
   onGooglePlaceClose?: () => void;
-  onPOIClick?: (place: google.maps.places.PlaceResult) => void;
+  onPOIClick?: (place: google.maps.places.PlaceResult, lvLocation?: Location) => void;
   onMapBoundsChange?: (bounds: google.maps.LatLngBounds) => void;
   searchResults?: google.maps.places.PlaceResult[];
   showSearchResults?: boolean;
@@ -62,13 +63,13 @@ export function Map({
   mapCenter,
   mapZoom,
   selectedGooglePlace,
+  selectedLVLocation,
   onGooglePlaceClose,
   onPOIClick,
   onMapBoundsChange,
   searchResults,
   showSearchResults
 }: MapProps) {
-  const [clickedPOI, setClickedPOI] = useState<google.maps.places.PlaceResult | null>(null);
   const map = useMap();
 
   const displayLocations = showHeatMap && heatMapData ? heatMapData : locations;
@@ -117,7 +118,7 @@ export function Map({
     };
   }, [map, onMapBoundsChange]);
 
-  // Add POI click listener
+  // Add POI click listener (for Google POIs on the map)
   useEffect(() => {
     if (!map) return;
 
@@ -127,7 +128,7 @@ export function Map({
         // Prevent the default info window from showing
         event.stop();
         
-        console.log('POI clicked:', event.placeId);
+        console.log('🗺️ Google POI clicked:', event.placeId);
         
         try {
           // Fetch place details using the new Places API
@@ -137,9 +138,19 @@ export function Map({
             id: event.placeId,
           });
           
-          // Fetch the place details
+          // Fetch the place details WITH PHOTOS AND TYPES
           await place.fetchFields({
-            fields: ['displayName', 'formattedAddress', 'location', 'rating', 'userRatingCount', 'types', 'websiteURI', 'nationalPhoneNumber']
+            fields: [
+              'displayName', 
+              'formattedAddress', 
+              'location', 
+              'rating', 
+              'userRatingCount', 
+              'types', 
+              'websiteURI', 
+              'nationalPhoneNumber',
+              'photos'
+            ]
           });
           
           // Convert to PlaceResult format
@@ -155,14 +166,10 @@ export function Map({
             types: place.types,
             website: place.websiteURI,
             formatted_phone_number: place.nationalPhoneNumber,
+            photos: place.photos,
           };
           
-          // Close any open LV location info window
-          setClickedPOI(null);
-          
-          // Show the LV custom info window for this Google Place
-          setClickedPOI(placeResult);
-          
+          // Notify parent to show InfoWindow
           if (onPOIClick) {
             onPOIClick(placeResult);
           }
@@ -171,7 +178,6 @@ export function Map({
         }
       } else {
         // Click was on the map (not a POI) - close all info windows
-        setClickedPOI(null);
         if (onGooglePlaceClose) {
           onGooglePlaceClose();
         }
@@ -183,116 +189,88 @@ export function Map({
     };
   }, [map, onPOIClick, onGooglePlaceClose]);
 
+  // Helper function to check if a string is a valid Google Place ID (not a UUID)
+  const isValidGooglePlaceId = (id: string | undefined): boolean => {
+    if (!id) return false;
+    // Google Place IDs don't look like UUIDs (no dashes in that pattern)
+    // UUIDs look like: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
+    const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    return !uuidPattern.test(id) && id !== 'undefined' && id !== 'null' && id !== '';
+  };
+
   const handleMarkerClick = async (location: Location) => {
-    // Close any POI info window and clear selectedGooglePlace
-    setClickedPOI(null);
-    if (onGooglePlaceClose) {
-      onGooglePlaceClose();
-    }
-    
-    // Helper function to check if a string is a valid Google Place ID (not a UUID)
-    const isValidGooglePlaceId = (id: string | undefined): boolean => {
-      if (!id) return false;
-      // Google Place IDs don't look like UUIDs (no dashes in that pattern)
-      // UUIDs look like: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
-      const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-      return !uuidPattern.test(id) && id !== 'undefined' && id !== 'null' && id !== '';
-    };
-    
-    // Convert LV Location to Google Place format
-    if (isValidGooglePlaceId(location.place_id)) {
-      // Has valid Google Place ID - fetch Google place details
-      try {
-        console.log('🔍 Fetching Google Place details for LV location:', {
-          name: location.name,
-          place_id: location.place_id
-        });
-        
-        const { Place } = await google.maps.importLibrary("places") as google.maps.PlacesLibrary;
-        
-        const place = new Place({
-          id: location.place_id!,
-        });
-        
-        await place.fetchFields({
-          fields: ['displayName', 'formattedAddress', 'location', 'rating', 'userRatingCount', 'types', 'websiteURI', 'nationalPhoneNumber']
-        });
-        
-        console.log('✅ Successfully fetched Google Place data:', {
-          displayName: place.displayName,
-          rating: place.rating,
-          userRatingCount: place.userRatingCount
-        });
-        
-        // Convert to PlaceResult format and show in Google Place InfoWindow
-        const placeResult: google.maps.places.PlaceResult = {
-          place_id: location.place_id,
-          name: place.displayName || location.name,
-          formatted_address: place.formattedAddress || location.description,
-          geometry: place.location ? {
-            location: place.location
-          } : {
-            location: new google.maps.LatLng(location.lat, location.lng)
-          },
-          rating: place.rating,
-          user_ratings_total: place.userRatingCount,
-          types: place.types,
-          website: place.websiteURI,
-          formatted_phone_number: place.nationalPhoneNumber,
-        };
-        
-        setClickedPOI(placeResult);
-      } catch (error) {
-        console.error('❌ Error fetching place details for LV location:', {
-          name: location.name,
-          place_id: location.place_id,
-          error: error
-        });
-        // Fallback: create a minimal place result from LV location data
-        const placeResult: google.maps.places.PlaceResult = {
-          place_id: location.place_id,
-          name: location.name,
-          formatted_address: location.description,
-          geometry: {
-            location: new google.maps.LatLng(location.lat, location.lng)
-          },
-        };
-        setClickedPOI(placeResult);
+    try {
+      console.log('\n🎯 === LV MARKER CLICKED ===');
+      console.log('📍 Location:', location.name);
+      console.log('🆔 Place ID:', location.place_id);
+      console.log('⭐ LV Editors Score:', location.lvEditorsScore);
+      console.log('👥 LV Crowd Score:', location.lvCrowdsourceScore);
+      
+      // Fetch Google Place details for this LV location
+      if (!location.place_id) {
+        console.warn('⚠️ No place_id for this LV location');
+        return;
       }
-    } else {
-      console.log('⚠️ LV location has no valid Google place_id:', {
-        name: location.name,
-        place_id: location.place_id
+
+      const { Place } = await google.maps.importLibrary("places") as google.maps.PlacesLibrary;
+      const place = new Place({
+        id: location.place_id,
       });
-      // No valid Google Place ID - just show basic location info in Google Place InfoWindow
+
+      // Fetch full place details including photos
+      await place.fetchFields({
+        fields: [
+          'displayName',
+          'formattedAddress', 
+          'location',
+          'photos',
+          'rating',
+          'userRatingCount',
+          'types',
+          'websiteURI',
+          'nationalPhoneNumber',
+          'editorialSummary'
+        ],
+      });
+
+      console.log('📸 Photos fetched:', place.photos?.length || 0);
+      console.log('⭐ Google rating:', place.rating);
+      console.log('👤 Rating count:', place.userRatingCount);
+
+      // Convert to PlaceResult format
       const placeResult: google.maps.places.PlaceResult = {
-        place_id: location.place_id || location.id, // Use place_id if available, otherwise LV location ID
-        name: location.name,
-        formatted_address: location.description,
-        geometry: {
-          location: new google.maps.LatLng(location.lat, location.lng)
-        },
+        place_id: location.place_id,
+        name: place.displayName || location.name,
+        formatted_address: place.formattedAddress || location.address || undefined,
+        geometry: place.location ? {
+          location: place.location
+        } : undefined,
+        rating: place.rating,
+        user_ratings_total: place.userRatingCount,
+        website: place.websiteURI,
+        formatted_phone_number: place.nationalPhoneNumber,
+        photos: place.photos,
+        types: place.types,
       };
-      setClickedPOI(placeResult);
+
+      console.log('📤 Sending PlaceResult to parent:', {
+        name: placeResult.name,
+        photoCount: placeResult.photos?.length || 0,
+        rating: placeResult.rating,
+        hasLVData: true
+      });
+      
+      // Notify parent to show InfoWindow with both Google and LV data
+      if (onPOIClick) {
+        onPOIClick(placeResult, location);
+      }
+    } catch (error) {
+      console.error('❌ Error fetching Google Place details for LV marker:', error);
     }
     
     if (onLocationClick) {
       onLocationClick(location);
     }
-  };
-
-  const renderStars = (rating: number | null) => {
-    if (rating == null) return <span className="text-xs text-gray-400">No rating</span>;
-    const full = Math.floor(rating);
-    const half = rating % 1 >= 0.5 ? 1 : 0;
-    const empty = 5 - full - half;
-    return (
-      <span className="text-amber-400 text-sm">
-        {'★'.repeat(full)}
-        {half === 1 && '½'}
-        {'☆'.repeat(empty)}
-      </span>
-    );
   };
 
   return (
@@ -310,18 +288,20 @@ export function Map({
           zoomControl: true,
         }}
       >
+        {/* LV Location Markers */}
         {displayLocations.map((location) => {
           const rating = location.lvEditorsScore || 5;
           const scale = showHeatMap ? 0.8 : 1;
-          const isFavorite = favoriteIds?.has(location.id);
-          const isWantToGo = wantToGoIds?.has(location.id);
+          const isFavorite = favoriteIds?.has(location.id) || favoriteIds?.has(location.place_id || '');
+          const isWantToGo = wantToGoIds?.has(location.id) || wantToGoIds?.has(location.place_id || '');
+          const hasLVRating = !!(location.lvEditorsScore || location.lvCrowdsourceScore);
           
           return (
             <AdvancedMarker
               key={location.id}
               position={{ lat: location.lat, lng: location.lng }}
               onClick={() => handleMarkerClick(location)}
-              zIndex={clickedPOI?.place_id === location.place_id ? 1000 : 100}
+              zIndex={selectedGooglePlace?.place_id === location.place_id ? 1000 : 100}
             >
               <LuxuryMarker
                 rating={rating}
@@ -329,6 +309,7 @@ export function Map({
                 showHeatMap={showHeatMap}
                 isFavorite={isFavorite}
                 isWantToGo={isWantToGo}
+                hasLVRating={hasLVRating}
                 type="lv-location"
               />
             </AdvancedMarker>
@@ -347,8 +328,12 @@ export function Map({
             <AdvancedMarker
               key={place.place_id}
               position={{ lat, lng }}
-              onClick={() => setClickedPOI(place)}
-              zIndex={clickedPOI?.place_id === place.place_id ? 1000 : 50}
+              onClick={() => {
+                if (onPOIClick) {
+                  onPOIClick(place);
+                }
+              }}
+              zIndex={selectedGooglePlace?.place_id === place.place_id ? 1000 : 50}
             >
               <LuxuryMarker
                 rating={place.rating || 5}
@@ -359,11 +344,11 @@ export function Map({
           );
         })}
         
-        {clickedPOI && (
+        {/* Single InfoWindow - controlled by parent's selectedGooglePlace */}
+        {selectedGooglePlace && (
           <GooglePlaceInfoWindow
-            place={clickedPOI}
+            place={selectedGooglePlace}
             onClose={() => {
-              setClickedPOI(null);
               if (onGooglePlaceClose) {
                 onGooglePlaceClose();
               }
@@ -374,6 +359,7 @@ export function Map({
             onWantToGoToggle={onWantToGoToggle}
             favoriteIds={favoriteIds}
             wantToGoIds={wantToGoIds}
+            lvLocation={selectedLVLocation} // We'll need to pass this from App.tsx
           />
         )}
       </GoogleMap>
