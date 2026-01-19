@@ -155,9 +155,9 @@ export function GooglePlaceInfoWindow({
                   });
                 }
               }}
-              className={`p-2 rounded-full transition-all hover:scale-110 ${
+              className={`p-2 rounded-full transition-all hover:scale-110 ${ 
                 favoriteIds?.has(place.place_id || '')
-                  ? 'bg-red-50 hover:bg-red-100'
+                  ? 'bg-red-100 hover:bg-red-200 ring-2 ring-red-300'
                   : 'bg-gray-100 hover:bg-gray-200'
               }`}
               title="Favorite"
@@ -463,6 +463,13 @@ export function GooglePlaceInfoWindow({
               locationName={place.name || 'Unknown Place'}
               currentRating={lvLocation?.lvEditorsScore}
               currentTags={lvLocation?.tags || []}
+              placeData={{
+                name: place.name || 'Unknown Place',
+                lat,
+                lng,
+                formatted_address: place.formatted_address,
+                rating: place.rating,
+              }}
               onClose={() => setShowEditorModal(false)}
               onSuccess={() => {
                 toast.success('Rating updated successfully!');

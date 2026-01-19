@@ -96,7 +96,7 @@ export function MobileInfoSheet({
   };
 
   return (
-    <AnimatePresence>
+    <>
       <motion.div
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
@@ -362,10 +362,19 @@ export function MobileInfoSheet({
         </div>
 
         {/* Editor Modal */}
-        {showEditorModal && (
+        {showEditorModal && place.place_id && (
           <EditorRatingModal
-            place={place}
-            existingLocation={lvLocation}
+            locationId={place.place_id}
+            locationName={place.name || 'Unknown Place'}
+            currentRating={lvLocation?.lvEditorsScore}
+            currentTags={lvLocation?.tags || []}
+            placeData={{
+              name: place.name || 'Unknown Place',
+              lat,
+              lng,
+              formatted_address: place.formatted_address,
+              rating: place.rating,
+            }}
             onClose={() => setShowEditorModal(false)}
             onSuccess={() => {
               setShowEditorModal(false);
@@ -374,6 +383,6 @@ export function MobileInfoSheet({
           />
         )}
       </motion.div>
-    </AnimatePresence>
+    </>
   );
 }

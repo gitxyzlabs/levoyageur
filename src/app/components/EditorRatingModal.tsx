@@ -9,6 +9,13 @@ interface EditorRatingModalProps {
   currentTags?: string[];
   onClose: () => void;
   onSuccess: () => void;
+  placeData?: {
+    name: string;
+    lat: number;
+    lng: number;
+    formatted_address?: string;
+    rating?: number;
+  };
 }
 
 export function EditorRatingModal({
@@ -18,6 +25,7 @@ export function EditorRatingModal({
   currentTags = [],
   onClose,
   onSuccess,
+  placeData,
 }: EditorRatingModalProps) {
   const [rating, setRating] = useState(currentRating?.toString() || '');
   const [selectedTags, setSelectedTags] = useState<string[]>(currentTags);
@@ -94,7 +102,7 @@ export function EditorRatingModal({
     setIsSubmitting(true);
 
     try {
-      await api.updateLocationRating(locationId, ratingValue, selectedTags);
+      await api.updateLocationRating(locationId, ratingValue, selectedTags, placeData);
       onSuccess();
       onClose();
     } catch (error: any) {

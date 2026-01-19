@@ -372,10 +372,21 @@ export const api = {
   },
 
   // Editor: Update location rating and tags
-  updateLocationRating: async (locationId: string, lvEditorsScore?: number, tags?: string[]) => {
+  updateLocationRating: async (
+    locationId: string, 
+    lvEditorsScore?: number, 
+    tags?: string[],
+    placeData?: {
+      name: string;
+      lat: number;
+      lng: number;
+      formatted_address?: string;
+      rating?: number;
+    }
+  ) => {
     return fetchWithAuth(`${API_BASE}/locations/${locationId}/rating`, {
       method: 'PUT',
-      body: JSON.stringify({ lvEditorsScore, tags }),
+      body: JSON.stringify({ lvEditorsScore, tags, placeData }),
     });
   },
 
