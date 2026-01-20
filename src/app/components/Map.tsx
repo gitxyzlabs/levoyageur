@@ -381,7 +381,7 @@ export function Map({
       </button>
       
       <GoogleMap
-        defaultZoom={mapZoom ?? 13}
+        defaultZoom={mapZoom ?? 14}
         defaultCenter={mapCenter ?? { lat: 32.7157, lng: -117.1611 }}
         className="size-full"
         mapId="le-voyageur-luxury-map"

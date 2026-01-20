@@ -11,7 +11,7 @@ interface MobileInfoSheetProps {
   user: { id: string; email: string; name: string; role: 'user' | 'editor' } | null;
   isAuthenticated: boolean;
   onFavoriteToggle?: (locationId: string, placeData?: { name?: string; lat?: number; lng?: number; formatted_address?: string; place_id?: string }) => void;
-  onWantToGoToggle?: (locationId: string) => void;
+  onWantToGoToggle?: (locationId: string, placeData?: { name?: string; lat?: number; lng?: number; formatted_address?: string; place_id?: string }) => void;
   onRatingAdded?: () => void;
   favoriteIds?: Set<string>; 
   wantToGoIds?: Set<string>;
@@ -244,7 +244,19 @@ export function MobileInfoSheet({
                     return;
                   }
                   if (onWantToGoToggle) {
-                    onWantToGoToggle(place.place_id);
+                    // Extract lat/lng from place
+                    const lat = place.geometry?.location?.lat ? 
+                      (typeof place.geometry.location.lat === 'function' ? place.geometry.location.lat() : place.geometry.location.lat) : undefined;
+                    const lng = place.geometry?.location?.lng ? 
+                      (typeof place.geometry.location.lng === 'function' ? place.geometry.location.lng() : place.geometry.location.lng) : undefined;
+                    
+                    onWantToGoToggle(place.place_id, {
+                      name: place.name,
+                      lat,
+                      lng,
+                      formatted_address: place.formatted_address,
+                      place_id: place.place_id
+                    });
                   }
                 }}
                 className={`flex items-center justify-center gap-2 py-3 px-4 rounded-xl font-medium transition-all ${

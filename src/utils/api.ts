@@ -341,9 +341,10 @@ export const api = {
     return fetchWithAuth(`${API_BASE}/want-to-go`);
   },
 
-  addWantToGo: async (locationId: string) => {
+  addWantToGo: async (locationId: string, placeData?: { name?: string; lat?: number; lng?: number; formatted_address?: string; place_id?: string }) => {
     return fetchWithAuth(`${API_BASE}/want-to-go/${locationId}`, {
       method: 'POST',
+      body: JSON.stringify(placeData || {}),
     });
   },
 

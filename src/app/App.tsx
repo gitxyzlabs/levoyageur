@@ -49,7 +49,7 @@ export default function App() {
   const [googleMapsApiKey, setGoogleMapsApiKey] = useState<string>("");
   const [sidebarCollapsed, setSidebarCollapsed] = useState(true);
   const [mapCenter, setMapCenter] = useState<{ lat: number; lng: number } | null>(null);
-  const [mapZoom, setMapZoom] = useState(10);
+  const [mapZoom, setMapZoom] = useState(14);
   const [selectedGooglePlace, setSelectedGooglePlace] = useState<google.maps.places.PlaceResult | null>(null);
   const [selectedLVLocation, setSelectedLVLocation] = useState<Location | null>(null);
   const [user, setUser] = useState<APIUser | null>(null);
@@ -319,7 +319,7 @@ export default function App() {
         const lng = typeof location.lng === 'function' ? location.lng() : location.lng;
         
         setMapCenter({ lat, lng });
-        setMapZoom(12); // Zoom out more for cities
+        setMapZoom(13); // Zoom out more for cities
       }
     } else {
       console.log('✅ Detected as specific place - showing place info window');
@@ -589,7 +589,7 @@ export default function App() {
     }
   };
 
-  const handleToggleWantToGo = async (locationId: string) => {
+  const handleToggleWantToGo = async (locationId: string, placeData?: { name?: string; lat?: number; lng?: number; formatted_address?: string; place_id?: string }) => {
     if (!user) {
       toast.error('Please sign in to save to Want to Go');
       return;
@@ -609,7 +609,8 @@ export default function App() {
         toast.success('Removed from Want to Go');
       } else {
         // Add to Want to Go
-        await api.addWantToGo(locationId);
+        console.log('💾 Saving want to go with place_id:', placeData?.place_id);
+        await api.addWantToGo(locationId, placeData);
         setWantToGoIds(prev => new Set([...prev, locationId]));
         toast.success('Added to Want to Go!');
       }

@@ -630,6 +630,38 @@ app.delete('/make-server-48182530/favorites/:locationId', verifyAuth, async (c) 
   }
 });
 
+// Get city favorites stats (public endpoint - aggregate data only)
+app.post('/make-server-48182530/favorites/city-stats', async (c) => {
+  console.log('📊 POST /favorites/city-stats - Start');
+  
+  try {
+    const { locationIds } = await c.req.json();
+    
+    if (!locationIds || !Array.isArray(locationIds)) {
+      return c.json({ error: 'Invalid locationIds array' }, 400);
+    }
+
+    const supabase = getSupabaseAdmin();
+    
+    // Count total favorites for all locations in this city
+    const { count, error } = await supabase
+      .from('favorites')
+      .select('*', { count: 'exact', head: true })
+      .in('location_id', locationIds);
+
+    if (error) {
+      console.error('❌ Error fetching city favorites:', error);
+      return c.json({ error: 'Failed to fetch city favorites' }, 500);
+    }
+
+    console.log('✅ City favorites count:', count);
+    return c.json({ totalFavorites: count || 0 });
+  } catch (error) {
+    console.error('❌ Error in POST /favorites/city-stats:', error);
+    return c.json({ error: 'Failed to fetch city favorites' }, 500);
+  }
+});
+
 // ============================================
 // WANT TO GO ROUTES
 // ============================================
@@ -696,7 +728,7 @@ app.get('/make-server-48182530/want-to-go', verifyAuth, async (c) => {
 app.post('/make-server-48182530/want-to-go/:locationId', verifyAuth, async (c) => {
   console.log('📍 POST /want-to-go/:locationId - Start');
   const userId = c.get('userId');
-  const locationId = c.req.param('locationId');
+  const locationId = c.req.param('locationId'); // This can be a place_id or UUID
 
   if (!locationId) {
     return c.json({ error: 'locationId is required' }, 400);
@@ -705,23 +737,92 @@ app.post('/make-server-48182530/want-to-go/:locationId', verifyAuth, async (c) =
   try {
     const supabase = getSupabaseAdmin();
     
-    // Check if location exists
-    const { data: location, error: locError } = await supabase
+    // Parse body to get optional place data
+    let placeData;
+    try {
+      placeData = await c.req.json();
+    } catch (e) {
+      placeData = null;
+    }
+    
+    // First, try to find the location by place_id (Google Place ID)
+    let { data: location, error: locError } = await supabase
       .from('locations')
-      .select('id')
-      .eq('id', locationId)
+      .select('id, name')
+      .eq('place_id', locationId)
       .single();
 
+    // If not found by place_id, try by UUID (for LV locations)
     if (locError || !location) {
-      return c.json({ error: 'Location not found' }, 404);
+      const { data: lvLoc, error: lvError } = await supabase
+        .from('locations')
+        .select('id, name, place_id')
+        .eq('id', locationId)
+        .single();
+
+      if (!lvError && lvLoc) {
+        location = lvLoc;
+        console.log('✅ Found location by UUID:', location.id);
+        
+        // If this location doesn't have a place_id yet, and we have one in placeData, update it
+        if (!location.place_id && placeData?.place_id) {
+          console.log('💾 Updating location with place_id:', placeData.place_id);
+          const { error: updateError } = await supabase
+            .from('locations')
+            .update({ place_id: placeData.place_id })
+            .eq('id', location.id);
+            
+          if (updateError) {
+            console.error('⚠️ Failed to update place_id:', updateError);
+          } else {
+            console.log('✅ place_id saved to location');
+          }
+        }
+      }
     }
 
-    // Insert want to go (unique constraint will prevent duplicates)
+    // If location still doesn't exist and we have place data, create it
+    if (locError || !location) {
+      if (placeData && placeData.name && placeData.lat && placeData.lng) {
+        console.log('📍 Creating new location for want to go:', placeData.name);
+        
+        const { data: newLocation, error: createError } = await supabase
+          .from('locations')
+          .insert({
+            name: placeData.name,
+            lat: placeData.lat,
+            lng: placeData.lng,
+            description: placeData.formatted_address || '',
+            place_id: placeData.place_id || locationId, // Save place_id from placeData or use locationId
+            // Leave ratings null - only editors can rate
+            lv_editors_score: null,
+            lv_crowdsource_score: null,
+            tags: []
+          })
+          .select('id, name')
+          .single();
+
+        if (createError) {
+          console.error('❌ Error creating location:', createError);
+          return c.json({ error: 'Failed to create location for want to go' }, 500);
+        }
+
+        location = newLocation;
+        console.log('✅ Location created:', newLocation.id);
+      } else {
+        console.error('❌ Location not found and no place data provided');
+        return c.json({ 
+          error: 'Location not found and insufficient data to create it',
+        }, 404);
+      }
+    }
+
+    // Insert want to go using the UUID
     const { error } = await supabase
       .from('want_to_go')
       .insert({
         user_id: userId,
-        location_id: locationId,
+        location_id: location.id, // Use the UUID
       });
 
     if (error) {
@@ -731,10 +832,10 @@ app.post('/make-server-48182530/want-to-go/:locationId', verifyAuth, async (c) =
         return c.json({ success: true, message: 'Already in want to go list' });
       }
       console.error('❌ Error adding to want to go:', error);
-      return c.json({ error: 'Failed to add to want to go list' }, 500);
+      return c.json({ error: 'Failed to add to want to go list', details: error.message }, 500);
     }
 
-    console.log('✅ Want to go added:', locationId);
+    console.log('✅ Want to go added:', location.id);
     return c.json({ success: true });
   } catch (error) {
     console.error('❌ Error in POST /want-to-go:', error);
@@ -949,7 +1050,7 @@ app.put('/make-server-48182530/locations/:id/rating', verifyAuth, verifyEditor, 
   console.log('📍 PUT /locations/:id/rating - Start');
   const userId = c.get('userId');
   const locationId = c.req.param('id');
-  const { lvEditorsScore, tags } = await c.req.json();
+  const { lvEditorsScore, tags, placeData } = await c.req.json();
 
   if (lvEditorsScore !== undefined && (lvEditorsScore < 0 || lvEditorsScore > 11)) {
     return c.json({ error: 'lvEditorsScore must be between 0.0 and 11.0' }, 400);
@@ -974,13 +1075,68 @@ app.put('/make-server-48182530/locations/:id/rating', verifyAuth, verifyEditor, 
     
     const { data: existingLocation, error: fetchError } = await query.single();
     
+    // If location doesn't exist, create it automatically
     if (fetchError || !existingLocation) {
-      console.error('❌ Location not found:', locationId, fetchError);
-      return c.json({ 
-        error: 'Location not found in database. Please add it first using the "Add to LV Database" button.' 
-      }, 404);
+      console.log('📍 Location not found, creating new location:', locationId);
+      
+      // Validate that we have the necessary place data to create the location
+      if (!placeData || !placeData.name || !placeData.lat || !placeData.lng) {
+        console.error('❌ Missing place data for creating location:', placeData);
+        return c.json({ 
+          error: 'Location not found and insufficient data provided to create it. Please provide placeData with name, lat, and lng.' 
+        }, 400);
+      }
+      
+      // Create the location
+      const newLocation = {
+        place_id: locationId,
+        name: placeData.name,
+        description: placeData.formatted_address || null,
+        lat: placeData.lat,
+        lng: placeData.lng,
+        google_rating: placeData.rating || null,
+        lv_editors_score: lvEditorsScore,
+        tags: tags || [],
+        created_by: userId,
+        updated_by: userId,
+      };
+      
+      const { data: createdLocation, error: createError } = await supabase
+        .from('locations')
+        .insert(newLocation)
+        .select()
+        .single();
+      
+      if (createError) {
+        console.error('❌ Error creating location:', createError);
+        return c.json({ error: 'Failed to create location' }, 500);
+      }
+      
+      console.log('✅ Location created and rating added:', createdLocation.id);
+      
+      return c.json({
+        id: createdLocation.id,
+        name: createdLocation.name,
+        description: createdLocation.description,
+        lat: createdLocation.lat,
+        lng: createdLocation.lng,
+        lvEditorsScore: createdLocation.lv_editors_score,
+        lvCrowdsourceScore: createdLocation.lv_crowdsource_score,
+        googleRating: createdLocation.google_rating,
+        michelinScore: createdLocation.michelin_score,
+        tags: createdLocation.tags || [],
+        cuisine: createdLocation.cuisine,
+        area: createdLocation.area,
+        image: createdLocation.image,
+        placeId: createdLocation.place_id,
+        createdBy: createdLocation.created_by,
+        createdAt: createdLocation.created_at,
+        updatedBy: createdLocation.updated_by,
+        updatedAt: createdLocation.updated_at,
+      });
     }
     
+    // Location exists, update it
     const dbUpdates: any = {
       updated_by: userId,
       updated_at: new Date().toISOString(),
