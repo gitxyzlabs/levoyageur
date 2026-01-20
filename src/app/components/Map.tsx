@@ -46,6 +46,73 @@ const getMarkerColor = (rating: number = 5) => {
   return '#94a3b8';                      // Soft slate - Good
 };
 
+// Luxury map styling - muted, sophisticated aesthetic
+const luxuryMapStyles = [
+  {
+    featureType: 'all',
+    elementType: 'labels.text.fill',
+    stylers: [{ color: '#64748b' }] // Soft slate for all text
+  },
+  {
+    featureType: 'all',
+    elementType: 'labels.text.stroke',
+    stylers: [{ visibility: 'off' }] // Remove text stroke for cleaner look
+  },
+  {
+    featureType: 'water',
+    elementType: 'geometry',
+    stylers: [{ color: '#e0f2fe' }] // Soft blue water
+  },
+  {
+    featureType: 'landscape',
+    elementType: 'geometry',
+    stylers: [{ color: '#f8fafc' }] // Light background
+  },
+  {
+    featureType: 'road',
+    elementType: 'geometry',
+    stylers: [{ color: '#ffffff' }] // White roads
+  },
+  {
+    featureType: 'road',
+    elementType: 'geometry.stroke',
+    stylers: [{ color: '#e2e8f0' }] // Subtle road borders
+  },
+  {
+    featureType: 'road.highway',
+    elementType: 'geometry',
+    stylers: [{ color: '#fef3c7' }] // Soft gold for highways
+  },
+  {
+    featureType: 'road.highway',
+    elementType: 'geometry.stroke',
+    stylers: [{ color: '#fbbf24' }] // Gold stroke for highways
+  },
+  {
+    featureType: 'poi',
+    elementType: 'geometry',
+    stylers: [{ color: '#f1f5f9' }] // Subtle POI background
+  },
+  {
+    featureType: 'poi.park',
+    elementType: 'geometry',
+    stylers: [{ color: '#d1fae5' }] // Soft green for parks
+  },
+  {
+    featureType: 'poi.business',
+    stylers: [{ visibility: 'off' }] // Hide default business markers
+  },
+  {
+    featureType: 'transit',
+    stylers: [{ visibility: 'simplified' }] // Simplified transit
+  },
+  {
+    featureType: 'administrative',
+    elementType: 'geometry.stroke',
+    stylers: [{ color: '#cbd5e1' }] // Subtle borders
+  }
+];
+
 const getRatingLabel = (rating: number) => {
   if (rating >= 10.5) return 'Legendary';
   if (rating >= 9.5) return 'Exceptional';
