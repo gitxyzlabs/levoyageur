@@ -15,14 +15,6 @@
 
 import { createClient } from "npm:@supabase/supabase-js@2";
 
-// Get Supabase admin client for server-side operations
-function getSupabaseAdmin() {
-  return createClient(
-    Deno.env.get('SUPABASE_URL')!,
-    Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
-  );
-}
-
 interface MichelinRestaurant {
   name: string;
   location: string;
@@ -38,96 +30,7 @@ interface MichelinRestaurant {
 }
 
 /**
- * Scrape Michelin data from the official Michelin Guide website
- * This uses web scraping since Michelin doesn't provide a public API
- */
-export async function scrapeMichelinData(country: string = 'us'): Promise<MichelinRestaurant[]> {
-  const restaurants: MichelinRestaurant[] = [];
-  
-  try {
-    // The Michelin Guide uses a GraphQL API endpoint
-    const url = 'https://guide.michelin.com/api/graphql';
-    
-    // Build GraphQL query for restaurants in a specific country
-    const query = `
-      query GetRestaurants($locale: String!, $location: String!) {
-        restaurants(locale: $locale, location: $location) {
-          results {
-            name
-            address
-            city
-            region
-            country
-            latitude
-            longitude
-            cuisineType
-            distinction {
-              value
-            }
-            url
-          }
-        }
-      }
-    `;
-    
-    const variables = {
-      locale: 'en_US',
-      location: country
-    };
-    
-    const response = await fetch(url, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ query, variables })
-    });
-    
-    if (!response.ok) {
-      console.error('❌ Michelin API request failed:', response.status);
-      return restaurants;
-    }
-    
-    const data = await response.json();
-    const results = data?.data?.restaurants?.results || [];
-    
-    // Process results
-    for (const result of results) {
-      // Map distinction to stars
-      let stars = 0;
-      if (result.distinction?.value === '1_MICHELIN_STAR') stars = 1;
-      else if (result.distinction?.value === '2_MICHELIN_STARS') stars = 2;
-      else if (result.distinction?.value === '3_MICHELIN_STARS') stars = 3;
-      else if (result.distinction?.value === 'BIB_GOURMAND') stars = 4;
-      else if (result.distinction?.value === 'MICHELIN_PLATE') stars = 5;
-      
-      if (stars > 0 && result.latitude && result.longitude) {
-        restaurants.push({
-          name: result.name,
-          location: [result.city, result.region, result.country].filter(Boolean).join(', '),
-          address: result.address,
-          city: result.city,
-          region: result.region,
-          country: result.country,
-          latitude: result.latitude,
-          longitude: result.longitude,
-          stars: stars,
-          cuisines: result.cuisineType ? [result.cuisineType] : [],
-          url: result.url ? `https://guide.michelin.com${result.url}` : undefined
-        });
-      }
-    }
-    
-    console.log(`✅ Scraped ${restaurants.length} Michelin restaurants from ${country}`);
-    return restaurants;
-  } catch (error) {
-    console.error('❌ Error scraping Michelin data:', error);
-    return restaurants;
-  }
-}
-
-/**
- * Alternative: Parse from the michelin-stars-restaurants-api data
+ * Parse from the michelin-stars-restaurants-api data
  * This uses the pre-compiled dataset from the GitHub repo
  */
 export async function fetchMichelinDataFromAPI(): Promise<MichelinRestaurant[]> {
@@ -137,40 +40,56 @@ export async function fetchMichelinDataFromAPI(): Promise<MichelinRestaurant[]> 
     // The GitHub project provides a JSON API endpoint
     const baseUrl = 'https://raw.githubusercontent.com/NicolaFerracin/michelin-stars-restaurants-api/master/data';
     
-    // Fetch data for different regions
-    const regions = ['usa', 'italy', 'france', 'spain', 'uk', 'germany', 'japan'];
+    // Fetch data for different star levels (updated to match actual repo structure)
+    const files = [
+      'one-star.json',
+      'two-stars.json', 
+      'three-stars.json'
+    ];
     
-    for (const region of regions) {
+    for (const file of files) {
       try {
-        const response = await fetch(`${baseUrl}/${region}.json`);
-        if (!response.ok) continue;
+        const response = await fetch(`${baseUrl}/${file}`);
+        if (!response.ok) {
+          console.log(`⚠️ Failed to fetch ${file}: ${response.status}`);
+          continue;
+        }
         
         const data = await response.json();
         
         // Parse the data format from the GitHub repo
         if (Array.isArray(data)) {
           for (const restaurant of data) {
-            restaurants.push({
-              name: restaurant.name,
-              location: restaurant.location || restaurant.city || '',
-              address: restaurant.address,
-              city: restaurant.city,
-              region: restaurant.region,
-              country: restaurant.country || region,
-              latitude: restaurant.latitude,
-              longitude: restaurant.longitude,
-              stars: restaurant.stars || restaurant.distinction || 1,
-              cuisines: restaurant.cuisine ? [restaurant.cuisine] : [],
-              url: restaurant.url
-            });
+            // Determine star count from filename
+            let stars = 1;
+            if (file.includes('two')) stars = 2;
+            else if (file.includes('three')) stars = 3;
+            
+            // Only add if we have valid coordinates
+            if (restaurant.latitude && restaurant.longitude) {
+              restaurants.push({
+                name: restaurant.name,
+                location: restaurant.location || restaurant.city || '',
+                address: restaurant.address,
+                city: restaurant.city,
+                region: restaurant.region,
+                country: restaurant.country,
+                latitude: parseFloat(restaurant.latitude),
+                longitude: parseFloat(restaurant.longitude),
+                stars: stars,
+                cuisines: restaurant.cuisine ? [restaurant.cuisine] : [],
+                url: restaurant.url
+              });
+            }
           }
+          console.log(`✅ Fetched ${data.length} restaurants from ${file}`);
         }
       } catch (err) {
-        console.log(`⚠️ Failed to fetch ${region} data:`, err);
+        console.log(`⚠️ Failed to fetch ${file}:`, err);
       }
     }
     
-    console.log(`✅ Fetched ${restaurants.length} Michelin restaurants from API`);
+    console.log(`✅ Total fetched: ${restaurants.length} Michelin restaurants from GitHub API`);
     return restaurants;
   } catch (error) {
     console.error('❌ Error fetching Michelin data from API:', error);
@@ -182,7 +101,10 @@ export async function fetchMichelinDataFromAPI(): Promise<MichelinRestaurant[]> 
  * Store Michelin restaurants in the database
  */
 export async function storeMichelinRestaurants(restaurants: MichelinRestaurant[]): Promise<number> {
-  const supabase = getSupabaseAdmin();
+  const supabase = createClient(
+    Deno.env.get('SUPABASE_URL')!,
+    Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
+  );
   let stored = 0;
   
   for (const restaurant of restaurants) {
@@ -258,22 +180,18 @@ export async function syncMichelinData(): Promise<{ success: boolean; count: num
   try {
     console.log('🍽️ Starting Michelin data sync...');
     
-    // Try the API approach first (more reliable)
-    let restaurants = await fetchMichelinDataFromAPI();
-    
-    // If API approach fails, try scraping (may not work due to CORS/auth)
-    if (restaurants.length === 0) {
-      console.log('⚠️ API fetch returned no results, attempting direct scrape...');
-      restaurants = await scrapeMichelinData('us');
-    }
+    // Fetch from GitHub API (most reliable source)
+    const restaurants = await fetchMichelinDataFromAPI();
     
     if (restaurants.length === 0) {
       return {
         success: false,
         count: 0,
-        message: 'Failed to fetch Michelin data from any source'
+        message: 'Failed to fetch Michelin data from GitHub API. The repository may be unavailable.'
       };
     }
+    
+    console.log(`📊 Processing ${restaurants.length} Michelin restaurants...`);
     
     // Store restaurants in database
     const storedCount = await storeMichelinRestaurants(restaurants);
@@ -281,7 +199,7 @@ export async function syncMichelinData(): Promise<{ success: boolean; count: num
     return {
       success: true,
       count: storedCount,
-      message: `Successfully processed ${storedCount} Michelin restaurants`
+      message: `Successfully processed ${storedCount} out of ${restaurants.length} Michelin restaurants`
     };
   } catch (error) {
     console.error('❌ Error syncing Michelin data:', error);
@@ -298,7 +216,10 @@ export async function syncMichelinData(): Promise<{ success: boolean; count: num
  * This can be used to check if a Google Place has a Michelin rating
  */
 export async function getMichelinRating(lat: number, lng: number, name?: string): Promise<number | null> {
-  const supabase = getSupabaseAdmin();
+  const supabase = createClient(
+    Deno.env.get('SUPABASE_URL')!,
+    Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
+  );
   
   try {
     // Search for nearby restaurants with Michelin ratings

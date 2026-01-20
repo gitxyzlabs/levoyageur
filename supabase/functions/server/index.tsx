@@ -1198,18 +1198,34 @@ app.post('/make-server-48182530/michelin/sync', verifyAuth, verifyEditor, async 
   try {
     const result = await syncMichelinData();
     
+    console.log('📊 Michelin sync result:', result);
+    
     if (result.success) {
       console.log(`✅ Michelin sync completed: ${result.message}`);
-      return c.json(result);
+      return c.json({
+        success: true,
+        added: result.count,
+        updated: 0,
+        errors: 0,
+        message: result.message
+      });
     } else {
       console.error(`❌ Michelin sync failed: ${result.message}`);
-      return c.json(result, 500);
+      return c.json({
+        success: false,
+        added: 0,
+        updated: 0,
+        errors: 1,
+        message: result.message
+      }, 400);
     }
   } catch (error) {
     console.error('❌ Error in POST /michelin/sync:', error);
     return c.json({ 
       success: false, 
-      count: 0, 
+      added: 0,
+      updated: 0,
+      errors: 1,
       message: `Error: ${error instanceof Error ? error.message : String(error)}` 
     }, 500);
   }

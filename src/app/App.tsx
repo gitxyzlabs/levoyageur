@@ -296,10 +296,24 @@ export default function App() {
         toast.success(`Found ${data.length} location(s) with tag "${tag}"`);
       }
     } catch (error: any) {
-      toast.error("Search failed");
-      console.error(error);
+      console.error('Failed to search by tag:', error);
+      toast.error('Failed to search locations');
     }
   };
+
+  // Filter want-to-go locations based on active search query
+  const filteredWantToGoLocations = React.useMemo(() => {
+    if (!searchQuery) {
+      return wantToGoLocations;
+    }
+    
+    // Filter to only show want-to-go locations that have the search tag
+    return wantToGoLocations.filter(location => 
+      location.tags?.some(tag => 
+        tag.toLowerCase().includes(searchQuery.toLowerCase())
+      )
+    );
+  }, [wantToGoLocations, searchQuery]);
 
   const handlePlaceSelect = (place: google.maps.places.PlaceResult) => {
     console.log('🏙️ Place selected:', place.name, 'Types:', place.types);
@@ -1017,7 +1031,7 @@ export default function App() {
               onRatingAdded={loadLocations}
               favoriteIds={favoriteIds}
               wantToGoIds={wantToGoIds}
-              wantToGoLocations={wantToGoLocations}
+              wantToGoLocations={filteredWantToGoLocations}
               mapCenter={mapCenter}
               mapZoom={mapZoom}
               selectedGooglePlace={selectedGooglePlace}
