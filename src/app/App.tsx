@@ -271,15 +271,17 @@ export default function App() {
     }
   };
 
-  const loadLocations = async () => {
+  const loadLocations = useCallback(async () => {
     try {
+      console.log('🔄 Loading locations...');
       const { locations: data } = await api.getLocations();
-      console.log('Loaded locations:', data.length);
+      console.log('✅ Loaded locations:', data.length);
       setLocations(data);
     } catch (error: any) {
-      console.error("Failed to load locations:", error);
+      console.error("❌ Failed to load locations:", error);
+      toast.error('Failed to load locations');
     }
-  };
+  }, []);
 
   const handleTagSelect = async (tag: string) => {
     setSearchQuery(tag);

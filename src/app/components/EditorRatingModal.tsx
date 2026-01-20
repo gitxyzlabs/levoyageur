@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { X, Star, Tag as TagIcon, Plus } from 'lucide-react';
 import { api } from '../../utils/api';
+import { toast } from 'sonner';
 
 interface EditorRatingModalProps {
   locationId: string;
@@ -100,16 +101,28 @@ export function EditorRatingModal({
     }
 
     setIsSubmitting(true);
+    console.log('🎯 Submitting rating:', { locationId, ratingValue, selectedTags, placeData });
 
     try {
-      await api.updateLocationRating(locationId, ratingValue, selectedTags, placeData);
+      const result = await api.updateLocationRating(locationId, ratingValue, selectedTags, placeData);
+      console.log('✅ Rating updated successfully:', result);
+      toast.success('Rating updated successfully!');
       onSuccess();
       onClose();
     } catch (error: any) {
-      console.error('Failed to update rating:', error);
+      console.error('❌ Failed to update rating:', error);
+      console.error('❌ Error details:', {
+        message: error.message,
+        stack: error.stack,
+        locationId,
+        ratingValue,
+        tagsCount: selectedTags.length
+      });
       setError(error.message || 'Failed to update rating');
+      toast.error(error.message || 'Failed to update rating');
     } finally {
       setIsSubmitting(false);
+      console.log('✅ Rating submission complete (success or failure)');
     }
   };
 
