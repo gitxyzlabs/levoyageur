@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { APIProvider } from '@vis.gl/react-google-maps';
 import { toast, Toaster } from 'sonner';
@@ -1212,7 +1212,7 @@ export default function App() {
                   setSidebarView('favorites');
                   setMobileDrawerOpen(true);
                 }}
-                className={`flex flex-col items-center gap-1 px-4 py-2 rounded-lg transition-all ${
+                className={`relative flex flex-col items-center gap-1 px-4 py-2 rounded-lg transition-all ${
                   sidebarView === 'favorites' && mobileDrawerOpen
                     ? 'bg-slate-100'
                     : 'hover:bg-slate-50'
@@ -1221,7 +1221,7 @@ export default function App() {
                 <Heart className={`h-5 w-5 ${sidebarView === 'favorites' && mobileDrawerOpen ? 'text-red-500' : 'text-gray-600'}`} />
                 <span className="text-xs font-medium text-gray-700">Favorites</span>
                 {favoriteIds.size > 0 && (
-                  <div className="absolute top-1 right-3 min-w-[18px] h-[18px] bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center px-1">
+                  <div className="absolute -top-1 right-2 min-w-[18px] h-[18px] bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center px-1">
                     {favoriteIds.size}
                   </div>
                 )}
@@ -1247,7 +1247,7 @@ export default function App() {
                   setSidebarView('wantToGo');
                   setMobileDrawerOpen(true);
                 }}
-                className={`flex flex-col items-center gap-1 px-4 py-2 rounded-lg transition-all ${
+                className={`relative flex flex-col items-center gap-1 px-4 py-2 rounded-lg transition-all ${
                   sidebarView === 'wantToGo' && mobileDrawerOpen
                     ? 'bg-slate-100'
                     : 'hover:bg-slate-50'
@@ -1256,7 +1256,7 @@ export default function App() {
                 <Bookmark className={`h-5 w-5 ${sidebarView === 'wantToGo' && mobileDrawerOpen ? 'text-blue-500' : 'text-gray-600'}`} />
                 <span className="text-xs font-medium text-gray-700">Want to Go</span>
                 {wantToGoIds.size > 0 && (
-                  <div className="absolute top-1 right-3 min-w-[18px] h-[18px] bg-blue-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center px-1">
+                  <div className="absolute -top-1 right-2 min-w-[18px] h-[18px] bg-blue-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center px-1">
                     {wantToGoIds.size}
                   </div>
                 )}

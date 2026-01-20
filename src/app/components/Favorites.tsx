@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Heart, MapPin, Star, Navigation } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
 import type { Location, User } from '../../utils/api';
@@ -69,14 +69,16 @@ export function Favorites({ user, userLocation, onLocationClick }: FavoritesProp
     }
   };
 
-  // Sort favorites by distance from user location
-  const sortedFavorites = userLocation 
-    ? [...favorites].sort((a, b) => {
-        const distanceA = calculateDistance(userLocation.lat, userLocation.lng, a.lat, a.lng);
-        const distanceB = calculateDistance(userLocation.lat, userLocation.lng, b.lat, b.lng);
-        return distanceA - distanceB;
-      })
-    : favorites;
+  // Sort favorites by distance from user location - Memoized for performance
+  const sortedFavorites = useMemo(() => {
+    if (!userLocation) return favorites;
+    
+    return [...favorites].sort((a, b) => {
+      const distanceA = calculateDistance(userLocation.lat, userLocation.lng, a.lat, a.lng);
+      const distanceB = calculateDistance(userLocation.lat, userLocation.lng, b.lat, b.lng);
+      return distanceA - distanceB;
+    });
+  }, [favorites, userLocation]);
 
   return (
     <Card className="bg-white">

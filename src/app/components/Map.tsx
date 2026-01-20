@@ -1,5 +1,4 @@
-import React from 'react';
-import { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo, useCallback } from 'react';
 import { Map as GoogleMap, AdvancedMarker, useMap } from '@vis.gl/react-google-maps';
 import type { Location, User } from '../../utils/api';
 import { GooglePlaceInfoWindow } from './GooglePlaceInfoWindow';
@@ -87,7 +86,30 @@ export function Map({
   const [locationPermissionDenied, setLocationPermissionDenied] = useState(false);
   const [currentZoom, setCurrentZoom] = useState<number>(14);
 
-  const displayLocations = showHeatMap && heatMapData ? heatMapData : locations;
+  // Memoize the displayed locations for performance
+  const displayLocations = useMemo(() => {
+    return showHeatMap && heatMapData ? heatMapData : locations;
+  }, [showHeatMap, heatMapData, locations]);
+
+  // Memoize LV markers that should be displayed
+  const lvMarkersToDisplay = useMemo(() => {
+    if (showSearchResults) return [];
+    
+    return displayLocations.filter((location) => {
+      // Only show markers for locations that have an LV rating
+      return !!(location.lvEditorsScore || location.lvCrowdsourceScore);
+    });
+  }, [displayLocations, showSearchResults]);
+
+  // Memoize want-to-go markers that should be displayed
+  const wantToGoMarkersToDisplay = useMemo(() => {
+    if (!isAuthenticated || !wantToGoLocations) return [];
+    
+    return wantToGoLocations.filter((location) => {
+      // Only show want-to-go markers for locations that DON'T have LV ratings
+      return !(location.lvEditorsScore || location.lvCrowdsourceScore);
+    });
+  }, [isAuthenticated, wantToGoLocations]);
 
   // Debug logging for marker filtering
   useEffect(() => {
@@ -458,11 +480,7 @@ export function Map({
         }}
       >
         {/* LV Location Markers - Show when heat map is active OR when no search results */}
-        {(showHeatMap || !showSearchResults) && displayLocations
-          .filter((location) => {
-            // Only show markers for locations that have an LV rating
-            return !!(location.lvEditorsScore || location.lvCrowdsourceScore);
-          })
+        {(showHeatMap || !showSearchResults) && lvMarkersToDisplay
           .map((location) => {
           const rating = location.lvEditorsScore || 5;
           const scale = showHeatMap ? 0.8 : 1;
@@ -523,12 +541,7 @@ export function Map({
         })}
         
         {/* Want-to-Go Markers (for logged in users) - Green bookmarks for locations without LV ratings */}
-        {isAuthenticated && wantToGoLocations && wantToGoLocations
-          .filter((location) => {
-            // Only show want-to-go markers for locations that DON'T have LV ratings
-            // (Locations with LV ratings are already shown with the green dot indicator)
-            return !(location.lvEditorsScore || location.lvCrowdsourceScore);
-          })
+        {isAuthenticated && wantToGoMarkersToDisplay && wantToGoMarkersToDisplay
           .map((location) => {
           return (
             <AdvancedMarker

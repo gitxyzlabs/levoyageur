@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Bookmark, MapPin, Star, Navigation } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
 import type { Location, User } from '../../utils/api';
@@ -69,14 +69,16 @@ export function WantToGo({ user, userLocation, onLocationClick }: WantToGoProps)
     }
   };
 
-  // Sort want-to-go locations by distance from user location
-  const sortedWantToGo = userLocation 
-    ? [...wantToGo].sort((a, b) => {
-        const distanceA = calculateDistance(userLocation.lat, userLocation.lng, a.lat, a.lng);
-        const distanceB = calculateDistance(userLocation.lat, userLocation.lng, b.lat, b.lng);
-        return distanceA - distanceB;
-      })
-    : wantToGo;
+  // Sort want-to-go locations by distance from user location - Memoized for performance
+  const sortedWantToGo = useMemo(() => {
+    if (!userLocation) return wantToGo;
+    
+    return [...wantToGo].sort((a, b) => {
+      const distanceA = calculateDistance(userLocation.lat, userLocation.lng, a.lat, a.lng);
+      const distanceB = calculateDistance(userLocation.lat, userLocation.lng, b.lat, b.lng);
+      return distanceA - distanceB;
+    });
+  }, [wantToGo, userLocation]);
 
   return (
     <Card className="bg-white">
