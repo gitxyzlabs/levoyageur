@@ -2,6 +2,7 @@ import { Hono } from "npm:hono";
 import { cors } from "npm:hono/cors";
 import { logger } from "npm:hono/logger";
 import { createClient } from "npm:@supabase/supabase-js@2";
+import { syncMichelinData, getMichelinRating } from "./michelin.tsx";
 
 /**
  * IMPORTANT: Platform-level JWT verification is DISABLED
@@ -1183,6 +1184,59 @@ app.put('/make-server-48182530/locations/:id/rating', verifyAuth, verifyEditor, 
   } catch (error) {
     console.error('❌ Error in PUT /locations/:id/rating:', error);
     return c.json({ error: 'Failed to update location rating/tags' }, 500);
+  }
+});
+
+// ============================================
+// MICHELIN DATA ROUTES
+// ============================================
+
+// Sync Michelin data (editor-only for manual sync, or can be public for automation)
+app.post('/make-server-48182530/michelin/sync', verifyAuth, verifyEditor, async (c) => {
+  console.log('🍽️ POST /michelin/sync - Start');
+  
+  try {
+    const result = await syncMichelinData();
+    
+    if (result.success) {
+      console.log(`✅ Michelin sync completed: ${result.message}`);
+      return c.json(result);
+    } else {
+      console.error(`❌ Michelin sync failed: ${result.message}`);
+      return c.json(result, 500);
+    }
+  } catch (error) {
+    console.error('❌ Error in POST /michelin/sync:', error);
+    return c.json({ 
+      success: false, 
+      count: 0, 
+      message: `Error: ${error instanceof Error ? error.message : String(error)}` 
+    }, 500);
+  }
+});
+
+// Get Michelin rating for a specific location (public endpoint)
+app.get('/make-server-48182530/michelin/rating', async (c) => {
+  console.log('📍 GET /michelin/rating - Start');
+  
+  const lat = parseFloat(c.req.query('lat') || '0');
+  const lng = parseFloat(c.req.query('lng') || '0');
+  const name = c.req.query('name');
+  
+  if (!lat || !lng) {
+    return c.json({ error: 'lat and lng query parameters are required' }, 400);
+  }
+  
+  try {
+    const michelinRating = await getMichelinRating(lat, lng, name);
+    
+    return c.json({ 
+      michelinScore: michelinRating,
+      hasMichelinRating: michelinRating !== null && michelinRating > 0,
+    });
+  } catch (error) {
+    console.error('❌ Error in GET /michelin/rating:', error);
+    return c.json({ error: 'Failed to get Michelin rating' }, 500);
   }
 });
 

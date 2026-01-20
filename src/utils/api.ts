@@ -411,4 +411,37 @@ export const api = {
   getGooglePlaceDetails: async (placeId: string) => {
     return fetchWithAuth(`${API_BASE}/google/place/${encodeURIComponent(placeId)}`);
   },
+
+  // Michelin Data
+  syncMichelinData: async (): Promise<{ success: boolean; count: number; message: string }> => {
+    return fetchWithAuth(`${API_BASE}/michelin/sync`, {
+      method: 'POST',
+    });
+  },
+
+  getMichelinRating: async (lat: number, lng: number, name?: string): Promise<{ michelinScore: number | null; hasMichelinRating: boolean }> => {
+    // Public endpoint - doesn't require auth
+    const params = new URLSearchParams({
+      lat: lat.toString(),
+      lng: lng.toString(),
+    });
+    
+    if (name) {
+      params.append('name', name);
+    }
+    
+    const response = await fetch(`${API_BASE}/michelin/rating?${params.toString()}`, {
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ error: response.statusText }));
+      console.error('❌ getMichelinRating error:', error);
+      throw new Error(error.error || `HTTP error! status: ${response.status}`);
+    }
+
+    return response.json();
+  },
 };

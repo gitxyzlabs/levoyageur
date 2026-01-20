@@ -1,4 +1,5 @@
 import { Heart, Bookmark } from 'lucide-react';
+import { MichelinMarker } from './MichelinMarker';
 
 interface LuxuryMarkerProps {
   rating?: number; // Optional now - some markers may not have LV ratings
@@ -10,6 +11,7 @@ interface LuxuryMarkerProps {
   hasLVRating?: boolean; // Whether this location has an LV rating
   locationName?: string; // Place name to display when zoomed in
   currentZoom?: number; // Current map zoom level
+  michelinScore?: number; // Michelin rating (1-5)
 }
 
 // Color palette for different rating tiers
@@ -65,7 +67,8 @@ export function LuxuryMarker({
   type = 'lv-location',
   hasLVRating = true,
   locationName,
-  currentZoom
+  currentZoom,
+  michelinScore
 }: LuxuryMarkerProps) {
   // Determine marker appearance based on state
   let markerColor: string;

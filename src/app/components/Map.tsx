@@ -5,6 +5,7 @@ import { GooglePlaceInfoWindow } from './GooglePlaceInfoWindow';
 import { MobileInfoSheet } from './MobileInfoSheet';
 import { CityInfoWindow } from './CityInfoWindow';
 import { LuxuryMarker } from './LuxuryMarker';
+import { MichelinMarker } from './MichelinMarker';
 import { Locate, Plus, Minus } from 'lucide-react';
 
 interface MapProps {
@@ -554,6 +555,7 @@ export function Map({
           const isFavorite = favoriteIds?.has(location.id) || favoriteIds?.has(location.place_id || '');
           const isWantToGo = wantToGoIds?.has(location.id) || wantToGoIds?.has(location.place_id || '');
           const hasLVRating = !!(location.lvEditorsScore || location.lvCrowdsourceScore);
+          const hasMichelin = !!(location.michelinScore && location.michelinScore > 0);
           
           return (
             <AdvancedMarker
@@ -562,17 +564,29 @@ export function Map({
               onClick={() => handleMarkerClick(location)}
               zIndex={selectedGooglePlace?.place_id === location.place_id ? 1000 : 100}
             >
-              <LuxuryMarker
-                rating={rating}
-                scale={scale}
-                showHeatMap={showHeatMap}
-                isFavorite={isFavorite}
-                isWantToGo={isWantToGo}
-                hasLVRating={hasLVRating}
-                type="lv-location"
-                locationName={location.name}
-                currentZoom={currentZoom}
-              />
+              <div className="relative">
+                <LuxuryMarker
+                  rating={rating}
+                  scale={scale}
+                  showHeatMap={showHeatMap}
+                  isFavorite={isFavorite}
+                  isWantToGo={isWantToGo}
+                  hasLVRating={hasLVRating}
+                  type="lv-location"
+                  locationName={location.name}
+                  currentZoom={currentZoom}
+                  michelinScore={location.michelinScore}
+                />
+                {/* Michelin badge on left side if location has Michelin rating */}
+                {hasMichelin && hasLVRating && (
+                  <MichelinMarker
+                    michelinScore={location.michelinScore!}
+                    scale={scale}
+                    hasLVRating={true}
+                    lvRating={rating}
+                  />
+                )}
+              </div>
             </AdvancedMarker>
           );
         })}

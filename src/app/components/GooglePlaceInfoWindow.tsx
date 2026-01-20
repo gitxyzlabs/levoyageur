@@ -312,6 +312,28 @@ export function GooglePlaceInfoWindow({
               </div>
             )}
 
+            {/* Michelin Rating - if available */}
+            {lvLocation?.michelinScore && lvLocation.michelinScore > 0 && (
+              <div className="flex items-center justify-between text-sm pb-2 border-b border-gray-100">
+                <div className="flex items-center gap-2">
+                  {/* Michelin Star Icon */}
+                  <svg className="w-4 h-4 text-red-600" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
+                  </svg>
+                  <span className="text-gray-600">Michelin Guide</span>
+                </div>
+                <div className="flex items-center gap-1">
+                  <span className="text-sm font-medium text-red-600">
+                    {lvLocation.michelinScore <= 3 
+                      ? `${'★'.repeat(lvLocation.michelinScore)} ${lvLocation.michelinScore} Star${lvLocation.michelinScore > 1 ? 's' : ''}`
+                      : lvLocation.michelinScore === 4
+                        ? 'Bib Gourmand'
+                        : 'Michelin Plate'}
+                  </span>
+                </div>
+              </div>
+            )}
+
             {/* Google Rating */}
             <div className="flex items-center justify-between text-sm">
               <div className="flex items-center gap-2">

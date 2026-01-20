@@ -1,7 +1,9 @@
 import React from 'react';
-import { User as UserIcon, Mail, Shield, Calendar, MapPin } from 'lucide-react';
+import { User as UserIcon, Mail, Shield, Calendar, MapPin, RefreshCw, Star } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import type { User } from '../../utils/api';
+import { toast } from 'sonner';
+import { api } from '../../utils/api';
 
 interface ProfileProps {
   user: User;
@@ -18,6 +20,31 @@ export function Profile({
   favoritesCount = 0,
   wantToGoCount = 0,
 }: ProfileProps) {
+  const [isSyncing, setIsSyncing] = React.useState(false);
+
+  const handleMichelinSync = async () => {
+    setIsSyncing(true);
+    
+    try {
+      toast.info('Starting Michelin Guide sync...', {
+        description: 'This may take a few moments'
+      });
+
+      const result = await api.syncMichelinData();
+      
+      toast.success('Michelin Guide data synced successfully!', {
+        description: `Added: ${result.added}, Updated: ${result.updated}, Errors: ${result.errors}`
+      });
+    } catch (error: any) {
+      console.error('Failed to sync Michelin data:', error);
+      toast.error('Failed to sync Michelin Guide data', {
+        description: error.message || 'Please try again later'
+      });
+    } finally {
+      setIsSyncing(false);
+    }
+  };
+
   return (
     <div className="space-y-6">
       {/* Profile Header */}
@@ -141,6 +168,51 @@ export function Profile({
           </div>
         </CardContent>
       </Card>
+
+      {/* Michelin Guide Data Management - Editor Only */}
+      {user.role === 'editor' && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-lg flex items-center gap-2">
+              <Star className="h-5 w-5 text-red-600" />
+              Michelin Guide Data
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              <div className="flex items-start gap-3">
+                <div className="flex-1">
+                  <p className="text-sm font-medium text-gray-700 mb-1">Sync Michelin Guide Database</p>
+                  <p className="text-xs text-muted-foreground mb-3">
+                    Updates the Le Voyageur database with the latest Michelin Guide restaurants worldwide. 
+                    This data is publicly available to all users after syncing.
+                  </p>
+                  <button
+                    onClick={handleMichelinSync}
+                    disabled={isSyncing}
+                    className={`inline-flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium transition-all ${
+                      isSyncing
+                        ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                        : 'bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 text-white shadow-md hover:shadow-lg'
+                    }`}
+                  >
+                    <RefreshCw className={`h-4 w-4 ${isSyncing ? 'animate-spin' : ''}`} />
+                    {isSyncing ? 'Syncing Michelin Guide...' : 'Sync Michelin Guide'}
+                  </button>
+                </div>
+              </div>
+              
+              {/* Info Box */}
+              <div className="bg-amber-50 border border-amber-200 rounded-lg p-3">
+                <p className="text-xs text-amber-800">
+                  <strong>Note:</strong> Syncing typically takes 30-60 seconds and fetches data from official Michelin Guide sources. 
+                  All synced Michelin ratings will be visible on the map with special red star markers.
+                </p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }
