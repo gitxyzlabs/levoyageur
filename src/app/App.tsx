@@ -57,6 +57,7 @@ export default function App() {
   const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
   const [favoriteIds, setFavoriteIds] = useState<Set<string>>(new Set());
   const [wantToGoIds, setWantToGoIds] = useState<Set<string>>(new Set());
+  const [wantToGoLocations, setWantToGoLocations] = useState<Location[]>([]); // Full want-to-go locations for map display
   const [locationPermissionGranted, setLocationPermissionGranted] = useState(false);
   const [locationPermissionEnabled, setLocationPermissionEnabled] = useState(false);
   const [mapBounds, setMapBounds] = useState<google.maps.LatLngBounds | null>(null);
@@ -549,6 +550,7 @@ export default function App() {
       // Load want to go
       const { wantToGo } = await api.getWantToGo();
       setWantToGoIds(new Set(wantToGo.map(loc => loc.id)));
+      setWantToGoLocations(wantToGo); // Store full want-to-go locations for map display
       
       console.log('✅ User lists loaded:', favorites.length, 'favorites,', wantToGo.length, 'want to go');
     } catch (error) {
@@ -614,8 +616,9 @@ export default function App() {
         setWantToGoIds(prev => new Set([...prev, locationId]));
         toast.success('Added to Want to Go!');
       }
-      // Refresh locations to update markers
+      // Refresh locations and want-to-go list to update markers
       await loadLocations();
+      await loadUserLists(); // Reload want-to-go list to get full location data
     } catch (error) {
       console.error('❌ Error toggling Want to Go:', error);
       toast.error('Failed to update Want to Go');
@@ -1012,6 +1015,7 @@ export default function App() {
               onRatingAdded={loadLocations}
               favoriteIds={favoriteIds}
               wantToGoIds={wantToGoIds}
+              wantToGoLocations={wantToGoLocations}
               mapCenter={mapCenter}
               mapZoom={mapZoom}
               selectedGooglePlace={selectedGooglePlace}

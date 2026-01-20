@@ -18,10 +18,11 @@ interface MapProps {
   user?: { id: string; email: string; name: string; role: 'user' | 'editor' } | null;
   isAuthenticated?: boolean;
   onFavoriteToggle?: (locationId: string, placeData?: { name?: string; lat?: number; lng?: number; formatted_address?: string }) => void;
-  onWantToGoToggle?: (locationId: string) => void;
+  onWantToGoToggle?: (locationId: string, placeData?: { name?: string; lat?: number; lng?: number; formatted_address?: string; place_id?: string }) => void;
   onRatingAdded?: () => void;
   favoriteIds?: Set<string>;
   wantToGoIds?: Set<string>;
+  wantToGoLocations?: Location[]; // Full want-to-go locations for rendering markers
   mapCenter?: { lat: number; lng: number } | null;
   mapZoom?: number;
   selectedGooglePlace?: google.maps.places.PlaceResult | null;
@@ -68,6 +69,7 @@ export function Map({
   onRatingAdded,
   favoriteIds,
   wantToGoIds,
+  wantToGoLocations,
   mapCenter,
   mapZoom,
   selectedGooglePlace,
@@ -449,6 +451,34 @@ export function Map({
                 rating={place.rating || 5}
                 scale={0.9}
                 type="search-result"
+              />
+            </AdvancedMarker>
+          );
+        })}
+        
+        {/* Want-to-Go Markers (for logged in users) - Green bookmarks for locations without LV ratings */}
+        {isAuthenticated && wantToGoLocations && wantToGoLocations
+          .filter((location) => {
+            // Only show want-to-go markers for locations that DON'T have LV ratings
+            // (Locations with LV ratings are already shown with the green dot indicator)
+            return !(location.lvEditorsScore || location.lvCrowdsourceScore);
+          })
+          .map((location) => {
+          return (
+            <AdvancedMarker
+              key={`want-to-go-${location.id}`}
+              position={{ lat: location.lat, lng: location.lng }}
+              onClick={() => handleMarkerClick(location)}
+              zIndex={90}
+            >
+              <LuxuryMarker
+                rating={0}
+                scale={1}
+                showHeatMap={false}
+                isFavorite={false}
+                isWantToGo={true}
+                hasLVRating={false}
+                type="want-to-go"
               />
             </AdvancedMarker>
           );

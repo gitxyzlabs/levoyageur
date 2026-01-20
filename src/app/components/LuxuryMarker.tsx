@@ -6,7 +6,7 @@ interface LuxuryMarkerProps {
   showHeatMap?: boolean;
   isFavorite?: boolean;
   isWantToGo?: boolean;
-  type?: 'lv-location' | 'search-result';
+  type?: 'lv-location' | 'search-result' | 'want-to-go';
   hasLVRating?: boolean; // Whether this location has an LV rating
 }
 
@@ -201,16 +201,25 @@ export function LuxuryMarker({
             letterSpacing: '-0.3px'
           }}
         >
-          {isFavorite && (
+          {isWantToGo ? (
+            <Bookmark 
+              className="fill-current" 
+              style={{ 
+                width: `${10 * scale}px`, 
+                height: `${10 * scale}px`,
+                color: '#10b981' // Green for want-to-go
+              }} 
+            />
+          ) : isFavorite ? (
             <Heart 
               className="fill-current" 
               style={{ 
                 width: `${10 * scale}px`, 
                 height: `${10 * scale}px`,
-                color: '#ef4444'
+                color: '#ef4444' // Red for favorites
               }} 
             />
-          )}
+          ) : null}
           <span>{rating.toFixed(1)}</span>
         </div>
       )}
@@ -232,16 +241,6 @@ export function LuxuryMarker({
         >
           {rating.toFixed(1)}
         </div>
-      )}
-
-      {/* Small green dot for want-to-go when location HAS LV rating */}
-      {hasLVRating && isWantToGo && (
-        <div
-          className="absolute -bottom-1 -right-1 w-3 h-3 rounded-full shadow-md border border-white"
-          style={{
-            background: '#10b981',
-          }}
-        />
       )}
     </div>
   );
