@@ -69,6 +69,15 @@ export function Favorites({ user, userLocation, onLocationClick }: FavoritesProp
     }
   };
 
+  // Sort favorites by distance from user location
+  const sortedFavorites = userLocation 
+    ? [...favorites].sort((a, b) => {
+        const distanceA = calculateDistance(userLocation.lat, userLocation.lng, a.lat, a.lng);
+        const distanceB = calculateDistance(userLocation.lat, userLocation.lng, b.lat, b.lng);
+        return distanceA - distanceB;
+      })
+    : favorites;
+
   return (
     <Card className="bg-white">
       <CardHeader>
@@ -99,7 +108,7 @@ export function Favorites({ user, userLocation, onLocationClick }: FavoritesProp
           </div>
         ) : (
           <div className="space-y-2 max-h-96 overflow-y-auto">
-            {favorites.map((location, index) => (
+            {sortedFavorites.map((location, index) => (
               <div
                 key={location.id}
                 className="group p-3 bg-slate-50 hover:bg-slate-100 rounded-lg transition-all cursor-pointer relative"

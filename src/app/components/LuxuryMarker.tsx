@@ -8,6 +8,8 @@ interface LuxuryMarkerProps {
   isWantToGo?: boolean;
   type?: 'lv-location' | 'search-result' | 'want-to-go';
   hasLVRating?: boolean; // Whether this location has an LV rating
+  locationName?: string; // Place name to display when zoomed in
+  currentZoom?: number; // Current map zoom level
 }
 
 // Color palette for different rating tiers
@@ -61,7 +63,9 @@ export function LuxuryMarker({
   isFavorite = false,
   isWantToGo = false,
   type = 'lv-location',
-  hasLVRating = true
+  hasLVRating = true,
+  locationName,
+  currentZoom
 }: LuxuryMarkerProps) {
   // Determine marker appearance based on state
   let markerColor: string;
@@ -97,6 +101,9 @@ export function LuxuryMarker({
 
   const size = 36;
   const scaledSize = size * scale;
+  
+  // Show labels when zoomed in beyond level 15
+  const showLabel = currentZoom !== undefined && currentZoom >= 15 && locationName;
 
   return (
     <div
@@ -240,6 +247,28 @@ export function LuxuryMarker({
           }}
         >
           {rating.toFixed(1)}
+        </div>
+      )}
+
+      {/* Location name label - appears below marker when zoomed in */}
+      {showLabel && (
+        <div
+          className="absolute left-1/2 -translate-x-1/2 px-2.5 py-1 rounded-lg shadow-lg backdrop-blur-md border border-white/40 whitespace-nowrap"
+          style={{
+            top: `${scaledSize + 4}px`, // Position below the marker with 4px gap
+            background: 'linear-gradient(135deg, rgba(255,255,255,0.98) 0%, rgba(248,250,252,0.95) 100%)',
+            fontSize: '11px',
+            fontWeight: '600',
+            color: '#1f2937',
+            textAlign: 'center',
+            fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
+            letterSpacing: '-0.2px',
+            maxWidth: '150px',
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+          }}
+        >
+          {locationName}
         </div>
       )}
     </div>

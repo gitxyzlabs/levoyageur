@@ -6,7 +6,7 @@ import { GooglePlaceInfoWindow } from './GooglePlaceInfoWindow';
 import { MobileInfoSheet } from './MobileInfoSheet';
 import { CityInfoWindow } from './CityInfoWindow';
 import { LuxuryMarker } from './LuxuryMarker';
-import { Locate } from 'lucide-react';
+import { Locate, Plus, Minus } from 'lucide-react';
 
 interface MapProps {
   locations: Location[];
@@ -85,6 +85,7 @@ export function Map({
   const map = useMap();
   const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
   const [locationPermissionDenied, setLocationPermissionDenied] = useState(false);
+  const [currentZoom, setCurrentZoom] = useState<number>(14);
 
   const displayLocations = showHeatMap && heatMapData ? heatMapData : locations;
 
@@ -180,6 +181,28 @@ export function Map({
       google.maps.event.removeListener(listener);
     };
   }, [map, onMapBoundsChange]);
+
+  // Track zoom level changes
+  useEffect(() => {
+    if (!map) return;
+
+    const zoomListener = map.addListener('zoom_changed', () => {
+      const zoom = map.getZoom();
+      if (zoom !== undefined) {
+        setCurrentZoom(zoom);
+      }
+    });
+
+    // Set initial zoom
+    const initialZoom = map.getZoom();
+    if (initialZoom !== undefined) {
+      setCurrentZoom(initialZoom);
+    }
+
+    return () => {
+      google.maps.event.removeListener(zoomListener);
+    };
+  }, [map]);
 
   // Add POI click listener (for Google POIs on the map)
   useEffect(() => {
@@ -373,14 +396,48 @@ export function Map({
 
   return (
     <div className="size-full relative">
-      {/* My Location Button */}
-      <button
-        onClick={getUserLocation}
-        className="absolute bottom-6 right-6 z-50 p-3 bg-white hover:bg-gray-50 rounded-full shadow-lg border border-gray-200 transition-all hover:scale-105"
-        title="My Location"
-      >
-        <Locate className={`w-5 h-5 ${userLocation ? 'text-blue-500' : 'text-gray-600'}`} />
-      </button>
+      {/* Custom Map Controls - Luxury Design */}
+      <div className="absolute bottom-24 md:bottom-6 right-4 z-50 flex flex-col gap-2">
+        {/* Zoom In */}
+        <button
+          onClick={() => {
+            if (map) {
+              const currentZoom = map.getZoom() || 14;
+              map.setZoom(currentZoom + 1);
+            }
+          }}
+          className="p-2.5 bg-white/95 backdrop-blur-sm hover:bg-slate-50 rounded-lg shadow-lg border border-slate-200/50 transition-all hover:scale-105 hover:shadow-xl"
+          title="Zoom in"
+        >
+          <Plus className="w-5 h-5 text-slate-700" strokeWidth={2.5} />
+        </button>
+
+        {/* Zoom Out */}
+        <button
+          onClick={() => {
+            if (map) {
+              const currentZoom = map.getZoom() || 14;
+              map.setZoom(currentZoom - 1);
+            }
+          }}
+          className="p-2.5 bg-white/95 backdrop-blur-sm hover:bg-slate-50 rounded-lg shadow-lg border border-slate-200/50 transition-all hover:scale-105 hover:shadow-xl"
+          title="Zoom out"
+        >
+          <Minus className="w-5 h-5 text-slate-700" strokeWidth={2.5} />
+        </button>
+
+        {/* Divider */}
+        <div className="h-px bg-slate-200 mx-1" />
+
+        {/* My Location */}
+        <button
+          onClick={getUserLocation}
+          className="p-2.5 bg-white/95 backdrop-blur-sm hover:bg-slate-50 rounded-lg shadow-lg border border-slate-200/50 transition-all hover:scale-105 hover:shadow-xl"
+          title="My Location"
+        >
+          <Locate className={`w-5 h-5 ${userLocation ? 'text-blue-500' : 'text-slate-700'}`} strokeWidth={2.5} />
+        </button>
+      </div>
       
       <GoogleMap
         defaultZoom={mapZoom ?? 14}
@@ -391,8 +448,13 @@ export function Map({
           mapTypeControl: false,
           fullscreenControl: false,
           streetViewControl: false,
-          disableDefaultUI: false,
-          zoomControl: true,
+          zoomControl: false,
+          scaleControl: false,
+          rotateControl: false,
+          panControl: false,
+          keyboardShortcuts: false,
+          disableDefaultUI: true,
+          gestureHandling: 'greedy',
         }}
       >
         {/* LV Location Markers - Show when heat map is active OR when no search results */}
@@ -423,6 +485,8 @@ export function Map({
                 isWantToGo={isWantToGo}
                 hasLVRating={hasLVRating}
                 type="lv-location"
+                locationName={location.name}
+                currentZoom={currentZoom}
               />
             </AdvancedMarker>
           );
@@ -451,6 +515,8 @@ export function Map({
                 rating={place.rating || 5}
                 scale={0.9}
                 type="search-result"
+                locationName={place.name}
+                currentZoom={currentZoom}
               />
             </AdvancedMarker>
           );
@@ -479,6 +545,8 @@ export function Map({
                 isWantToGo={true}
                 hasLVRating={false}
                 type="want-to-go"
+                locationName={location.name}
+                currentZoom={currentZoom}
               />
             </AdvancedMarker>
           );

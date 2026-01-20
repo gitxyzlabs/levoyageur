@@ -69,6 +69,15 @@ export function WantToGo({ user, userLocation, onLocationClick }: WantToGoProps)
     }
   };
 
+  // Sort want-to-go locations by distance from user location
+  const sortedWantToGo = userLocation 
+    ? [...wantToGo].sort((a, b) => {
+        const distanceA = calculateDistance(userLocation.lat, userLocation.lng, a.lat, a.lng);
+        const distanceB = calculateDistance(userLocation.lat, userLocation.lng, b.lat, b.lng);
+        return distanceA - distanceB;
+      })
+    : wantToGo;
+
   return (
     <Card className="bg-white">
       <CardHeader>
@@ -102,7 +111,7 @@ export function WantToGo({ user, userLocation, onLocationClick }: WantToGoProps)
           </div>
         ) : (
           <div className="space-y-3">
-            {wantToGo.map((location) => {
+            {sortedWantToGo.map((location) => {
               const distanceText = getDistanceText(location);
               
               return (
@@ -130,10 +139,12 @@ export function WantToGo({ user, userLocation, onLocationClick }: WantToGoProps)
                             {distanceText}
                           </span>
                         )}
-                        <span className="flex items-center gap-1">
-                          <Star className="h-3 w-3 fill-amber-400 text-amber-400" />
-                          {location.lvEditorsScore.toFixed(1)}
-                        </span>
+                        {location.lvEditorsScore && (
+                          <span className="flex items-center gap-1">
+                            <Star className="h-3 w-3 fill-amber-400 text-amber-400" />
+                            {location.lvEditorsScore.toFixed(1)}
+                          </span>
+                        )}
                       </div>
 
                       {location.tags && location.tags.length > 0 && (

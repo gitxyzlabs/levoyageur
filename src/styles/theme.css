@@ -204,4 +204,21 @@
     font-weight: var(--font-weight-normal);
     line-height: 1.5;
   }
+  
+  /* Hide Google Maps default UI elements */
+  .gm-style-cc,
+  .gm-style a[href^="https://maps.google.com/maps"],
+  .gmnoprint a,
+  .gmnoprint span,
+  .gm-style-mtc,
+  button[aria-label="Keyboard shortcuts"],
+  button[aria-label="Show keyboard shortcuts"],
+  .gm-ui-hover-effect {
+    display: none !important;
+  }
+  
+  /* Hide the Google Maps Terms/Report links at bottom */
+  .gm-style .gm-style-cc {
+    display: none !important;
+  }
 }
