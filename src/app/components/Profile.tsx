@@ -32,9 +32,15 @@ export function Profile({
 
       const result = await api.syncMichelinData();
       
-      toast.success('Michelin Guide data synced successfully!', {
-        description: `Added: ${result.added}, Updated: ${result.updated}, Errors: ${result.errors}`
-      });
+      if (result.success) {
+        toast.success('Michelin Guide data synced successfully!', {
+          description: `Added: ${result.added || result.count || 0}, Updated: ${result.updated || 0}, Errors: ${result.errors || 0}`
+        });
+      } else {
+        toast.error('Michelin sync completed with issues', {
+          description: result.message || 'Some data may not have been synced'
+        });
+      }
     } catch (error: any) {
       console.error('Failed to sync Michelin data:', error);
       toast.error('Failed to sync Michelin Guide data', {
