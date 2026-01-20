@@ -543,7 +543,7 @@ export default function App() {
     }
   };
 
-  const loadUserLists = async () => {
+  const loadUserLists = useCallback(async () => {
     try {
       // Load favorites
       const { favorites } = await api.getFavorites();
@@ -558,9 +558,9 @@ export default function App() {
     } catch (error) {
       console.error('Failed to load user lists:', error);
     }
-  };
+  }, []);
 
-  const handleToggleFavorite = async (locationId: string, placeData?: { name?: string; lat?: number; lng?: number; formatted_address?: string; place_id?: string }) => {
+  const handleToggleFavorite = useCallback(async (locationId: string, placeData?: { name?: string; lat?: number; lng?: number; formatted_address?: string; place_id?: string }) => {
     if (!user) {
       toast.error('Please sign in to save favorites');
       return;
@@ -591,9 +591,9 @@ export default function App() {
       console.error('❌ Error toggling favorite:', error);
       toast.error('Failed to update favorites');
     }
-  };
+  }, [user, favoriteIds, loadLocations]);
 
-  const handleToggleWantToGo = async (locationId: string, placeData?: { name?: string; lat?: number; lng?: number; formatted_address?: string; place_id?: string }) => {
+  const handleToggleWantToGo = useCallback(async (locationId: string, placeData?: { name?: string; lat?: number; lng?: number; formatted_address?: string; place_id?: string }) => {
     if (!user) {
       toast.error('Please sign in to save to Want to Go');
       return;
@@ -625,7 +625,7 @@ export default function App() {
       console.error('❌ Error toggling Want to Go:', error);
       toast.error('Failed to update Want to Go');
     }
-  };
+  }, [user, wantToGoIds, loadLocations, loadUserLists]);
 
   const loadSavedLocation = async (userId: string) => {
     try {
