@@ -4,6 +4,11 @@ import { InfoWindow } from '@vis.gl/react-google-maps';
 import { Award, Users, Star, ChevronLeft, ChevronRight, MapPin, Edit3, Navigation, Heart, Bookmark, Calendar } from 'lucide-react';
 import { EditorRatingModal } from './EditorRatingModal';
 import { api, type Location } from '../../utils/api';
+import michelinStar from 'figma:asset/1ea4882d5643b9b9123e471cc0aad70564a62645.png';
+import michelinKey from 'figma:asset/0c56cb9de925e27edf576f0b07bad27f5fc39207.png';
+import michelinBib from 'figma:asset/dd77167d8b36088ad52afddb9edb204ee91032e3.png';
+import michelinPlate from 'figma:asset/856cfd1cf4ff8dde9ed21ea27f9c2a8ce6a78bc1.png';
+import michelinFlower from 'figma:asset/f840fb054a919851b054cddea0b6dfbb79c1ab4b.png';
 
 interface GooglePlaceInfoWindowProps {
   place: google.maps.places.PlaceResult;
@@ -316,20 +321,22 @@ export function GooglePlaceInfoWindow({
             {lvLocation?.michelinScore && lvLocation.michelinScore > 0 && (
               <div className="flex items-center justify-between text-sm pb-2 border-b border-gray-100">
                 <div className="flex items-center gap-2">
-                  {/* Michelin Star Icon */}
-                  <svg className="w-4 h-4 text-red-600" viewBox="0 0 24 24" fill="currentColor">
-                    <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
-                  </svg>
+                  {/* Michelin Star Logo */}
+                  <img src={michelinStar} alt="Michelin" className="w-4 h-4" />
                   <span className="text-gray-600">Michelin Guide</span>
                 </div>
-                <div className="flex items-center gap-1">
-                  <span className="text-sm font-medium text-red-600">
-                    {lvLocation.michelinScore <= 3 
-                      ? `${'★'.repeat(lvLocation.michelinScore)} ${lvLocation.michelinScore} Star${lvLocation.michelinScore > 1 ? 's' : ''}`
-                      : lvLocation.michelinScore === 4
-                        ? 'Bib Gourmand'
-                        : 'Michelin Plate'}
-                  </span>
+                <div className="flex items-center gap-0.5">
+                  {/* Display visual Michelin stars */}
+                  {lvLocation.michelinScore <= 3 ? (
+                    // Show 1-3 star flowers
+                    Array.from({ length: lvLocation.michelinScore }).map((_, i) => (
+                      <img key={i} src={michelinFlower} alt="Michelin Star" className="w-5 h-5" />
+                    ))
+                  ) : lvLocation.michelinScore === 4 ? (
+                    <img src={michelinBib} alt="Bib Gourmand" className="w-5 h-5" />
+                  ) : (
+                    <img src={michelinPlate} alt="Michelin Plate" className="w-5 h-5" />
+                  )}
                 </div>
               </div>
             )}

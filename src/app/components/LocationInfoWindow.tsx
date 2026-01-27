@@ -5,6 +5,11 @@ import type { Location, User } from '../../utils/api';
 import { api } from '../../utils/api';
 import { toast } from 'sonner';
 import { RatingSlider } from './RatingSlider';
+import michelinStar from 'figma:asset/1ea4882d5643b9b9123e471cc0aad70564a62645.png';
+import michelinKey from 'figma:asset/0c56cb9de925e27edf576f0b07bad27f5fc39207.png';
+import michelinBib from 'figma:asset/dd77167d8b36088ad52afddb9edb204ee91032e3.png';
+import michelinPlate from 'figma:asset/856cfd1cf4ff8dde9ed21ea27f9c2a8ce6a78bc1.png';
+import michelinFlower from 'figma:asset/f840fb054a919851b054cddea0b6dfbb79c1ab4b.png';
 
 interface LocationInfoWindowProps {
   location: Location;
@@ -329,13 +334,28 @@ export function LocationInfoWindow({
               </div>
             </div>
 
-            <div className="flex items-center justify-between text-sm">
-              <span className="text-gray-600">Michelin Score</span>
-              <div className="flex items-center gap-1">
-                <Star className="w-4 h-4 fill-red-400 text-red-400" />
-                <span className="font-semibold">{location.michelinScore?.toFixed(1) ?? '—'}</span>
+            {/* Michelin Score */}
+            {location.michelinScore && location.michelinScore > 0 && (
+              <div className="flex items-center justify-between text-sm pb-2 border-b border-gray-100">
+                <div className="flex items-center gap-2">
+                  <img src={michelinStar} alt="Michelin" className="w-4 h-4" />
+                  <span className="text-gray-600">Michelin Guide</span>
+                </div>
+                <div className="flex items-center gap-0.5">
+                  {/* Display visual Michelin logos */}
+                  {location.michelinScore <= 3 ? (
+                    // Show 1-3 star flowers
+                    Array.from({ length: location.michelinScore }).map((_, i) => (
+                      <img key={i} src={michelinFlower} alt="Michelin Star" className="w-5 h-5" />
+                    ))
+                  ) : location.michelinScore === 4 ? (
+                    <img src={michelinBib} alt="Bib Gourmand" className="w-6 h-6" />
+                  ) : (
+                    <img src={michelinPlate} alt="Michelin Plate" className="w-6 h-6" />
+                  )}
+                </div>
               </div>
-            </div>
+            )}
 
             <div className="flex items-center justify-between text-sm">
               <span className="text-gray-600">Google Rating</span>

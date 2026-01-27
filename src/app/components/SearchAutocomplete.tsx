@@ -1,9 +1,9 @@
 import { useRef, useState, useEffect } from 'react';
 import { useMapsLibrary } from '@vis.gl/react-google-maps';
-import { Search, X, MapPin, Tag } from 'lucide-react';
+import { Search, X, MapPin, Tag, Star } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { LVIcon } from './LVIcon';
-import { api } from '../../utils/api';
+import { api, Location } from '../../utils/api';
 
 interface SearchAutocompleteProps {
   onPlaceSelect: (place: any) => void; // Updated type
@@ -20,6 +20,7 @@ export function SearchAutocomplete({ onPlaceSelect, onTagSelect, onClear, mapBou
   const [showDropdown, setShowDropdown] = useState(false);
   const [googlePredictions, setGooglePredictions] = useState<any[]>([]);
   const [supabaseTags, setSupabaseTags] = useState<string[]>([]);
+  const [michelinLocations, setMichelinLocations] = useState<Location[]>([]);
   const [focusedIndex, setFocusedIndex] = useState(-1);
   
   const inputRef = useRef<HTMLInputElement>(null);
@@ -31,6 +32,7 @@ export function SearchAutocomplete({ onPlaceSelect, onTagSelect, onClear, mapBou
     if (!searchValue.trim()) {
       setGooglePredictions([]);
       setSupabaseTags([]);
+      setMichelinLocations([]);
       setShowDropdown(false);
       return;
     }
@@ -95,6 +97,22 @@ export function SearchAutocomplete({ onPlaceSelect, onTagSelect, onClear, mapBou
         console.error('❌ Error fetching tags:', error);
         setSupabaseTags([]);
       }
+
+      // Fetch Michelin locations
+      try {
+        const { locations } = await api.getLocations();
+        const matchingLocations = locations
+          .filter(loc => 
+            loc.michelinScore > 0 && // Only Michelin-rated locations
+            loc.name.toLowerCase().includes(searchValue.toLowerCase())
+          )
+          .slice(0, 5);
+        console.log('✅ Matching Michelin locations found:', matchingLocations.length);
+        setMichelinLocations(matchingLocations);
+      } catch (error) {
+        console.error('❌ Error fetching Michelin locations:', error);
+        setMichelinLocations([]);
+      }
     };
 
     const timeoutId = setTimeout(async () => {
@@ -129,6 +147,7 @@ export function SearchAutocomplete({ onPlaceSelect, onTagSelect, onClear, mapBou
     setShowDropdown(false);
     setGooglePredictions([]);
     setSupabaseTags([]);
+    setMichelinLocations([]);
 
     try {
       // Use the new Place API instead of deprecated PlacesService
@@ -189,20 +208,93 @@ export function SearchAutocomplete({ onPlaceSelect, onTagSelect, onClear, mapBou
     setShowDropdown(false);
     setGooglePredictions([]);
     setSupabaseTags([]);
+    setMichelinLocations([]);
     // Blur the input to prevent dropdown from reopening
     inputRef.current?.blur();
+  };
+
+  const handleMichelinLocationSelect = async (location: Location) => {
+    // Close dropdown and clear predictions immediately
+    setShowDropdown(false);
+    setGooglePredictions([]);
+    setSupabaseTags([]);
+    setMichelinLocations([]);
+
+    // If location has a place_id, fetch full Google details
+    const placeId = location.placeId || location.place_id;
+    
+    if (placeId) {
+      try {
+        const { Place } = await google.maps.importLibrary("places") as google.maps.PlacesLibrary;
+        
+        const place = new Place({
+          id: placeId,
+        });
+
+        await place.fetchFields({
+          fields: ['displayName', 'location', 'formattedAddress', 'id', 'rating', 'photos', 'types'],
+        });
+
+        const placeResult: google.maps.places.PlaceResult = {
+          name: place.displayName || location.name,
+          place_id: place.id,
+          geometry: place.location ? {
+            location: place.location,
+          } as google.maps.places.PlaceGeometry : undefined,
+          formatted_address: place.formattedAddress,
+          rating: place.rating,
+          photos: place.photos,
+          types: place.types,
+        };
+
+        onPlaceSelect(placeResult);
+        setSearchValue(location.name);
+        inputRef.current?.blur();
+      } catch (error) {
+        console.error('Error fetching place details for Michelin location:', error);
+        
+        // Fallback: use location data directly
+        const fallbackResult: google.maps.places.PlaceResult = {
+          name: location.name,
+          place_id: placeId,
+          formatted_address: location.address,
+          geometry: {
+            location: new google.maps.LatLng(location.lat, location.lng)
+          },
+        };
+        
+        onPlaceSelect(fallbackResult);
+        setSearchValue(location.name);
+        inputRef.current?.blur();
+      }
+    } else {
+      // No place_id, use location data directly
+      const placeResult: google.maps.places.PlaceResult = {
+        name: location.name,
+        place_id: location.id,
+        formatted_address: location.address,
+        geometry: {
+          location: new google.maps.LatLng(location.lat, location.lng)
+        },
+      };
+      
+      onPlaceSelect(placeResult);
+      setSearchValue(location.name);
+      inputRef.current?.blur();
+    }
   };
 
   const handleClear = () => {
     setSearchValue('');
     setGooglePredictions([]);
     setSupabaseTags([]);
+    setMichelinLocations([]);
     setShowDropdown(false);
     onClear?.();
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
-    const totalItems = supabaseTags.length + googlePredictions.length + 1; // +1 for generic search option
+    const totalItems = supabaseTags.length + googlePredictions.length + michelinLocations.length + 1; // +1 for generic search option
     
     if (e.key === 'ArrowDown') {
       e.preventDefault();
@@ -217,8 +309,10 @@ export function SearchAutocomplete({ onPlaceSelect, onTagSelect, onClear, mapBou
         handleGenericSearch();
       } else if (focusedIndex < supabaseTags.length) {
         handleTagSelect(supabaseTags[focusedIndex]);
+      } else if (focusedIndex < supabaseTags.length + michelinLocations.length) {
+        handleMichelinLocationSelect(michelinLocations[focusedIndex - supabaseTags.length]);
       } else {
-        handleGooglePlaceSelect(googlePredictions[focusedIndex - supabaseTags.length]);
+        handleGooglePlaceSelect(googlePredictions[focusedIndex - supabaseTags.length - michelinLocations.length]);
       }
     } else if (e.key === 'Escape') {
       setShowDropdown(false);
@@ -231,6 +325,7 @@ export function SearchAutocomplete({ onPlaceSelect, onTagSelect, onClear, mapBou
     setShowDropdown(false);
     setGooglePredictions([]);
     setSupabaseTags([]);
+    setMichelinLocations([]);
     
     if (onGenericSearch) {
       onGenericSearch(searchValue.trim());
@@ -239,7 +334,7 @@ export function SearchAutocomplete({ onPlaceSelect, onTagSelect, onClear, mapBou
     inputRef.current?.blur();
   };
 
-  const hasResults = googlePredictions.length > 0 || supabaseTags.length > 0;
+  const hasResults = googlePredictions.length > 0 || supabaseTags.length > 0 || michelinLocations.length > 0;
 
   return (
     <div className="relative">
@@ -334,6 +429,39 @@ export function SearchAutocomplete({ onPlaceSelect, onTagSelect, onClear, mapBou
               </div>
             )}
 
+            {/* Michelin Locations Section */}
+            {michelinLocations.length > 0 && (
+              <div className="border-b border-slate-100">
+                <div className="px-4 py-2 bg-gradient-to-r from-amber-50 to-rose-50 border-b border-slate-100">
+                  <div className="flex items-center gap-2 text-xs font-semibold text-slate-600 uppercase tracking-wide">
+                    <LVIcon className="w-3 h-3 text-amber-600" />
+                    <span>Michelin Locations</span>
+                  </div>
+                </div>
+                {michelinLocations.map((location, index) => (
+                  <button
+                    key={location.id}
+                    onClick={() => handleMichelinLocationSelect(location)}
+                    className={`w-full px-4 py-3 flex items-center gap-3 hover:bg-amber-50 transition-colors text-left ${
+                      focusedIndex === index + supabaseTags.length + 1 ? 'bg-amber-50' : ''
+                    }`}
+                  >
+                    <div className="flex items-center justify-center w-8 h-8 rounded-full bg-gradient-to-br from-amber-100 to-rose-100 flex-shrink-0">
+                      <Star className="w-4 h-4 text-amber-700" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="font-medium text-gray-900 truncate">
+                        {location.name}
+                      </div>
+                      <div className="text-xs text-gray-500 truncate">
+                        {location.address}
+                      </div>
+                    </div>
+                  </button>
+                ))}
+              </div>
+            )}
+
             {/* Google Places Section */}
             {googlePredictions.length > 0 && (
               <div className="border-b border-slate-100">
@@ -347,7 +475,7 @@ export function SearchAutocomplete({ onPlaceSelect, onTagSelect, onClear, mapBou
                     key={prediction.place_id}
                     onClick={() => handleGooglePlaceSelect(prediction)}
                     className={`w-full px-4 py-3 flex items-center gap-3 hover:bg-slate-50 transition-colors text-left ${
-                      focusedIndex === index + supabaseTags.length + 1 ? 'bg-slate-50' : ''
+                      focusedIndex === index + supabaseTags.length + michelinLocations.length + 1 ? 'bg-slate-50' : ''
                     }`}
                   >
                     <div className="flex items-center justify-center w-8 h-8 rounded-full bg-slate-100 flex-shrink-0">

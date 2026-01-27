@@ -5,7 +5,6 @@ import { GooglePlaceInfoWindow } from './GooglePlaceInfoWindow';
 import { MobileInfoSheet } from './MobileInfoSheet';
 import { CityInfoWindow } from './CityInfoWindow';
 import { LuxuryMarker } from './LuxuryMarker';
-import { MichelinMarker } from './MichelinMarker';
 import { Locate, Plus, Minus } from 'lucide-react';
 
 interface MapProps {
@@ -164,8 +163,11 @@ export function Map({
     if (showSearchResults) return [];
     
     return displayLocations.filter((location) => {
-      // Only show markers for locations that have an LV rating
-      return !!(location.lvEditorsScore || location.lvCrowdsourceScore);
+      // Show markers for locations that have an LV rating OR a Michelin rating
+      const hasLVRating = !!(location.lvEditorsScore || location.lvCrowdsourceScore);
+      const hasMichelinRating = !!(location.michelinScore && location.michelinScore > 0);
+      
+      return hasLVRating || hasMichelinRating;
     });
   }, [displayLocations, showSearchResults]);
 
@@ -564,29 +566,18 @@ export function Map({
               onClick={() => handleMarkerClick(location)}
               zIndex={selectedGooglePlace?.place_id === location.place_id ? 1000 : 100}
             >
-              <div className="relative">
-                <LuxuryMarker
-                  rating={rating}
-                  scale={scale}
-                  showHeatMap={showHeatMap}
-                  isFavorite={isFavorite}
-                  isWantToGo={isWantToGo}
-                  hasLVRating={hasLVRating}
-                  type="lv-location"
-                  locationName={location.name}
-                  currentZoom={currentZoom}
-                  michelinScore={location.michelinScore}
-                />
-                {/* Michelin badge on left side if location has Michelin rating */}
-                {hasMichelin && hasLVRating && (
-                  <MichelinMarker
-                    michelinScore={location.michelinScore!}
-                    scale={scale}
-                    hasLVRating={true}
-                    lvRating={rating}
-                  />
-                )}
-              </div>
+              <LuxuryMarker
+                rating={rating}
+                scale={scale}
+                showHeatMap={showHeatMap}
+                isFavorite={isFavorite}
+                isWantToGo={isWantToGo}
+                hasLVRating={hasLVRating}
+                type="lv-location"
+                locationName={location.name}
+                currentZoom={currentZoom}
+                michelinScore={location.michelinScore}
+              />
             </AdvancedMarker>
           );
         })}
