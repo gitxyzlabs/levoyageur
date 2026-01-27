@@ -1194,11 +1194,14 @@ app.put('/make-server-48182530/locations/:id/rating', verifyAuth, verifyEditor, 
 // Sync Michelin data (editor-only for manual sync, or can be public for automation)
 app.post('/make-server-48182530/michelin/sync', verifyAuth, verifyEditor, async (c) => {
   console.log('🍽️ POST /michelin/sync - Start');
+  console.log('📍 User ID:', c.get('userId'));
+  console.log('📍 User Email:', c.get('userEmail'));
   
   try {
+    console.log('🔍 Starting Michelin sync process...');
     const result = await syncMichelinData();
     
-    console.log('📊 Michelin sync result:', result);
+    console.log('📊 Michelin sync result:', JSON.stringify(result, null, 2));
     
     if (result.success) {
       console.log(`✅ Michelin sync completed: ${result.message}`);

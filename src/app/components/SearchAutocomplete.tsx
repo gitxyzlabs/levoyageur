@@ -296,7 +296,7 @@ export function SearchAutocomplete({ onPlaceSelect, onTagSelect, onClear, mapBou
                 </div>
                 <div className="flex-1">
                   <div className="font-medium text-gray-900">Search for "{searchValue}"</div>
-                  <div className="text-xs text-gray-500">Find top 20 places in this area</div>
+                  <div className="text-xs text-gray-500">Find "{searchValue}" on your map area</div>
                 </div>
               </button>
             )}

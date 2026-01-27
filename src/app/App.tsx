@@ -132,6 +132,9 @@ export default function App() {
     initializeApp();
     checkExistingSession(); // Check for existing session on mount
     
+    // Restore map state after OAuth redirect
+    restoreMapStateAfterLogin();
+    
     // Listen for auth state changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
       console.log('Auth state changed:', event, session);
@@ -170,6 +173,8 @@ export default function App() {
         
         if (event === 'SIGNED_IN') {
           toast.success('Welcome to Le Voyageur!');
+          // Restore map state after successful login
+          restoreMapStateAfterLogin();
         }
       } else {
         // User is logged out
@@ -534,6 +539,17 @@ export default function App() {
   };
 
   const handleLogin = async () => {
+    // Save current map state before OAuth redirect
+    if (mapCenter) {
+      try {
+        localStorage.setItem('lv_map_center', JSON.stringify(mapCenter));
+        localStorage.setItem('lv_map_zoom', mapZoom.toString());
+        console.log('💾 Saved map state before login:', mapCenter, mapZoom);
+      } catch (error) {
+        console.error('Failed to save map state:', error);
+      }
+    }
+    
     const { data, error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
     });
@@ -645,9 +661,8 @@ export default function App() {
     try {
       // Load location permission preference
       const permissionPref = localStorage.getItem(`lv_location_perm_${userId}`);
-      if (permissionPref === 'true') {
-        setLocationPermissionEnabled(true);
-      }
+      const locationEnabled = permissionPref === 'true';
+      setLocationPermissionEnabled(locationEnabled);
       
       const savedLocation = localStorage.getItem(`lv_location_${userId}`);
       
@@ -658,17 +673,22 @@ export default function App() {
         setUserLocation(userPos);
         setLocationPermissionGranted(true);
         console.log('✅ Using saved location for user:', userPos);
-      } else if (permissionPref === 'true') {
-        // Auto-request location if permission enabled
-        console.log('📍 Location permission enabled, auto-requesting...');
+      }
+      
+      // Only request fresh location if user has enabled location permission
+      if (locationEnabled) {
+        console.log('📍 Location permission enabled - requesting fresh location...');
         requestGeolocation(userId);
       } else {
-        // No saved location and permission not enabled
-        console.log('No saved location, permission not enabled');
+        console.log('📍 Location permission disabled - using saved location only');
       }
     } catch (error) {
       console.error('Failed to load saved location:', error);
-      requestGeolocation(userId);
+      // Only auto-request on error if permission is enabled
+      const permissionPref = localStorage.getItem(`lv_location_perm_${userId}`);
+      if (permissionPref === 'true') {
+        requestGeolocation(userId);
+      }
     }
   };
 
@@ -727,6 +747,25 @@ export default function App() {
     } catch (error) {
       console.error('Failed to save location permission preference:', error);
       toast.error('Failed to save preference');
+    }
+  };
+
+  const restoreMapStateAfterLogin = () => {
+    // Restore map center and zoom from localStorage if available
+    const savedMapCenter = localStorage.getItem('lv_map_center');
+    const savedMapZoom = localStorage.getItem('lv_map_zoom');
+    
+    if (savedMapCenter && savedMapZoom) {
+      try {
+        const center = JSON.parse(savedMapCenter);
+        const zoom = parseInt(savedMapZoom, 10);
+        
+        setMapCenter(center);
+        setMapZoom(zoom);
+        console.log('✅ Restored map state after login:', center, zoom);
+      } catch (error) {
+        console.error('Failed to parse saved map state:', error);
+      }
     }
   };
 

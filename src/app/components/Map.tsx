@@ -667,6 +667,7 @@ export function Map({
         <div className="hidden md:block">
           {selectedGooglePlace && (
             <GooglePlaceInfoWindow
+              key={`${selectedGooglePlace.place_id}-${favoriteIds?.size}-${wantToGoIds?.size}`} // Force re-render when IDs change
               place={selectedGooglePlace}
               onClose={() => {
                 if (onGooglePlaceClose) {
@@ -706,6 +707,7 @@ export function Map({
       <div className="md:hidden">
         {selectedGooglePlace && (
           <MobileInfoSheet
+            key={`${selectedGooglePlace.place_id}-${favoriteIds?.size}-${wantToGoIds?.size}`} // Force re-render when IDs change
             place={selectedGooglePlace}
             onClose={() => {
               if (onGooglePlaceClose) {
