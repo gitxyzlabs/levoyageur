@@ -1,14 +1,15 @@
-import { toast } from 'sonner';
-import { useState, useEffect, useMemo } from 'react';
-import { InfoWindow } from '@vis.gl/react-google-maps';
+import React, { useState, useEffect, useRef } from 'react';
+import ReactDOM from 'react-dom/client';
+import { X } from 'lucide-react';
 import { Award, Users, Star, ChevronLeft, ChevronRight, MapPin, Edit3, Navigation, Heart, Bookmark, Calendar } from 'lucide-react';
 import { EditorRatingModal } from './EditorRatingModal';
 import { api, type Location } from '../../utils/api';
-import michelinStar from 'figma:asset/1ea4882d5643b9b9123e471cc0aad70564a62645.png';
-import michelinKey from 'figma:asset/0c56cb9de925e27edf576f0b07bad27f5fc39207.png';
-import michelinBib from 'figma:asset/dd77167d8b36088ad52afddb9edb204ee91032e3.png';
-import michelinPlate from 'figma:asset/856cfd1cf4ff8dde9ed21ea27f9c2a8ce6a78bc1.png';
-import michelinFlower from 'figma:asset/f840fb054a919851b054cddea0b6dfbb79c1ab4b.png';
+
+// Michelin icons as inline SVG data URLs
+const michelinStar = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23FFD700'%3E%3Cpath d='M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z'/%3E%3C/svg%3E";
+const michelinKey = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23FFD700'%3E%3Cpath d='M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z'/%3E%3C/svg%3E";
+const michelinBib = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23ED1C24'%3E%3Cpath d='M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z'/%3E%3C/svg%3E";
+const michelinPlate = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23666666'%3E%3Ccircle cx='12' cy='12' r='10' stroke='%23666' stroke-width='2' fill='none'/%3E%3C/svg%3E";
 
 interface GooglePlaceInfoWindowProps {
   place: google.maps.places.PlaceResult;

@@ -1,9 +1,11 @@
 import { Heart, Bookmark } from 'lucide-react';
-import michelinStar from 'figma:asset/59361e693eadafba3ecc45ebd7a623a664b9adc2.png';
-import michelinClover from 'figma:asset/1ea4882d5643b9b9123e471cc0aad70564a62645.png';
-import michelinFlower from 'figma:asset/296fe3b2f9b64b4cf1d4f88546c160d87ac2a24e.png';
-import michelinBib from 'figma:asset/dd77167d8b36088ad52afddb9edb204ee91032e3.png';
-import michelinPlate from 'figma:asset/856cfd1cf4ff8dde9ed21ea27f9c2a8ce6a78bc1.png';
+
+// Michelin icons as inline SVG data URLs
+const michelinStar = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23FFD700'%3E%3Cpath d='M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z'/%3E%3C/svg%3E";
+const michelinClover = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%2300A86B'%3E%3Cpath d='M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z'/%3E%3C/svg%3E";
+const michelinFlower = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23E63946'%3E%3Cpath d='M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z'/%3E%3C/svg%3E";
+const michelinBib = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23ED1C24'%3E%3Cpath d='M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z'/%3E%3C/svg%3E";
+const michelinPlate = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23666666'%3E%3Ccircle cx='12' cy='12' r='10' stroke='%23666' stroke-width='2' fill='none'/%3E%3C/svg%3E";
 
 interface LuxuryMarkerProps {
   rating?: number; // Optional now - some markers may not have LV ratings
