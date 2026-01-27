@@ -240,8 +240,10 @@ export function SearchAutocomplete({ onPlaceSelect, onTagSelect, onClear, mapBou
           place_id: place.id,
           geometry: place.location ? {
             location: place.location,
-          } as google.maps.places.PlaceGeometry : undefined,
-          formatted_address: place.formattedAddress,
+          } as google.maps.places.PlaceGeometry : {
+            location: new google.maps.LatLng(location.lat, location.lng)
+          } as google.maps.places.PlaceGeometry,
+          formatted_address: place.formattedAddress || location.address,
           rating: place.rating,
           photos: place.photos,
           types: place.types,
@@ -260,7 +262,7 @@ export function SearchAutocomplete({ onPlaceSelect, onTagSelect, onClear, mapBou
           formatted_address: location.address,
           geometry: {
             location: new google.maps.LatLng(location.lat, location.lng)
-          },
+          } as google.maps.places.PlaceGeometry,
         };
         
         onPlaceSelect(fallbackResult);
@@ -275,7 +277,7 @@ export function SearchAutocomplete({ onPlaceSelect, onTagSelect, onClear, mapBou
         formatted_address: location.address,
         geometry: {
           location: new google.maps.LatLng(location.lat, location.lng)
-        },
+        } as google.maps.places.PlaceGeometry,
       };
       
       onPlaceSelect(placeResult);
