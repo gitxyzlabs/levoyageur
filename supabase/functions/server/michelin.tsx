@@ -1,20 +1,4 @@
 /**
- * Michelin Guide Integration
- * Handles syncing and querying Michelin restaurant data
- */
-
-interface MichelinRestaurant {
-  name: string;
-  city: string;
-  country: string;
-  latitude: number;
-  longitude: number;
-  price: string;
-  cuisine: string;
-  award: string; // "1 MICHELIN Star", "2 MICHELIN Stars", "3 MICHELIN Stars", "Bib Gourmand"
-}
-
-/**
  * Fetch Michelin data from Kaggle dataset
  */
 async function fetchMichelinDataFromKaggle(offset: number = 0, limit: number = 500): Promise<{ restaurants: MichelinRestaurant[]; totalAvailable: number }> {
@@ -24,17 +8,7 @@ async function fetchMichelinDataFromKaggle(offset: number = 0, limit: number = 5
     throw new Error('KAGGLE_API_TOKEN environment variable not set');
   }
 
-  // Parse the Kaggle API token
-  let username: string;
-  let key: string;
-  
-  try {
-    const parsed = JSON.parse(apiToken);
-    username = parsed.username;
-    key = parsed.key;
-  } catch (e) {
-    throw new Error('Invalid KAGGLE_API_TOKEN format. Expected JSON with username and key');
-  }
+  console.log(`📡 Fetching Michelin data from Kaggle...`);
 
   // Kaggle dataset URL for Michelin restaurants
   const datasetOwner = 'ngshiheng';
@@ -42,23 +16,62 @@ async function fetchMichelinDataFromKaggle(offset: number = 0, limit: number = 5
   const fileName = 'one-star-michelin-restaurants.csv';
   
   try {
-    console.log(`📡 Fetching Michelin data from Kaggle...`);
+    // Check if it's the new token format (starts with KGAT_)
+    const isNewTokenFormat = apiToken.startsWith('KGAT_');
     
-    // Create Basic Auth header
-    const auth = btoa(`${username}:${key}`);
+    let requestHeaders: Record<string, string>;
+    
+    if (isNewTokenFormat) {
+      // New format: Bearer token
+      console.log('Using new Kaggle API token format (KGAT_)');
+      requestHeaders = {
+        'Authorization': `Bearer ${apiToken}`,
+      };
+    } else {
+      // Old format: username:key with Basic auth
+      let username: string;
+      let key: string;
+      
+      try {
+        // Try parsing as JSON first (format: {"username":"...", "key":"..."})
+        const parsed = JSON.parse(apiToken);
+        username = parsed.username;
+        key = parsed.key;
+      } catch (e) {
+        // If not JSON, try colon-separated format (format: username:key)
+        if (apiToken.includes(':')) {
+          const parts = apiToken.split(':');
+          if (parts.length === 2) {
+            username = parts[0];
+            key = parts[1];
+          } else {
+            throw new Error('Invalid KAGGLE_API_TOKEN format');
+          }
+        } else {
+          throw new Error('Invalid KAGGLE_API_TOKEN format');
+        }
+      }
+
+      if (!username || !key) {
+        throw new Error('KAGGLE_API_TOKEN missing username or key');
+      }
+
+      console.log(`Using old Kaggle API token format (user: ${username})`);
+      const auth = btoa(`${username}:${key}`);
+      requestHeaders = {
+        'Authorization': `Basic ${auth}`,
+      };
+    }
     
     // Fetch the CSV file from Kaggle
     const response = await fetch(
       `https://www.kaggle.com/api/v1/datasets/download/${datasetOwner}/${datasetName}/${fileName}`,
-      {
-        headers: {
-          'Authorization': `Basic ${auth}`,
-        },
-      }
+      { headers: requestHeaders }
     );
 
     if (!response.ok) {
-      throw new Error(`Kaggle API error: ${response.status} ${response.statusText}`);
+      const errorText = await response.text();
+      throw new Error(`Kaggle API error: ${response.status} ${response.statusText} - ${errorText}`);
     }
 
     // Parse CSV data
