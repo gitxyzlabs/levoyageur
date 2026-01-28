@@ -1,11 +1,5 @@
-import { Heart, Bookmark } from 'lucide-react';
-
-// Michelin icons as inline SVG data URLs
-const michelinStar = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23FFD700'%3E%3Cpath d='M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z'/%3E%3C/svg%3E";
-const michelinClover = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%2300A86B'%3E%3Cpath d='M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z'/%3E%3C/svg%3E";
-const michelinFlower = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23E63946'%3E%3Cpath d='M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z'/%3E%3C/svg%3E";
-const michelinBib = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23ED1C24'%3E%3Cpath d='M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z'/%3E%3C/svg%3E";
-const michelinPlate = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23666666'%3E%3Ccircle cx='12' cy='12' r='10' stroke='%23666' stroke-width='2' fill='none'/%3E%3C/svg%3E";
+import { Heart, Bookmark, Star } from 'lucide-react';
+import { MichelinFlower, MichelinStar, MichelinBib, MichelinPlate } from '@/app/components/MichelinIcons';
 
 interface LuxuryMarkerProps {
   rating?: number; // Optional now - some markers may not have LV ratings
@@ -218,14 +212,11 @@ export function LuxuryMarker({
           // LV monogram for rated locations (or Michelin clover if has Michelin score)
           michelinScore && michelinScore > 0 ? (
             // Show Michelin clover logo
-            <img 
-              src={michelinClover} 
-              alt="Michelin" 
-              className="relative z-10"
+            <MichelinFlower 
+              className="relative z-10" 
               style={{ 
                 width: `${scaledSize * 0.50}px`, 
-                height: `${scaledSize * 0.50}px`,
-                objectFit: 'contain'
+                height: `${scaledSize * 0.50}px`
               }} 
             />
           ) : (
@@ -321,51 +312,40 @@ export function LuxuryMarker({
         <div
           className="absolute top-1/2 -translate-y-1/2 px-3 py-1.5 rounded-lg shadow-xl backdrop-blur-md border border-white/40 flex items-center justify-center"
           style={{
-            right: `${-60 * scale}px`, // Position further to the right, completely off the marker
+            right: `${-60 * scale}px`,
             background: 'linear-gradient(135deg, rgba(255, 255, 255, 0.97) 0%, rgba(250, 250, 251, 0.94) 100%)',
             minWidth: `${32 * scale}px`,
             height: `${24 * scale}px`,
             boxShadow: '0 8px 24px rgba(0, 0, 0, 0.12), 0 2px 8px rgba(0, 0, 0, 0.08)',
           }}
         >
-          {/* Display Michelin visual logo based on score */}
           {michelinScore <= 3 ? (
-            // Show 1-3 flower icons horizontally with elegant spacing
-            <div className="flex items-center justify-center gap-1">
+            // Show 1-3 Michelin stars
+            <div className="flex items-center justify-center gap-0.5">
               {Array.from({ length: michelinScore }).map((_, i) => (
-                <img 
-                  key={i} 
-                  src={michelinFlower} 
-                  alt="Michelin Star" 
+                <MichelinStar 
+                  key={i}
                   style={{ 
                     width: `${8 * scale}px`, 
-                    height: `${8 * scale}px`,
-                    objectFit: 'contain',
-                    filter: 'drop-shadow(0 1px 2px rgba(0, 0, 0, 0.1))'
+                    height: `${8 * scale}px`
                   }} 
                 />
               ))}
             </div>
           ) : michelinScore === 4 ? (
-            <img 
-              src={michelinBib} 
-              alt="Bib Gourmand" 
+            // Bib Gourmand
+            <MichelinBib 
               style={{ 
-                width: `${18 * scale}px`, 
-                height: `${18 * scale}px`,
-                objectFit: 'contain',
-                filter: 'drop-shadow(0 1px 2px rgba(0, 0, 0, 0.1))'
+                width: `${16 * scale}px`, 
+                height: `${16 * scale}px`
               }} 
             />
           ) : (
-            <img 
-              src={michelinPlate} 
-              alt="Michelin Plate" 
+            // Michelin Plate
+            <MichelinPlate 
               style={{ 
-                width: `${18 * scale}px`, 
-                height: `${18 * scale}px`,
-                objectFit: 'contain',
-                filter: 'drop-shadow(0 1px 2px rgba(0, 0, 0, 0.1))'
+                width: `${16 * scale}px`, 
+                height: `${16 * scale}px`
               }} 
             />
           )}

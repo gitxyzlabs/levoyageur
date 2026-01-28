@@ -5,13 +5,7 @@ import { InfoWindow } from '@vis.gl/react-google-maps';
 import { api, type Location, type User } from '../../utils/api';
 import { toast } from 'sonner';
 import { RatingSlider } from './RatingSlider';
-
-// Michelin icons as inline SVG data URLs
-const michelinStar = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23FFD700'%3E%3Cpath d='M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z'/%3E%3C/svg%3E";
-const michelinKey = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23FFD700'%3E%3Cpath d='M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z'/%3E%3C/svg%3E";
-const michelinBib = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23ED1C24'%3E%3Cpath d='M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z'/%3E%3C/svg%3E";
-const michelinPlate = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23666666'%3E%3Ccircle cx='12' cy='12' r='10' stroke='%23666' stroke-width='2' fill='none'/%3E%3C/svg%3E";
-const michelinFlower = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23E63946'%3E%3Cpath d='M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z'/%3E%3C/svg%3E";
+import { MichelinFlower, MichelinStar, MichelinBib, MichelinPlate } from '@/app/components/MichelinIcons';
 
 interface LocationInfoWindowProps {
   location: Location;
@@ -340,20 +334,20 @@ export function LocationInfoWindow({
             {location.michelinScore && location.michelinScore > 0 && (
               <div className="flex items-center justify-between text-sm pb-2 border-b border-gray-100">
                 <div className="flex items-center gap-2">
-                  <img src={michelinStar} alt="Michelin" className="w-4 h-4" />
+                  <MichelinFlower className="w-4 h-4" />
                   <span className="text-gray-600">Michelin Guide</span>
                 </div>
                 <div className="flex items-center gap-0.5">
                   {/* Display visual Michelin logos */}
                   {location.michelinScore <= 3 ? (
-                    // Show 1-3 star flowers
+                    // Show 1-3 Michelin stars
                     Array.from({ length: location.michelinScore }).map((_, i) => (
-                      <img key={i} src={michelinFlower} alt="Michelin Star" className="w-5 h-5" />
+                      <MichelinStar key={i} className="w-5 h-5" />
                     ))
                   ) : location.michelinScore === 4 ? (
-                    <img src={michelinBib} alt="Bib Gourmand" className="w-6 h-6" />
+                    <MichelinBib className="w-6 h-6" />
                   ) : (
-                    <img src={michelinPlate} alt="Michelin Plate" className="w-6 h-6" />
+                    <MichelinPlate className="w-6 h-6" />
                   )}
                 </div>
               </div>
