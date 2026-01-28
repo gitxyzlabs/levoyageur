@@ -414,9 +414,13 @@ export const api = {
   },
 
   // Michelin Data
-  syncMichelinData: async (): Promise<{ success: boolean; count: number; message: string }> => {
+  syncMichelinData: async (offset: number = 0, limit: number = 500): Promise<{ success: boolean; added: number; message: string; totalAvailable?: number; imported?: number }> => {
     return fetchWithAuth(`${API_BASE}/michelin/sync`, {
       method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ offset, limit }),
     });
   },
 

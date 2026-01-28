@@ -1,285 +1,236 @@
 /**
- * Michelin Restaurant interface
+ * Michelin Guide Integration
+ * Handles syncing and querying Michelin restaurant data
  */
-export interface MichelinRestaurant {
+
+interface MichelinRestaurant {
   name: string;
-  location: string;
-  address: string;
   city: string;
-  region: string;
   country: string;
   latitude: number;
   longitude: number;
-  stars: number; // 1-3 for Michelin stars, 4 for Bib Gourmand, 5 for Michelin Plate/Selected
-  cuisines: string[];
-  url: string;
   price: string;
-  award: string;
+  cuisine: string;
+  award: string; // "1 MICHELIN Star", "2 MICHELIN Stars", "3 MICHELIN Stars", "Bib Gourmand"
 }
 
 /**
- * Fetch Michelin data from Kaggle Dataset
- * Dataset: ngshiheng/michelin-guide-restaurants-2021
+ * Fetch Michelin data from Kaggle dataset
  */
-export async function fetchMichelinDataFromKaggle(): Promise<MichelinRestaurant[]> {
-  const restaurants: MichelinRestaurant[] = [];
+async function fetchMichelinDataFromKaggle(offset: number = 0, limit: number = 500): Promise<{ restaurants: MichelinRestaurant[]; totalAvailable: number }> {
+  const apiToken = Deno.env.get('KAGGLE_API_TOKEN');
+  
+  if (!apiToken) {
+    throw new Error('KAGGLE_API_TOKEN environment variable not set');
+  }
+
+  // Parse the Kaggle API token
+  let username: string;
+  let key: string;
   
   try {
-    const kaggleToken = Deno.env.get('KAGGLE_API_TOKEN');
-    
-    if (!kaggleToken) {
-      console.error('❌ KAGGLE_API_TOKEN not found in environment variables');
-      return restaurants;
-    }
-    
-    console.log('🔍 Fetching Michelin data from Kaggle...');
-    console.log('📍 Kaggle token present:', kaggleToken.substring(0, 15) + '...');
-    
-    // Kaggle API endpoint for dataset files
-    const datasetOwner = 'ngshiheng';
-    const datasetName = 'michelin-guide-restaurants-2021';
-    const metadataUrl = `https://www.kaggle.com/api/v1/datasets/download/${datasetOwner}/${datasetName}`;
-    
-    console.log(`📥 Downloading dataset from: ${metadataUrl}`);
-    
-    const response = await fetch(metadataUrl, {
-      headers: {
-        'Authorization': `Bearer ${kaggleToken}`,
-        'User-Agent': 'Le-Voyageur-App/1.0',
-      },
-    });
-    
-    console.log(`📊 Response status: ${response.status} ${response.statusText}`);
-    
-    if (!response.ok) {
-      console.error(`❌ Failed to fetch from Kaggle API: ${response.status} ${response.statusText}`);
-      const errorText = await response.text();
-      console.error('Error details:', errorText);
-      return restaurants;
-    }
-    
-    console.log('📍 Starting to download arrayBuffer...');
-    
-    // The response is a ZIP file - we need to decompress it
-    const arrayBuffer = await response.arrayBuffer();
-    console.log(`✅ Downloaded ${arrayBuffer.byteLength} bytes`);
-    
-    // Check if it's a ZIP file (starts with "PK")
-    const uint8Array = new Uint8Array(arrayBuffer);
-    const isPKZip = uint8Array[0] === 0x50 && uint8Array[1] === 0x4B;
-    console.log(`📦 Is ZIP file: ${isPKZip}`);
-    
-    if (!isPKZip) {
-      console.error('❌ Response is not a ZIP file');
-      return restaurants;
-    }
-    
-    console.log('📦 Importing JSZip...');
-    // Import JSZip for decompression (Deno-compatible)
-    const JSZip = (await import('npm:jszip@3.10.1')).default;
-    console.log('✅ JSZip imported');
-    
-    console.log('📦 Loading ZIP archive...');
-    const zip = await JSZip.loadAsync(arrayBuffer);
-    console.log('✅ ZIP loaded successfully');
-    
-    console.log('📦 ZIP contents:', Object.keys(zip.files));
-    
-    // Find the CSV file in the ZIP
-    let csvContent: string | null = null;
-    for (const [filename, file] of Object.entries(zip.files)) {
-      if (filename.endsWith('.csv') && !file.dir) {
-        console.log(`📄 Found CSV file: ${filename}`);
-        csvContent = await file.async('text');
-        console.log(`✅ Extracted CSV with ${csvContent.length} characters`);
-        break;
-      }
-    }
-    
-    if (!csvContent) {
-      console.error('❌ No CSV file found in ZIP archive');
-      return restaurants;
-    }
-    
-    console.log(`📄 First 200 characters of CSV:`, csvContent.substring(0, 200));
-    
-    // Parse CSV data
-    const lines = csvContent.split('\n');
-    console.log(`📊 Total lines in CSV: ${lines.length}`);
-    
-    if (lines.length < 2) {
-      console.error('❌ No data found in CSV (less than 2 lines)');
-      return restaurants;
-    }
-    
-    // Get headers
-    const headers = lines[0].split(',').map(h => h.trim().replace(/"/g, ''));
-    console.log('📋 CSV Headers:', headers);
-    console.log('📋 Number of columns:', headers.length);
-    
-    // Parse rows (limit to first 500 to avoid timeout)
-    let parsedCount = 0;
-    let skippedCount = 0;
-    const maxRows = Math.min(lines.length, 501); // 500 data rows + 1 header
-    
-    console.log(`📊 Processing ${maxRows - 1} rows (limited to avoid timeout)`);
-    
-    for (let i = 1; i < maxRows; i++) {
-      const line = lines[i].trim();
-      if (!line) continue;
-      
-      try {
-        // Simple CSV parsing (handles quoted fields)
-        const values: string[] = [];
-        let currentValue = '';
-        let inQuotes = false;
-        
-        for (let j = 0; j < line.length; j++) {
-          const char = line[j];
-          
-          if (char === '"') {
-            inQuotes = !inQuotes;
-          } else if (char === ',' && !inQuotes) {
-            values.push(currentValue.trim().replace(/^"|"$/g, ''));
-            currentValue = '';
-          } else {
-            currentValue += char;
-          }
-        }
-        values.push(currentValue.trim().replace(/^"|"$/g, ''));
-        
-        // Create record object
-        const record: any = {};
-        headers.forEach((header, index) => {
-          record[header] = values[index] || '';
-        });
-        
-        // Log first record for debugging
-        if (i === 1) {
-          console.log('📄 First record sample:', JSON.stringify(record, null, 2));
-        }
-        
-        // Extract location components
-        const name = record.Name || record.name || '';
-        const address = record.Address || record.address || '';
-        const location = record.Location || record.location || '';
-        const price = record.Price || record.price || '';
-        const cuisine = record.Cuisine || record.cuisine || '';
-        const latitude = parseFloat(record.Latitude || record.latitude || '0');
-        const longitude = parseFloat(record.Longitude || record.longitude || '0');
-        const url = record.Url || record.url || record.WebsiteUrl || '';
-        const award = (record.Award || record.award || '').toLowerCase();
-        
-        // Skip if no valid coordinates
-        if (!latitude || !longitude || latitude === 0 || longitude === 0) {
-          skippedCount++;
-          continue;
-        }
-        
-        // Skip if no name
-        if (!name) {
-          skippedCount++;
-          continue;
-        }
-        
-        // Determine star rating from award field
-        let stars = 0;
-        if (award.includes('3 stars') || award.includes('three stars')) {
-          stars = 3;
-        } else if (award.includes('2 stars') || award.includes('two stars')) {
-          stars = 2;
-        } else if (award.includes('1 star') || award.includes('one star')) {
-          stars = 1;
-        } else if (award.includes('bib gourmand')) {
-          stars = 4;
-        } else if (award.includes('selected') || award.includes('plate')) {
-          stars = 5;
-        } else {
-          // Default to 1 star if no award specified but in Michelin guide
-          stars = 1;
-        }
-        
-        // Parse location for city and country
-        const locationParts = location.split(',').map(p => p.trim());
-        const city = locationParts[0] || '';
-        const country = locationParts[locationParts.length - 1] || '';
-        
-        restaurants.push({
-          name,
-          location,
-          address,
-          city,
-          region: locationParts[1] || '',
-          country,
-          latitude,
-          longitude,
-          stars,
-          cuisines: cuisine ? [cuisine] : [],
-          url,
-          price,
-          award,
-        });
-        
-        parsedCount++;
-      } catch (err) {
-        console.error(`⚠️ Error parsing line ${i}:`, err);
-        skippedCount++;
-      }
-    }
-    
-    console.log(`✅ Parsed ${parsedCount} restaurants from Kaggle dataset`);
-    console.log(`⚠️ Skipped ${skippedCount} entries (missing coordinates or invalid data)`);
-    
-    return restaurants;
-  } catch (error) {
-    console.error('❌ Error fetching Michelin data from Kaggle:', error);
-    if (error instanceof Error) {
-      console.error('❌ Error message:', error.message);
-      console.error('❌ Error stack:', error.stack);
-    }
-    return restaurants;
+    const parsed = JSON.parse(apiToken);
+    username = parsed.username;
+    key = parsed.key;
+  } catch (e) {
+    throw new Error('Invalid KAGGLE_API_TOKEN format. Expected JSON with username and key');
   }
+
+  // Kaggle dataset URL for Michelin restaurants
+  const datasetOwner = 'ngshiheng';
+  const datasetName = 'michelin-guide-restaurants-2021';
+  const fileName = 'one-star-michelin-restaurants.csv';
+  
+  try {
+    console.log(`📡 Fetching Michelin data from Kaggle...`);
+    
+    // Create Basic Auth header
+    const auth = btoa(`${username}:${key}`);
+    
+    // Fetch the CSV file from Kaggle
+    const response = await fetch(
+      `https://www.kaggle.com/api/v1/datasets/download/${datasetOwner}/${datasetName}/${fileName}`,
+      {
+        headers: {
+          'Authorization': `Basic ${auth}`,
+        },
+      }
+    );
+
+    if (!response.ok) {
+      throw new Error(`Kaggle API error: ${response.status} ${response.statusText}`);
+    }
+
+    // Parse CSV data
+    const csvText = await response.text();
+    const lines = csvText.split('\n');
+    const headers = lines[0].split(',').map(h => h.trim().replace(/"/g, ''));
+    
+    const restaurants: MichelinRestaurant[] = [];
+    
+    // Parse each line (skip header)
+    for (let i = 1; i < lines.length; i++) {
+      if (!lines[i].trim()) continue;
+      
+      const values = parseCSVLine(lines[i]);
+      
+      if (values.length < headers.length) continue;
+      
+      const restaurant: any = {};
+      headers.forEach((header, index) => {
+        restaurant[header] = values[index];
+      });
+      
+      // Map to our interface
+      if (restaurant.Name && restaurant.Location) {
+        restaurants.push({
+          name: restaurant.Name || '',
+          city: restaurant.Location || '',
+          country: restaurant.Country || '',
+          latitude: parseFloat(restaurant.Latitude) || 0,
+          longitude: parseFloat(restaurant.Longitude) || 0,
+          price: restaurant.Price || '',
+          cuisine: restaurant.Cuisine || '',
+          award: restaurant.Award || '1 MICHELIN Star',
+        });
+      }
+    }
+    
+    const totalAvailable = restaurants.length;
+    
+    // Apply offset and limit
+    const paginatedRestaurants = restaurants.slice(offset, offset + limit);
+    
+    console.log(`✅ Fetched ${paginatedRestaurants.length} restaurants (total: ${totalAvailable})`);
+    
+    return {
+      restaurants: paginatedRestaurants,
+      totalAvailable,
+    };
+  } catch (error) {
+    console.error('❌ Error fetching from Kaggle:', error);
+    throw error;
+  }
+}
+
+/**
+ * Parse a CSV line handling quoted values
+ */
+function parseCSVLine(line: string): string[] {
+  const values: string[] = [];
+  let current = '';
+  let inQuotes = false;
+  
+  for (let i = 0; i < line.length; i++) {
+    const char = line[i];
+    
+    if (char === '"') {
+      inQuotes = !inQuotes;
+    } else if (char === ',' && !inQuotes) {
+      values.push(current.trim());
+      current = '';
+    } else {
+      current += char;
+    }
+  }
+  
+  values.push(current.trim());
+  return values;
+}
+
+/**
+ * Calculate distance between two coordinates using Haversine formula
+ */
+function calculateDistance(lat1: number, lon1: number, lat2: number, lon2: number): number {
+  const R = 6371; // Earth's radius in kilometers
+  const dLat = toRadians(lat2 - lat1);
+  const dLon = toRadians(lon2 - lon1);
+  
+  const a =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos(toRadians(lat1)) * Math.cos(toRadians(lat2)) *
+    Math.sin(dLon / 2) * Math.sin(dLon / 2);
+  
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  const distance = R * c;
+  
+  return distance;
+}
+
+function toRadians(degrees: number): number {
+  return degrees * (Math.PI / 180);
 }
 
 /**
  * Get Michelin rating for a location
  */
-export async function getMichelinRating(latitude: number, longitude: number): Promise<MichelinRestaurant | null> {
+export async function getMichelinRating(lat: number, lng: number, name?: string): Promise<number | null> {
   try {
+    console.log(`🔍 Searching for Michelin rating near (${lat}, ${lng})${name ? ` for "${name}"` : ''}`);
+    
     // Import KV store utilities
     const kv = await import('./kv_store.tsx');
     
-    // Search for nearby Michelin restaurants (within ~100m)
-    const allMichelinData = await kv.getByPrefix('michelin:restaurant:');
+    // Get all Michelin restaurants
+    const restaurants = await kv.getByPrefix('michelin:restaurant:');
     
-    if (!allMichelinData || allMichelinData.length === 0) {
+    if (!restaurants || restaurants.length === 0) {
+      console.log('📊 No Michelin restaurants in database');
       return null;
     }
     
-    // Find the closest restaurant within 100 meters
-    const threshold = 0.001; // Approximately 100 meters in degrees
-    let closestRestaurant: MichelinRestaurant | null = null;
-    let minDistance = Infinity;
+    console.log(`📊 Searching ${restaurants.length} Michelin restaurants`);
     
-    // getByPrefix returns an array of values directly, not objects
-    for (const restaurant of allMichelinData) {
-      if (!restaurant || typeof restaurant.latitude !== 'number' || typeof restaurant.longitude !== 'number') {
-        continue;
-      }
+    // Find closest matching restaurant
+    let closestMatch: MichelinRestaurant | null = null;
+    let closestDistance = Infinity;
+    const MAX_DISTANCE_KM = 0.5; // Maximum distance to consider a match (500 meters)
+    
+    for (const restaurant of restaurants) {
+      if (!restaurant || !restaurant.latitude || !restaurant.longitude) continue;
       
-      // Calculate distance (simple Euclidean distance for small areas)
-      const distance = Math.sqrt(
-        Math.pow(restaurant.latitude - latitude, 2) +
-        Math.pow(restaurant.longitude - longitude, 2)
+      const distance = calculateDistance(
+        lat,
+        lng,
+        restaurant.latitude,
+        restaurant.longitude
       );
       
-      if (distance < threshold && distance < minDistance) {
-        minDistance = distance;
-        closestRestaurant = restaurant as MichelinRestaurant;
+      // If name is provided, prefer exact name matches within reasonable distance
+      if (name && restaurant.name) {
+        const nameMatch = restaurant.name.toLowerCase().includes(name.toLowerCase()) ||
+                         name.toLowerCase().includes(restaurant.name.toLowerCase());
+        
+        if (nameMatch && distance < MAX_DISTANCE_KM * 5) { // Allow larger distance for name matches
+          if (distance < closestDistance) {
+            closestDistance = distance;
+            closestMatch = restaurant as MichelinRestaurant;
+          }
+        }
+      }
+      
+      // Also check proximity-based matching
+      if (distance < MAX_DISTANCE_KM && distance < closestDistance) {
+        closestDistance = distance;
+        closestMatch = restaurant as MichelinRestaurant;
       }
     }
     
-    return closestRestaurant;
+    if (!closestMatch) {
+      console.log('❌ No Michelin restaurant found within range');
+      return null;
+    }
+    
+    console.log(`✅ Found Michelin restaurant: ${closestMatch.name} (${closestDistance.toFixed(3)} km away)`);
+    
+    // Convert Michelin award to score
+    const award = closestMatch.award;
+    if (award.includes('3')) return 3;
+    if (award.includes('2')) return 2;
+    if (award.includes('1')) return 1;
+    if (award.toLowerCase().includes('bib gourmand')) return 0.5;
+    
+    return null;
   } catch (error) {
     console.error('❌ Error getting Michelin rating:', error);
     return null;
@@ -289,21 +240,22 @@ export async function getMichelinRating(latitude: number, longitude: number): Pr
 /**
  * Sync Michelin data from Kaggle to KV store
  */
-export async function syncMichelinData(): Promise<{ success: boolean; message: string; count?: number }> {
+export async function syncMichelinData(offset: number = 0, limit: number = 500): Promise<{ success: boolean; message: string; count?: number; totalAvailable?: number; imported?: number }> {
   try {
-    console.log('🔄 Starting Michelin data sync from Kaggle...');
+    console.log(`🔄 Starting Michelin data sync from Kaggle (offset: ${offset}, limit: ${limit})...`);
     
     // Fetch data from Kaggle
-    const restaurants = await fetchMichelinDataFromKaggle();
+    const { restaurants, totalAvailable } = await fetchMichelinDataFromKaggle(offset, limit);
     
     if (restaurants.length === 0) {
       return {
         success: false,
-        message: 'No restaurants fetched from Kaggle'
+        message: 'No restaurants fetched from Kaggle',
+        totalAvailable
       };
     }
     
-    console.log(`📊 Fetched ${restaurants.length} restaurants from Kaggle`);
+    console.log(`📊 Fetched ${restaurants.length} restaurants from Kaggle (total available: ${totalAvailable})`);
     
     // Import KV store utilities
     const kv = await import('./kv_store.tsx');
@@ -372,7 +324,9 @@ export async function syncMichelinData(): Promise<{ success: boolean; message: s
     return {
       success: true,
       message: `Successfully synced ${storedCount} new Michelin restaurants (${skippedCount} duplicates skipped, ${errorCount} errors)`,
-      count: storedCount
+      count: storedCount,
+      totalAvailable,
+      imported: restaurants.length
     };
   } catch (error) {
     console.error('❌ Error syncing Michelin data:', error);

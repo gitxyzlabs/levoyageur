@@ -1210,8 +1210,13 @@ app.post('/make-server-48182530/michelin/sync', verifyAuth, verifyEditor, async 
   console.log('📍 User Email:', c.get('userEmail'));
   
   try {
-    console.log('🔍 Starting Michelin sync process...');
-    const result = await syncMichelinData();
+    // Get pagination parameters from request body
+    const body = await c.req.json().catch(() => ({}));
+    const offset = parseInt(body.offset || '0');
+    const limit = parseInt(body.limit || '500');
+    
+    console.log(`🔍 Starting Michelin sync process with offset: ${offset}, limit: ${limit}...`);
+    const result = await syncMichelinData(offset, limit);
     
     console.log('📊 Michelin sync result:', JSON.stringify(result, null, 2));
     
@@ -1222,7 +1227,9 @@ app.post('/make-server-48182530/michelin/sync', verifyAuth, verifyEditor, async 
         added: result.count,
         updated: 0,
         errors: 0,
-        message: result.message
+        message: result.message,
+        totalAvailable: result.totalAvailable,
+        imported: result.imported
       });
     } else {
       console.error(`❌ Michelin sync failed: ${result.message}`);
@@ -1231,7 +1238,8 @@ app.post('/make-server-48182530/michelin/sync', verifyAuth, verifyEditor, async 
         added: 0,
         updated: 0,
         errors: 1,
-        message: result.message
+        message: result.message,
+        totalAvailable: result.totalAvailable
       }, 400);
     }
   } catch (error) {

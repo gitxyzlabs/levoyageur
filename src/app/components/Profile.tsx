@@ -1,5 +1,5 @@
 import React from 'react';
-import { User as UserIcon, Mail, Shield, Calendar, MapPin, RefreshCw, Star } from 'lucide-react';
+import { User as UserIcon, Mail, Shield, Calendar, MapPin, RefreshCw, Star, Loader2 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import type { User } from '../../utils/api';
 import { toast } from 'sonner';
@@ -11,6 +11,7 @@ interface ProfileProps {
   onLocationPermissionToggle?: (enabled: boolean) => void;
   favoritesCount?: number;
   wantToGoCount?: number;
+  onMichelinSyncComplete?: () => void; // Callback to refresh locations after sync
 }
 
 export function Profile({ 
@@ -19,44 +20,92 @@ export function Profile({
   onLocationPermissionToggle,
   favoritesCount = 0,
   wantToGoCount = 0,
+  onMichelinSyncComplete,
 }: ProfileProps) {
   const [isSyncing, setIsSyncing] = React.useState(false);
+  const [syncProgress, setSyncProgress] = React.useState<{
+    current: number;
+    total: number;
+    imported: number;
+    added: number;
+  } | null>(null);
 
-  const handleMichelinSync = async () => {
+  const handleMichelinSyncBatch = async () => {
     setIsSyncing(true);
+    setSyncProgress(null);
     
     try {
-      toast.info('Starting Michelin Guide sync...', {
-        description: 'This may take a few moments'
+      const BATCH_SIZE = 1000; // Process 1000 restaurants at a time
+      let offset = 0;
+      let totalAvailable = 0;
+      let totalAdded = 0;
+      let totalImported = 0;
+      let hasMore = true;
+
+      toast.info('Starting Michelin Guide batch import...', {
+        description: 'This will import all 18,000+ restaurants in batches'
       });
 
-      const result = await api.syncMichelinData();
-      
-      console.log('✅ Michelin sync result:', result);
-      
-      if (result.success) {
-        toast.success('Michelin Guide data synced successfully!', {
-          description: `Added: ${result.added || result.count || 0}, Updated: ${result.updated || 0}, Errors: ${result.errors || 0}`
+      // First batch to get total count
+      while (hasMore) {
+        console.log(`🔄 Syncing batch at offset ${offset}...`);
+        
+        const result = await api.syncMichelinData(offset, BATCH_SIZE);
+        
+        console.log('✅ Batch sync result:', result);
+        
+        if (!result.success) {
+          toast.error('Batch sync failed', {
+            description: result.message
+          });
+          break;
+        }
+
+        totalAvailable = result.totalAvailable || 0;
+        totalAdded += result.added || 0;
+        totalImported += result.imported || 0;
+
+        // Update progress
+        setSyncProgress({
+          current: offset + (result.imported || 0),
+          total: totalAvailable,
+          imported: totalImported,
+          added: totalAdded
         });
-      } else {
-        console.error('❌ Michelin sync failed:', result);
-        toast.error('Michelin sync completed with issues', {
-          description: result.message || 'Some data may not have been synced'
+
+        // Move to next batch
+        offset += BATCH_SIZE;
+
+        // Check if we've processed all data
+        if (offset >= totalAvailable) {
+          hasMore = false;
+        }
+
+        // Show progress toast
+        toast.info(`Import progress: ${Math.min(offset, totalAvailable)}/${totalAvailable}`, {
+          description: `Added ${totalAdded} new restaurants`
         });
+
+        // Small delay to avoid overwhelming the server
+        await new Promise(resolve => setTimeout(resolve, 500));
+      }
+
+      toast.success('Michelin Guide import complete!', {
+        description: `Successfully imported ${totalImported} restaurants, added ${totalAdded} new entries`
+      });
+
+      // Refresh locations on the map
+      if (onMichelinSyncComplete) {
+        onMichelinSyncComplete();
       }
     } catch (error: any) {
       console.error('Failed to sync Michelin data:', error);
-      console.error('Error details:', {
-        message: error.message,
-        error: error.error,
-        details: error.details,
-        stack: error.stack
-      });
       toast.error('Failed to sync Michelin data', {
-        description: error.message || error.error || 'Please check the console for details'
+        description: error.message || 'Please check the console for details'
       });
     } finally {
       setIsSyncing(false);
+      setSyncProgress(null);
     }
   };
 
@@ -203,7 +252,7 @@ export function Profile({
                     This data is publicly available to all users after syncing.
                   </p>
                   <button
-                    onClick={handleMichelinSync}
+                    onClick={handleMichelinSyncBatch}
                     disabled={isSyncing}
                     className={`inline-flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium transition-all ${
                       isSyncing
@@ -217,10 +266,32 @@ export function Profile({
                 </div>
               </div>
               
+              {/* Progress Bar */}
+              {syncProgress && (
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 space-y-2">
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="font-medium text-blue-900">Import Progress</span>
+                    <span className="text-blue-700">
+                      {syncProgress.current.toLocaleString()} / {syncProgress.total.toLocaleString()}
+                    </span>
+                  </div>
+                  <div className="w-full bg-blue-200 rounded-full h-2 overflow-hidden">
+                    <div 
+                      className="bg-blue-600 h-full transition-all duration-300 ease-out"
+                      style={{ width: `${(syncProgress.current / syncProgress.total * 100).toFixed(1)}%` }}
+                    />
+                  </div>
+                  <div className="flex items-center justify-between text-xs text-blue-700">
+                    <span>Processed: {syncProgress.imported.toLocaleString()}</span>
+                    <span>New entries: {syncProgress.added.toLocaleString()}</span>
+                  </div>
+                </div>
+              )}
+              
               {/* Info Box */}
               <div className="bg-amber-50 border border-amber-200 rounded-lg p-3">
                 <p className="text-xs text-amber-800">
-                  <strong>Note:</strong> Syncing typically takes 30-60 seconds and fetches data from official Michelin Guide sources. 
+                  <strong>Note:</strong> The full import of 18,000+ restaurants will take several minutes. 
                   All synced Michelin ratings will be visible on the map with special red star markers.
                 </p>
               </div>
