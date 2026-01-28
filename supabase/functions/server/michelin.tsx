@@ -1,9 +1,12 @@
 /**
  * Michelin Guide Data Scraper
  * 
- * Based on: https://github.com/NicolaFerracin/michelin-stars-restaurants-api
+ * Data sources:
+ * - Kaggle Dataset: ngshiheng/michelin-guide-restaurants-2021
+ * - Fallback: GitHub repos
+ * - Fallback: Sample data
  * 
- * This module scrapes Michelin Guide restaurant data and stores it in our database.
+ * This module fetches Michelin Guide restaurant data and stores it in our database.
  * Michelin ratings:
  * - 0: No Michelin rating (Bib Gourmand or Plate)
  * - 1: One star - High quality cooking, worth a stop
@@ -27,10 +30,12 @@ interface MichelinRestaurant {
   stars: number; // 1, 2, or 3
   cuisines?: string[];
   url?: string;
+  price?: string;
+  award?: string;
 }
 
 /**
- * Sample Michelin data for testing when GitHub repos are unavailable
+ * Sample Michelin data for testing when other sources are unavailable
  */
 function getSampleMichelinData(): MichelinRestaurant[] {
   return [
@@ -81,9 +86,173 @@ function getSampleMichelinData(): MichelinRestaurant[] {
 }
 
 /**
- * Fetch Michelin data from GitHub repositories
+ * Fetch Michelin data from Kaggle Dataset
+ * Dataset: ngshiheng/michelin-guide-restaurants-2021
  */
-export async function fetchMichelinDataFromAPI(): Promise<MichelinRestaurant[]> {
+export async function fetchMichelinDataFromKaggle(): Promise<MichelinRestaurant[]> {
+  const restaurants: MichelinRestaurant[] = [];
+  
+  try {
+    const kaggleToken = Deno.env.get('KAGGLE_API_TOKEN');
+    
+    if (!kaggleToken) {
+      console.error('❌ KAGGLE_API_TOKEN not found in environment variables');
+      return restaurants;
+    }
+    
+    console.log('🔍 Fetching Michelin data from Kaggle...');
+    
+    // Kaggle API endpoint for dataset files
+    const datasetOwner = 'ngshiheng';
+    const datasetName = 'michelin-guide-restaurants-2021';
+    const metadataUrl = `https://www.kaggle.com/api/v1/datasets/download/${datasetOwner}/${datasetName}`;
+    
+    console.log(`📥 Downloading dataset from: ${metadataUrl}`);
+    
+    const response = await fetch(metadataUrl, {
+      headers: {
+        'Authorization': `Bearer ${kaggleToken}`,
+      },
+    });
+    
+    if (!response.ok) {
+      console.error(`❌ Failed to fetch from Kaggle API: ${response.status} ${response.statusText}`);
+      const errorText = await response.text();
+      console.error('Error details:', errorText);
+      return restaurants;
+    }
+    
+    // The response should be a CSV file
+    const csvText = await response.text();
+    console.log(`✅ Received ${csvText.length} bytes of data`);
+    
+    // Parse CSV data
+    const lines = csvText.split('\n');
+    if (lines.length < 2) {
+      console.error('❌ No data found in CSV');
+      return restaurants;
+    }
+    
+    // Get headers
+    const headers = lines[0].split(',').map(h => h.trim().replace(/"/g, ''));
+    console.log('📋 CSV Headers:', headers);
+    
+    // Parse rows
+    let parsedCount = 0;
+    let skippedCount = 0;
+    
+    for (let i = 1; i < lines.length; i++) {
+      const line = lines[i].trim();
+      if (!line) continue;
+      
+      try {
+        // Simple CSV parsing (handles quoted fields)
+        const values: string[] = [];
+        let currentValue = '';
+        let inQuotes = false;
+        
+        for (let j = 0; j < line.length; j++) {
+          const char = line[j];
+          
+          if (char === '"') {
+            inQuotes = !inQuotes;
+          } else if (char === ',' && !inQuotes) {
+            values.push(currentValue.trim().replace(/^"|"$/g, ''));
+            currentValue = '';
+          } else {
+            currentValue += char;
+          }
+        }
+        values.push(currentValue.trim().replace(/^"|"$/g, ''));
+        
+        // Create record object
+        const record: any = {};
+        headers.forEach((header, index) => {
+          record[header] = values[index] || '';
+        });
+        
+        // Extract location components
+        const name = record.Name || record.name || '';
+        const address = record.Address || record.address || '';
+        const location = record.Location || record.location || '';
+        const price = record.Price || record.price || '';
+        const cuisine = record.Cuisine || record.cuisine || '';
+        const latitude = parseFloat(record.Latitude || record.latitude || '0');
+        const longitude = parseFloat(record.Longitude || record.longitude || '0');
+        const url = record.Url || record.url || record.WebsiteUrl || '';
+        const award = (record.Award || record.award || '').toLowerCase();
+        
+        // Skip if no valid coordinates
+        if (!latitude || !longitude || latitude === 0 || longitude === 0) {
+          skippedCount++;
+          continue;
+        }
+        
+        // Skip if no name
+        if (!name) {
+          skippedCount++;
+          continue;
+        }
+        
+        // Determine star rating from award field
+        let stars = 0;
+        if (award.includes('3 stars') || award.includes('three stars')) {
+          stars = 3;
+        } else if (award.includes('2 stars') || award.includes('two stars')) {
+          stars = 2;
+        } else if (award.includes('1 star') || award.includes('one star')) {
+          stars = 1;
+        } else if (award.includes('bib gourmand')) {
+          stars = 4;
+        } else if (award.includes('selected') || award.includes('plate')) {
+          stars = 5;
+        } else {
+          // Default to 1 star if no award specified but in Michelin guide
+          stars = 1;
+        }
+        
+        // Parse location for city and country
+        const locationParts = location.split(',').map(p => p.trim());
+        const city = locationParts[0] || '';
+        const country = locationParts[locationParts.length - 1] || '';
+        
+        restaurants.push({
+          name,
+          location,
+          address,
+          city,
+          region: locationParts[1] || '',
+          country,
+          latitude,
+          longitude,
+          stars,
+          cuisines: cuisine ? [cuisine] : [],
+          url,
+          price,
+          award,
+        });
+        
+        parsedCount++;
+      } catch (err) {
+        console.error(`⚠️ Error parsing line ${i}:`, err);
+        skippedCount++;
+      }
+    }
+    
+    console.log(`✅ Parsed ${parsedCount} restaurants from Kaggle dataset`);
+    console.log(`⚠️ Skipped ${skippedCount} entries (missing coordinates or invalid data)`);
+    
+    return restaurants;
+  } catch (error) {
+    console.error('❌ Error fetching Michelin data from Kaggle:', error);
+    return restaurants;
+  }
+}
+
+/**
+ * Fetch Michelin data from GitHub repositories (legacy fallback)
+ */
+export async function fetchMichelinDataFromGitHub(): Promise<MichelinRestaurant[]> {
   const restaurants: MichelinRestaurant[] = [];
   
   try {
@@ -167,7 +336,7 @@ export async function fetchMichelinDataFromAPI(): Promise<MichelinRestaurant[]> 
     console.log(`✅ Total fetched: ${restaurants.length} Michelin restaurants`);
     return restaurants;
   } catch (error) {
-    console.error('❌ Error fetching Michelin data from API:', error);
+    console.error('❌ Error fetching Michelin data from GitHub API:', error);
     return restaurants;
   }
 }
@@ -181,6 +350,8 @@ export async function storeMichelinRestaurants(restaurants: MichelinRestaurant[]
     Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
   );
   let stored = 0;
+  
+  console.log(`📊 Storing ${restaurants.length} restaurants in database...`);
   
   for (const restaurant of restaurants) {
     try {
@@ -255,13 +426,31 @@ export async function syncMichelinData(): Promise<{ success: boolean; count: num
   try {
     console.log('🍽️ Starting Michelin data sync...');
     
-    // Try to fetch from GitHub API first
-    let restaurants = await fetchMichelinDataFromAPI();
+    let restaurants: MichelinRestaurant[] = [];
+    let dataSource = '';
+    
+    // Try to fetch from Kaggle API first
+    restaurants = await fetchMichelinDataFromKaggle();
+    if (restaurants.length > 0) {
+      dataSource = 'Kaggle';
+      console.log('✅ Successfully fetched from Kaggle dataset');
+    }
+    
+    // If Kaggle fetch fails, use GitHub API as fallback
+    if (restaurants.length === 0) {
+      console.log('⚠️ Kaggle dataset unavailable, trying GitHub API...');
+      restaurants = await fetchMichelinDataFromGitHub();
+      if (restaurants.length > 0) {
+        dataSource = 'GitHub';
+        console.log('✅ Successfully fetched from GitHub');
+      }
+    }
     
     // If GitHub fetch fails, use sample data
     if (restaurants.length === 0) {
       console.log('⚠️ GitHub repositories unavailable, using sample Michelin data...');
       restaurants = getSampleMichelinData();
+      dataSource = 'Sample Data';
     }
     
     if (restaurants.length === 0) {
@@ -273,16 +462,14 @@ export async function syncMichelinData(): Promise<{ success: boolean; count: num
       };
     }
     
-    console.log(`📊 Processing ${restaurants.length} Michelin restaurants...`);
+    console.log(`📊 Processing ${restaurants.length} Michelin restaurants from ${dataSource}...`);
     
     // Store restaurants in database
     const storedCount = await storeMichelinRestaurants(restaurants);
     
     console.log(`✅ Sync complete: ${storedCount} locations processed out of ${restaurants.length} fetched`);
     
-    const message = restaurants === getSampleMichelinData() 
-      ? `Successfully processed ${storedCount} sample Michelin restaurants (GitHub data unavailable)`
-      : `Successfully processed ${storedCount} Michelin restaurants from GitHub`;
+    const message = `Successfully processed ${storedCount} Michelin restaurants from ${dataSource}`;
     
     return {
       success: true,
