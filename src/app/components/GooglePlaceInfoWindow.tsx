@@ -19,6 +19,7 @@ interface GooglePlaceInfoWindowProps {
   favoriteIds?: Set<string>;
   wantToGoIds?: Set<string>;
   lvLocation?: Location | null;
+  onRefresh?: () => void;
 }
 
 export function GooglePlaceInfoWindow({ 
@@ -31,7 +32,8 @@ export function GooglePlaceInfoWindow({
   onRatingAdded,
   favoriteIds,
   wantToGoIds,
-  lvLocation
+  lvLocation,
+  onRefresh
 }: GooglePlaceInfoWindowProps) {
   const [currentPhotoIndex, setCurrentPhotoIndex] = useState(0);
   const [showEditorModal, setShowEditorModal] = useState(false);
@@ -514,6 +516,7 @@ export function GooglePlaceInfoWindow({
               locationId={place.place_id}
               locationName={place.name || 'Unknown Place'}
               currentRating={lvLocation?.lvEditorsScore}
+              currentMichelinScore={lvLocation?.michelinScore}
               currentTags={lvLocation?.tags || []}
               placeData={{
                 name: place.name || 'Unknown Place',
@@ -524,11 +527,8 @@ export function GooglePlaceInfoWindow({
               }}
               onClose={() => setShowEditorModal(false)}
               onSuccess={() => {
-                toast.success('Rating updated successfully!');
-                setShowEditorModal(false);
-                if (onRatingAdded) {
-                  onRatingAdded();
-                }
+                // Reload locations after rating is updated
+                onRefresh?.();
               }}
             />
           )}

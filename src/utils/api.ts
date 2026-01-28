@@ -376,6 +376,7 @@ export const api = {
   updateLocationRating: async (
     locationId: string, 
     lvEditorsScore?: number, 
+    michelinScore?: number,
     tags?: string[],
     placeData?: {
       name: string;
@@ -387,7 +388,7 @@ export const api = {
   ) => {
     return fetchWithAuth(`${API_BASE}/locations/${locationId}/rating`, {
       method: 'PUT',
-      body: JSON.stringify({ lvEditorsScore, tags, placeData }),
+      body: JSON.stringify({ lvEditorsScore, michelinScore, tags, placeData }),
     });
   },
 

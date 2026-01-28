@@ -35,7 +35,13 @@ app.use('*', cors({
 function getSupabaseAdmin() {
   return createClient(
     Deno.env.get('SUPABASE_URL')!,
-    Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
+    Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
+    {
+      auth: {
+        autoRefreshToken: false,
+        persistSession: false,
+      },
+    }
   );
 }
 
@@ -1051,10 +1057,14 @@ app.put('/make-server-48182530/locations/:id/rating', verifyAuth, verifyEditor, 
   console.log('📍 PUT /locations/:id/rating - Start');
   const userId = c.get('userId');
   const locationId = c.req.param('id');
-  const { lvEditorsScore, tags, placeData } = await c.req.json();
+  const { lvEditorsScore, michelinScore, tags, placeData } = await c.req.json();
 
   if (lvEditorsScore !== undefined && (lvEditorsScore < 0 || lvEditorsScore > 11)) {
     return c.json({ error: 'lvEditorsScore must be between 0.0 and 11.0' }, 400);
+  }
+
+  if (michelinScore !== undefined && (michelinScore < 0 || michelinScore > 11)) {
+    return c.json({ error: 'michelinScore must be between 0.0 and 11.0' }, 400);
   }
 
   try {
@@ -1097,6 +1107,7 @@ app.put('/make-server-48182530/locations/:id/rating', verifyAuth, verifyEditor, 
         lng: placeData.lng,
         google_rating: placeData.rating || null,
         lv_editors_score: lvEditorsScore,
+        michelin_score: michelinScore,
         tags: tags || [],
         created_by: userId,
         updated_by: userId,
@@ -1144,6 +1155,7 @@ app.put('/make-server-48182530/locations/:id/rating', verifyAuth, verifyEditor, 
     };
     
     if (lvEditorsScore !== undefined) dbUpdates.lv_editors_score = lvEditorsScore;
+    if (michelinScore !== undefined) dbUpdates.michelin_score = michelinScore;
     if (tags !== undefined) dbUpdates.tags = tags;
     
     const { data: updatedLocation, error } = await supabase

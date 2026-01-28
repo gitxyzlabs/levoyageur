@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { X, Star, Tag as TagIcon, Plus } from 'lucide-react';
+import { MichelinFlower } from '@/app/components/MichelinIcons';
 import { api } from '../../utils/api';
 import { toast } from 'sonner';
 
@@ -7,6 +8,7 @@ interface EditorRatingModalProps {
   locationId: string;
   locationName: string;
   currentRating?: number;
+  currentMichelinScore?: number;
   currentTags?: string[];
   onClose: () => void;
   onSuccess: () => void;
@@ -23,12 +25,14 @@ export function EditorRatingModal({
   locationId,
   locationName,
   currentRating,
+  currentMichelinScore,
   currentTags = [],
   onClose,
   onSuccess,
   placeData,
 }: EditorRatingModalProps) {
   const [rating, setRating] = useState(currentRating?.toString() || '');
+  const [michelinScore, setMichelinScore] = useState(currentMichelinScore?.toString() || '');
   const [selectedTags, setSelectedTags] = useState<string[]>(currentTags);
   const [tagInput, setTagInput] = useState('');
   const [availableTags, setAvailableTags] = useState<string[]>([]);
@@ -71,6 +75,14 @@ export function EditorRatingModal({
     }
   };
 
+  const handleMichelinScoreChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    // Allow empty, numbers, and decimals
+    if (value === '' || /^\d*\.?\d*$/.test(value)) {
+      setMichelinScore(value);
+    }
+  };
+
   const handleAddTag = async (tagName: string) => {
     const normalizedTag = tagName.toLowerCase().trim();
     if (!normalizedTag || selectedTags.includes(normalizedTag)) return;
@@ -100,11 +112,18 @@ export function EditorRatingModal({
       return;
     }
 
+    // Validate Michelin Score
+    const michelinScoreValue = michelinScore ? parseFloat(michelinScore) : undefined;
+    if (michelinScoreValue !== undefined && (michelinScoreValue < 0 || michelinScoreValue > 11)) {
+      setError('Michelin Score must be between 0.0 and 11.0');
+      return;
+    }
+
     setIsSubmitting(true);
-    console.log('🎯 Submitting rating:', { locationId, ratingValue, selectedTags, placeData });
+    console.log('🎯 Submitting rating:', { locationId, ratingValue, michelinScoreValue, selectedTags, placeData });
 
     try {
-      const result = await api.updateLocationRating(locationId, ratingValue, selectedTags, placeData);
+      const result = await api.updateLocationRating(locationId, ratingValue, michelinScoreValue, selectedTags, placeData);
       console.log('✅ Rating updated successfully:', result);
       toast.success('Rating updated successfully!');
       onSuccess();
@@ -165,6 +184,29 @@ export function EditorRatingModal({
             />
             <p className="text-xs text-slate-500 mt-1">
               Leave empty to remove rating
+            </p>
+          </div>
+
+          {/* Michelin Score */}
+          <div>
+            <label htmlFor="michelinScore" className="flex items-center gap-2 text-sm font-medium text-slate-700 mb-2">
+              <MichelinFlower className="h-4 w-4 text-red-500" />
+              Michelin Score (0.0 - 11.0)
+            </label>
+            <input
+              id="michelinScore"
+              type="number"
+              inputMode="decimal"
+              step="0.1"
+              min="0"
+              max="11"
+              value={michelinScore}
+              onChange={handleMichelinScoreChange}
+              placeholder="Enter Michelin Score..."
+              className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-lg"
+            />
+            <p className="text-xs text-slate-500 mt-1">
+              Leave empty to remove Michelin Score
             </p>
           </div>
 

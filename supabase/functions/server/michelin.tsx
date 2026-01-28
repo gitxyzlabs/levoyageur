@@ -8,26 +8,25 @@
  * 
  * This module fetches Michelin Guide restaurant data and stores it in our database.
  * Michelin ratings:
- * - 0: No Michelin rating (Bib Gourmand or Plate)
- * - 1: One star - High quality cooking, worth a stop
- * - 2: Two stars - Excellent cooking, worth a detour
- * - 3: Three stars - Exceptional cuisine, worth a special journey
- * - 4: Bib Gourmand - Good quality, good value cooking
- * - 5: Michelin Plate - Good cooking
+ * - 1-3 stars: Official Michelin star ratings
+ * - 4: Bib Gourmand
+ * - 5: Michelin Plate (Selected Restaurants)
  */
 
 import { createClient } from "npm:@supabase/supabase-js@2";
+import * as kv from "./kv_store.tsx";
 
+// Types
 interface MichelinRestaurant {
   name: string;
   location: string;
   address?: string;
-  city?: string;
+  city: string;
   region?: string;
-  country?: string;
-  latitude?: number;
-  longitude?: number;
-  stars: number; // 1, 2, or 3
+  country: string;
+  latitude: number;
+  longitude: number;
+  stars: number; // 1-3 for stars, 4 for Bib Gourmand, 5 for Plate
   cuisines?: string[];
   url?: string;
   price?: string;
@@ -35,52 +34,46 @@ interface MichelinRestaurant {
 }
 
 /**
- * Sample Michelin data for testing when other sources are unavailable
+ * Get sample Michelin data (fallback when APIs are unavailable)
  */
 function getSampleMichelinData(): MichelinRestaurant[] {
   return [
-    // New York
-    { name: "Eleven Madison Park", location: "New York, NY", latitude: 40.7413, longitude: -73.9871, stars: 3, city: "New York", country: "USA", cuisines: ["Contemporary"] },
-    { name: "Le Bernardin", location: "New York, NY", latitude: 40.7614, longitude: -73.9776, stars: 3, city: "New York", country: "USA", cuisines: ["Seafood"] },
-    { name: "Per Se", location: "New York, NY", latitude: 40.7686, longitude: -73.9830, stars: 3, city: "New York", country: "USA", cuisines: ["French"] },
-    { name: "Masa", location: "New York, NY", latitude: 40.7686, longitude: -73.9830, stars: 3, city: "New York", country: "USA", cuisines: ["Japanese"] },
-    { name: "Chef's Table at Brooklyn Fare", location: "New York, NY", latitude: 40.6880, longitude: -73.9881, stars: 2, city: "New York", country: "USA", cuisines: ["Contemporary"] },
+    // Three-star restaurants
+    { name: "Alain Ducasse au Plaza Athénée", location: "Paris", latitude: 48.8664, longitude: 2.3041, stars: 3, city: "Paris", country: "France", cuisines: ["French"] },
+    { name: "L'Ambroisie", location: "Paris", latitude: 48.8534, longitude: 2.3626, stars: 3, city: "Paris", country: "France", cuisines: ["French"] },
+    { name: "Arpège", location: "Paris", latitude: 48.8566, longitude: 2.3160, stars: 3, city: "Paris", country: "France", cuisines: ["Contemporary"] },
+    { name: "Guy Savoy", location: "Paris", latitude: 48.8576, longitude: 2.3385, stars: 3, city: "Paris", country: "France", cuisines: ["French"] },
+    { name: "Le Pré Catelan", location: "Paris", latitude: 48.8634, longitude: 2.2497, stars: 3, city: "Paris", country: "France", cuisines: ["French"] },
+    { name: "Pierre Gagnaire", location: "Paris", latitude: 48.8738, longitude: 2.3044, stars: 3, city: "Paris", country: "France", cuisines: ["French"] },
+    { name: "Alléno Paris au Pavillon Ledoyen", location: "Paris", latitude: 48.8661, longitude: 2.3153, stars: 3, city: "Paris", country: "France", cuisines: ["French"] },
+    { name: "Le Cinq", location: "Paris", latitude: 48.8683, longitude: 2.3038, stars: 3, city: "Paris", country: "France", cuisines: ["French"] },
     
-    // San Francisco
-    { name: "The French Laundry", location: "Yountville, CA", latitude: 38.4036, longitude: -122.3630, stars: 3, city: "Yountville", country: "USA", cuisines: ["French"] },
-    { name: "Benu", location: "San Francisco, CA", latitude: 37.7830, longitude: -122.3932, stars: 3, city: "San Francisco", country: "USA", cuisines: ["Asian"] },
-    { name: "Quince", location: "San Francisco, CA", latitude: 37.7978, longitude: -122.4045, stars: 3, city: "San Francisco", country: "USA", cuisines: ["Italian"] },
-    { name: "Atelier Crenn", location: "San Francisco, CA", latitude: 37.7909, longitude: -122.4358, stars: 3, city: "San Francisco", country: "USA", cuisines: ["French"] },
-    { name: "SingleThread", location: "Healdsburg, CA", latitude: 38.6102, longitude: -122.8697, stars: 3, city: "Healdsburg", country: "USA", cuisines: ["Contemporary"] },
+    // Two-star restaurants
+    { name: "Astrance", location: "Paris", latitude: 48.8584, longitude: 2.2945, stars: 2, city: "Paris", country: "France", cuisines: ["Contemporary"] },
+    { name: "L'Atelier de Joël Robuchon Étoile", location: "Paris", latitude: 48.8738, longitude: 2.2950, stars: 2, city: "Paris", country: "France", cuisines: ["French"] },
+    { name: "Le Gabriel", location: "Paris", latitude: 48.8697, longitude: 2.3147, stars: 2, city: "Paris", country: "France", cuisines: ["French"] },
+    { name: "David Toutain", location: "Paris", latitude: 48.8566, longitude: 2.3172, stars: 2, city: "Paris", country: "France", cuisines: ["Contemporary"] },
+    { name: "Kei", location: "Paris", latitude: 48.8656, longitude: 2.3322, stars: 2, city: "Paris", country: "France", cuisines: ["French"] },
+    { name: "Septime", location: "Paris", latitude: 48.8534, longitude: 2.3810, stars: 2, city: "Paris", country: "France", cuisines: ["Contemporary"] },
     
-    // Los Angeles
-    { name: "Providence", location: "Los Angeles, CA", latitude: 34.0522, longitude: -118.2437, stars: 2, city: "Los Angeles", country: "USA", cuisines: ["Seafood"] },
-    { name: "n/naka", location: "Los Angeles, CA", latitude: 34.0522, longitude: -118.2437, stars: 2, city: "Los Angeles", country: "USA", cuisines: ["Japanese"] },
-    { name: "Hayato", location: "Los Angeles, CA", latitude: 34.0430, longitude: -118.2537, stars: 2, city: "Los Angeles", country: "USA", cuisines: ["Japanese"] },
+    // One-star restaurants
+    { name: "Frenchie", location: "Paris", latitude: 48.8656, longitude: 2.3410, stars: 1, city: "Paris", country: "France", cuisines: ["Contemporary"] },
+    { name: "Yam'Tcha", location: "Paris", latitude: 48.8656, longitude: 2.3322, stars: 1, city: "Paris", country: "France", cuisines: ["Fusion"] },
+    { name: "Quinsou", location: "Paris", latitude: 48.8502, longitude: 2.3292, stars: 1, city: "Paris", country: "France", cuisines: ["French"] },
+    { name: "Le Chateaubriand", location: "Paris", latitude: 48.8699, longitude: 2.3832, stars: 1, city: "Paris", country: "France", cuisines: ["Contemporary"] },
     
-    // Chicago
-    { name: "Alinea", location: "Chicago, IL", latitude: 41.9217, longitude: -87.6561, stars: 3, city: "Chicago", country: "USA", cuisines: ["Contemporary"] },
-    { name: "Smyth", location: "Chicago, IL", latitude: 41.8781, longitude: -87.6298, stars: 2, city: "Chicago", country: "USA", cuisines: ["Contemporary"] },
+    // International (New York)
+    { name: "Eleven Madison Park", location: "New York", latitude: 40.7421, longitude: -73.9876, stars: 3, city: "New York", country: "USA", cuisines: ["Contemporary"] },
+    { name: "Le Bernardin", location: "New York", latitude: 40.7614, longitude: -73.9776, stars: 3, city: "New York", country: "USA", cuisines: ["Seafood"] },
+    { name: "Per Se", location: "New York", latitude: 40.7686, longitude: -73.9830, stars: 3, city: "New York", country: "USA", cuisines: ["French"] },
     
-    // Paris
-    { name: "Guy Savoy", location: "Paris", latitude: 48.8606, longitude: 2.3376, stars: 3, city: "Paris", country: "France", cuisines: ["French"] },
-    { name: "L'Arpège", location: "Paris", latitude: 48.8566, longitude: 2.3137, stars: 3, city: "Paris", country: "France", cuisines: ["French"] },
-    { name: "Alain Ducasse au Plaza Athénée", location: "Paris", latitude: 48.8662, longitude: 2.3049, stars: 3, city: "Paris", country: "France", cuisines: ["French"] },
-    { name: "Arpège", location: "Paris", latitude: 48.8556, longitude: 2.3137, stars: 3, city: "Paris", country: "France", cuisines: ["French"] },
+    // International (Tokyo)
+    { name: "Kanda", location: "Tokyo", latitude: 35.6751, longitude: 139.7706, stars: 3, city: "Tokyo", country: "Japan", cuisines: ["Japanese"] },
+    { name: "Quintessence", location: "Tokyo", latitude: 35.6484, longitude: 139.7274, stars: 3, city: "Tokyo", country: "Japan", cuisines: ["French"] },
     
-    // Tokyo
-    { name: "Kanda", location: "Tokyo", latitude: 35.6762, longitude: 139.7654, stars: 3, city: "Tokyo", country: "Japan", cuisines: ["Japanese"] },
-    { name: "Quintessence", location: "Tokyo", latitude: 35.6466, longitude: 139.7294, stars: 3, city: "Tokyo", country: "Japan", cuisines: ["French"] },
-    { name: "Ryugin", location: "Tokyo", latitude: 35.6655, longitude: 139.7303, stars: 3, city: "Tokyo", country: "Japan", cuisines: ["Japanese"] },
-    { name: "Sushi Saito", location: "Tokyo", latitude: 35.6638, longitude: 139.7284, stars: 3, city: "Tokyo", country: "Japan", cuisines: ["Sushi"] },
-    
-    // London
-    { name: "Restaurant Gordon Ramsay", location: "London", latitude: 51.4875, longitude: -0.1619, stars: 3, city: "London", country: "UK", cuisines: ["French"] },
-    { name: "Alain Ducasse at The Dorchester", location: "London", latitude: 51.5074, longitude: -0.1522, stars: 3, city: "London", country: "UK", cuisines: ["French"] },
-    { name: "The Ledbury", location: "London", latitude: 51.5155, longitude: -0.2058, stars: 2, city: "London", country: "UK", cuisines: ["Contemporary"] },
-    
-    // Barcelona
-    { name: "Lasarte", location: "Barcelona", latitude: 41.3851, longitude: 2.1734, stars: 3, city: "Barcelona", country: "Spain", cuisines: ["Mediterranean"] },
+    // International (Spain)
+    { name: "Azurmendi", location: "Larrabetzu", latitude: 43.2345, longitude: -2.8418, stars: 3, city: "Larrabetzu", country: "Spain", cuisines: ["Basque"] },
+    { name: "Martín Berasategui", location: "Lasarte-Oria", latitude: 43.2697, longitude: -2.0192, stars: 3, city: "Lasarte-Oria", country: "Spain", cuisines: ["Basque"] },
     { name: "ABaC", location: "Barcelona", latitude: 41.4036, longitude: 2.1364, stars: 3, city: "Barcelona", country: "Spain", cuisines: ["Contemporary"] },
   ];
 }
@@ -130,26 +123,48 @@ export async function fetchMichelinDataFromKaggle(): Promise<MichelinRestaurant[
     // Check content type
     const contentType = response.headers.get('content-type');
     console.log('📋 Content-Type:', contentType);
-    
-    // The response might be a ZIP file that needs to be extracted
-    // or it might redirect to a download URL
-    // Let's check if we got redirected
     console.log('📍 Final URL:', response.url);
     
-    // Try to get the response as text first to see what we got
-    const responseText = await response.text();
-    console.log(`✅ Received ${responseText.length} bytes of data`);
-    console.log(`📄 First 500 characters:`, responseText.substring(0, 500));
+    // The response is a ZIP file - we need to decompress it
+    const arrayBuffer = await response.arrayBuffer();
+    console.log(`✅ Received ${arrayBuffer.byteLength} bytes of data`);
     
-    // Check if response looks like CSV
-    if (!responseText.includes(',') && !responseText.includes('\n')) {
-      console.error('❌ Response does not appear to be CSV data');
-      console.error('Response might be an error message or redirect');
+    // Check if it's a ZIP file (starts with "PK")
+    const uint8Array = new Uint8Array(arrayBuffer);
+    const isPKZip = uint8Array[0] === 0x50 && uint8Array[1] === 0x4B;
+    console.log(`📦 Is ZIP file: ${isPKZip}`);
+    
+    if (!isPKZip) {
+      console.error('❌ Response is not a ZIP file');
       return restaurants;
     }
     
+    // Import JSZip for decompression (Deno-compatible)
+    const JSZip = (await import('npm:jszip@3.10.1')).default;
+    const zip = await JSZip.loadAsync(arrayBuffer);
+    
+    console.log('📦 ZIP contents:', Object.keys(zip.files));
+    
+    // Find the CSV file in the ZIP
+    let csvContent: string | null = null;
+    for (const [filename, file] of Object.entries(zip.files)) {
+      if (filename.endsWith('.csv') && !file.dir) {
+        console.log(`📄 Found CSV file: ${filename}`);
+        csvContent = await file.async('text');
+        break;
+      }
+    }
+    
+    if (!csvContent) {
+      console.error('❌ No CSV file found in ZIP archive');
+      return restaurants;
+    }
+    
+    console.log(`✅ Extracted CSV with ${csvContent.length} characters`);
+    console.log(`📄 First 500 characters:`, csvContent.substring(0, 500));
+    
     // Parse CSV data
-    const lines = responseText.split('\n');
+    const lines = csvContent.split('\n');
     console.log(`📊 Total lines in CSV: ${lines.length}`);
     
     if (lines.length < 2) {
@@ -288,179 +303,98 @@ export async function fetchMichelinDataFromKaggle(): Promise<MichelinRestaurant[
 export async function fetchMichelinDataFromGitHub(): Promise<MichelinRestaurant[]> {
   const restaurants: MichelinRestaurant[] = [];
   
-  try {
-    // Try multiple possible GitHub repo structures
-    const repoUrls = [
-      'https://raw.githubusercontent.com/NicolaFerracin/michelin-stars-restaurants-api/master/data',
-      'https://raw.githubusercontent.com/NicolaFerracin/michelin-stars-restaurants-api/main/data',
-      'https://raw.githubusercontent.com/ngshiheng/michelin-my-maps/main/data',
-    ];
+  // Try multiple GitHub repositories with Michelin data
+  const repositories = [
+    'https://raw.githubusercontent.com/NicolaFerracin/michelin-stars-restaurants-api/master/data',
+    'https://raw.githubusercontent.com/NicolaFerracin/michelin-stars-restaurants-api/main/data',
+    'https://raw.githubusercontent.com/ngshiheng/michelin-my-maps/main/data',
+  ];
+  
+  const starFiles = ['one-star.json', 'two-stars.json', 'three-stars.json'];
+  
+  for (const repo of repositories) {
+    console.log(`🔍 Trying repository: ${repo}`);
+    let repoHasData = false;
     
-    const files = [
-      'one-star.json',
-      'two-stars.json', 
-      'three-stars.json'
-    ];
-    
-    let successfulFetch = false;
-    
-    for (const baseUrl of repoUrls) {
-      console.log(`🔍 Trying repository: ${baseUrl}`);
-      
-      for (const file of files) {
-        try {
-          console.log(`📥 Fetching: ${baseUrl}/${file}`);
-          const response = await fetch(`${baseUrl}/${file}`, {
-            headers: {
-              'Accept': 'application/json',
-              'User-Agent': 'Le-Voyageur-App/1.0',
-            }
-          });
-          
-          if (!response.ok) {
-            console.log(`⚠️ Failed to fetch ${file} from ${baseUrl}: ${response.status} ${response.statusText}`);
-            continue;
-          }
-          
+    for (const file of starFiles) {
+      try {
+        const url = `${repo}/${file}`;
+        console.log(`📥 Fetching: ${url}`);
+        
+        const response = await fetch(url);
+        
+        if (response.ok) {
           const data = await response.json();
           
-          // Parse the data format from the GitHub repo
-          if (Array.isArray(data)) {
-            let addedCount = 0;
-            for (const restaurant of data) {
-              // Determine star count from filename
-              let stars = 1;
-              if (file.includes('two')) stars = 2;
-              else if (file.includes('three')) stars = 3;
+          if (Array.isArray(data) && data.length > 0) {
+            repoHasData = true;
+            
+            // Determine star level from filename
+            let starLevel = 1;
+            if (file.includes('two')) starLevel = 2;
+            if (file.includes('three')) starLevel = 3;
+            
+            // Parse each restaurant
+            for (const item of data) {
+              const name = item.name || item.Name || '';
+              const location = item.location || item.Location || '';
+              const latitude = parseFloat(item.latitude || item.Latitude || '0');
+              const longitude = parseFloat(item.longitude || item.Longitude || '0');
               
-              // Only add if we have valid coordinates
-              if (restaurant.latitude && restaurant.longitude) {
+              if (name && latitude && longitude && latitude !== 0 && longitude !== 0) {
+                // Parse location for city and country
+                const locationParts = location.split(',').map((p: string) => p.trim());
+                const city = locationParts[0] || '';
+                const country = locationParts[locationParts.length - 1] || '';
+                
                 restaurants.push({
-                  name: restaurant.name,
-                  location: restaurant.location || restaurant.city || '',
-                  address: restaurant.address,
-                  city: restaurant.city,
-                  region: restaurant.region,
-                  country: restaurant.country,
-                  latitude: parseFloat(restaurant.latitude),
-                  longitude: parseFloat(restaurant.longitude),
-                  stars: stars,
-                  cuisines: restaurant.cuisine ? [restaurant.cuisine] : [],
-                  url: restaurant.url
+                  name,
+                  location,
+                  address: item.address || item.Address || '',
+                  city,
+                  region: locationParts[1] || '',
+                  country,
+                  latitude,
+                  longitude,
+                  stars: starLevel,
+                  cuisines: item.cuisine ? [item.cuisine] : [],
+                  url: item.url || item.Url || '',
+                  price: item.price || item.Price || '',
+                  award: `${starLevel} star${starLevel > 1 ? 's' : ''}`,
                 });
-                addedCount++;
               }
             }
-            console.log(`✅ Fetched ${addedCount} restaurants from ${file}`);
-            successfulFetch = true;
+            
+            console.log(`✅ Fetched ${data.length} ${file} restaurants from ${repo}`);
           }
-        } catch (err) {
-          console.log(`⚠️ Error fetching ${file} from ${baseUrl}:`, err);
+        } else {
+          console.log(`⚠️ Failed to fetch ${file} from ${repo}: ${response.status} ${response.statusText}`);
         }
-      }
-      
-      // If we successfully fetched data from this repo, break
-      if (successfulFetch && restaurants.length > 0) {
-        console.log(`✅ Successfully fetched from ${baseUrl}`);
-        break;
+      } catch (error) {
+        console.error(`⚠️ Error fetching ${file} from ${repo}:`, error);
       }
     }
     
-    console.log(`✅ Total fetched: ${restaurants.length} Michelin restaurants`);
-    return restaurants;
-  } catch (error) {
-    console.error('❌ Error fetching Michelin data from GitHub API:', error);
-    return restaurants;
-  }
-}
-
-/**
- * Store Michelin restaurants in the database
- */
-export async function storeMichelinRestaurants(restaurants: MichelinRestaurant[]): Promise<number> {
-  const supabase = createClient(
-    Deno.env.get('SUPABASE_URL')!,
-    Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
-  );
-  let stored = 0;
-  
-  console.log(`📊 Storing ${restaurants.length} restaurants in database...`);
-  
-  for (const restaurant of restaurants) {
-    try {
-      // Check if restaurant already exists by name and approximate location
-      const { data: existing, error: searchError } = await supabase
-        .from('locations')
-        .select('id, michelin_score')
-        .eq('name', restaurant.name)
-        .limit(1);
-      
-      if (searchError) {
-        console.error('❌ Error searching for restaurant:', searchError);
-        continue;
-      }
-      
-      if (existing && existing.length > 0) {
-        // Update existing location with Michelin data if not already set
-        const location = existing[0];
-        if (!location.michelin_score || location.michelin_score === 0) {
-          const { error: updateError } = await supabase
-            .from('locations')
-            .update({
-              michelin_score: restaurant.stars,
-              cuisine: restaurant.cuisines?.[0] || null,
-              updated_at: new Date().toISOString()
-            })
-            .eq('id', location.id);
-          
-          if (!updateError) {
-            stored++;
-            console.log(`✅ Updated Michelin score for: ${restaurant.name}`);
-          }
-        }
-      } else {
-        // Create new location
-        const { error: insertError } = await supabase
-          .from('locations')
-          .insert({
-            name: restaurant.name,
-            description: `${restaurant.location} • ${restaurant.stars <= 3 ? restaurant.stars + ' Michelin Star' + (restaurant.stars > 1 ? 's' : '') : restaurant.stars === 4 ? 'Bib Gourmand' : 'Michelin Plate'}`,
-            lat: restaurant.latitude,
-            lng: restaurant.longitude,
-            michelin_score: restaurant.stars,
-            cuisine: restaurant.cuisines?.[0] || null,
-            area: restaurant.city || restaurant.region || null,
-            tags: ['michelin', 'restaurant', ...(restaurant.cuisines || [])],
-            lv_editors_score: null,
-            lv_crowdsource_score: null,
-            google_rating: null,
-          });
-        
-        if (!insertError) {
-          stored++;
-          console.log(`✅ Added new Michelin restaurant: ${restaurant.name}`);
-        } else {
-          console.error(`❌ Error inserting ${restaurant.name}:`, insertError);
-        }
-      }
-    } catch (error) {
-      console.error(`❌ Error processing restaurant ${restaurant.name}:`, error);
+    // If we successfully got data from this repo, no need to try others
+    if (repoHasData) {
+      console.log(`✅ Successfully fetched data from ${repo}`);
+      break;
     }
   }
   
-  return stored;
+  console.log(`✅ Total fetched: ${restaurants.length} Michelin restaurants`);
+  return restaurants;
 }
 
 /**
- * Main function to sync Michelin data
- * This can be called periodically to update the database
+ * Main sync function - fetches and stores Michelin data
  */
-export async function syncMichelinData(): Promise<{ success: boolean; count: number; message: string }> {
+export async function syncMichelinData(): Promise<{ success: boolean; count: number; message: string; added?: number; updated?: number; errors?: number }> {
   try {
-    console.log('🍽️ Starting Michelin data sync...');
+    console.log('🔍 Starting Michelin data sync...');
     
     let restaurants: MichelinRestaurant[] = [];
-    let dataSource = '';
+    let dataSource = 'Unknown';
     
     // Try to fetch from Kaggle API first
     restaurants = await fetchMichelinDataFromKaggle();
@@ -479,86 +413,150 @@ export async function syncMichelinData(): Promise<{ success: boolean; count: num
       }
     }
     
-    // If GitHub fetch fails, use sample data
+    // If both fail, use sample data
     if (restaurants.length === 0) {
       console.log('⚠️ GitHub repositories unavailable, using sample Michelin data...');
       restaurants = getSampleMichelinData();
       dataSource = 'Sample Data';
     }
     
-    if (restaurants.length === 0) {
-      console.error('❌ No Michelin restaurants available (not even sample data)');
-      return {
-        success: false,
-        count: 0,
-        message: 'No Michelin data available. Please contact support.'
-      };
-    }
-    
     console.log(`📊 Processing ${restaurants.length} Michelin restaurants from ${dataSource}...`);
     
-    // Store restaurants in database
-    const storedCount = await storeMichelinRestaurants(restaurants);
+    // Store in database
+    console.log('📊 Storing restaurants in database...');
     
-    console.log(`✅ Sync complete: ${storedCount} locations processed out of ${restaurants.length} fetched`);
+    const supabaseUrl = Deno.env.get('SUPABASE_URL');
+    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
     
-    const message = `Successfully processed ${storedCount} Michelin restaurants from ${dataSource}`;
+    if (!supabaseUrl || !supabaseServiceKey) {
+      throw new Error('Missing Supabase credentials');
+    }
+    
+    const supabase = createClient(supabaseUrl, supabaseServiceKey);
+    
+    let added = 0;
+    let updated = 0;
+    let errors = 0;
+    
+    for (const restaurant of restaurants) {
+      try {
+        // Generate a unique key for this restaurant
+        const key = `location:michelin:${restaurant.name.toLowerCase().replace(/\s+/g, '-')}:${restaurant.city.toLowerCase().replace(/\s+/g, '-')}`;
+        
+        // Check if location already exists
+        const existingLocations = await kv.getByPrefix('location:');
+        const existing = existingLocations.find((loc: any) => {
+          const distance = Math.sqrt(
+            Math.pow(loc.value.latitude - restaurant.latitude, 2) +
+            Math.pow(loc.value.longitude - restaurant.longitude, 2)
+          );
+          return distance < 0.001 && loc.value.name.toLowerCase() === restaurant.name.toLowerCase();
+        });
+        
+        const locationData = {
+          id: existing?.value.id || crypto.randomUUID(),
+          name: restaurant.name,
+          latitude: restaurant.latitude,
+          longitude: restaurant.longitude,
+          place_id: existing?.value.place_id || `michelin_${restaurant.name.toLowerCase().replace(/\s+/g, '_')}`,
+          formatted_address: restaurant.address || restaurant.location,
+          types: ['restaurant'],
+          tags: ['michelin', ...(restaurant.cuisines || []).map(c => c.toLowerCase())],
+          lv_editor_score: existing?.value.lv_editor_score || null,
+          lv_crowdsource_score: existing?.value.lv_crowdsource_score || null,
+          google_rating: existing?.value.google_rating || null,
+          michelin_score: convertMichelinStarsToScore(restaurant.stars),
+          created_at: existing?.value.created_at || new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        };
+        
+        await kv.set(existing ? existing.key : key, locationData);
+        
+        if (existing) {
+          updated++;
+        } else {
+          added++;
+        }
+      } catch (error) {
+        console.error(`❌ Error storing restaurant ${restaurant.name}:`, error);
+        errors++;
+      }
+    }
+    
+    console.log(`✅ Sync complete: ${added + updated} locations processed out of ${restaurants.length} fetched`);
+    console.log(`✅ Michelin sync completed: Successfully processed ${added + updated} Michelin restaurants from ${dataSource}`);
     
     return {
       success: true,
-      count: storedCount,
-      message: message
+      count: added + updated,
+      added,
+      updated,
+      errors,
+      message: `Successfully processed ${added + updated} Michelin restaurants from ${dataSource}`,
     };
   } catch (error) {
     console.error('❌ Error syncing Michelin data:', error);
     return {
       success: false,
       count: 0,
-      message: `Error during sync: ${error instanceof Error ? error.message : String(error)}`
+      message: `Error: ${error instanceof Error ? error.message : String(error)}`,
     };
   }
 }
 
 /**
- * Get Michelin rating for a specific location by coordinates
- * This can be used to check if a Google Place has a Michelin rating
+ * Convert Michelin stars to LV score (0-11 scale)
+ */
+function convertMichelinStarsToScore(stars: number): number {
+  // Michelin ratings mapping to LV 0-11 scale:
+  // 3 stars = 11.0 (exceptional)
+  // 2 stars = 10.0 (excellent)
+  // 1 star = 9.0 (very good)
+  // Bib Gourmand (4) = 8.0 (good value)
+  // Plate/Selected (5) = 7.0 (quality cooking)
+  
+  switch (stars) {
+    case 3: return 11.0;
+    case 2: return 10.0;
+    case 1: return 9.0;
+    case 4: return 8.0; // Bib Gourmand
+    case 5: return 7.0; // Plate
+    default: return 0;
+  }
+}
+
+/**
+ * Get Michelin rating for a specific location
  */
 export async function getMichelinRating(lat: number, lng: number, name?: string): Promise<number | null> {
-  const supabase = createClient(
-    Deno.env.get('SUPABASE_URL')!,
-    Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
-  );
-  
   try {
-    // Search for nearby restaurants with Michelin ratings
-    // Using a simple bounding box search (±0.001 degrees ≈ 100m)
-    const { data: locations, error } = await supabase
-      .from('locations')
-      .select('id, name, lat, lng, michelin_score')
-      .gte('lat', lat - 0.001)
-      .lte('lat', lat + 0.001)
-      .gte('lng', lng - 0.001)
-      .lte('lng', lng + 0.001)
-      .not('michelin_score', 'is', null)
-      .gt('michelin_score', 0);
+    // Get all locations from database
+    const locations = await kv.getByPrefix('location:');
     
-    if (error || !locations || locations.length === 0) {
-      return null;
-    }
-    
-    // If name provided, try to match by name first
-    if (name) {
-      const nameMatch = locations.find(loc => 
-        loc.name.toLowerCase().includes(name.toLowerCase()) || 
-        name.toLowerCase().includes(loc.name.toLowerCase())
+    // Find location near these coordinates
+    const nearbyLocations = locations.filter((loc: any) => {
+      const distance = Math.sqrt(
+        Math.pow(loc.value.latitude - lat, 2) +
+        Math.pow(loc.value.longitude - lng, 2)
       );
-      if (nameMatch) {
-        return nameMatch.michelin_score;
+      // Within ~100 meters
+      return distance < 0.001;
+    });
+    
+    // If name is provided, try to match by name
+    if (name && nearbyLocations.length > 0) {
+      const matchedLocation = nearbyLocations.find((loc: any) => 
+        loc.value.name.toLowerCase() === name.toLowerCase()
+      );
+      
+      if (matchedLocation && matchedLocation.value.michelin_score) {
+        return matchedLocation.value.michelin_score;
       }
     }
     
-    // Otherwise return the closest one
-    return locations[0].michelin_score;
+    // Otherwise, return the first nearby location with a Michelin score
+    const michelinLocation = nearbyLocations.find((loc: any) => loc.value.michelin_score);
+    return michelinLocation ? michelinLocation.value.michelin_score : null;
   } catch (error) {
     console.error('❌ Error getting Michelin rating:', error);
     return null;
