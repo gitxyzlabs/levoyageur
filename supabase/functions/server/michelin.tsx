@@ -101,6 +101,7 @@ export async function fetchMichelinDataFromKaggle(): Promise<MichelinRestaurant[
     }
     
     console.log('🔍 Fetching Michelin data from Kaggle...');
+    console.log('📍 Kaggle token present:', kaggleToken.substring(0, 15) + '...');
     
     // Kaggle API endpoint for dataset files
     const datasetOwner = 'ngshiheng';
@@ -112,8 +113,12 @@ export async function fetchMichelinDataFromKaggle(): Promise<MichelinRestaurant[
     const response = await fetch(metadataUrl, {
       headers: {
         'Authorization': `Bearer ${kaggleToken}`,
+        'User-Agent': 'Le-Voyageur-App/1.0',
       },
     });
+    
+    console.log(`📊 Response status: ${response.status} ${response.statusText}`);
+    console.log(`📊 Response headers:`, Object.fromEntries(response.headers.entries()));
     
     if (!response.ok) {
       console.error(`❌ Failed to fetch from Kaggle API: ${response.status} ${response.statusText}`);
@@ -122,20 +127,40 @@ export async function fetchMichelinDataFromKaggle(): Promise<MichelinRestaurant[
       return restaurants;
     }
     
-    // The response should be a CSV file
-    const csvText = await response.text();
-    console.log(`✅ Received ${csvText.length} bytes of data`);
+    // Check content type
+    const contentType = response.headers.get('content-type');
+    console.log('📋 Content-Type:', contentType);
+    
+    // The response might be a ZIP file that needs to be extracted
+    // or it might redirect to a download URL
+    // Let's check if we got redirected
+    console.log('📍 Final URL:', response.url);
+    
+    // Try to get the response as text first to see what we got
+    const responseText = await response.text();
+    console.log(`✅ Received ${responseText.length} bytes of data`);
+    console.log(`📄 First 500 characters:`, responseText.substring(0, 500));
+    
+    // Check if response looks like CSV
+    if (!responseText.includes(',') && !responseText.includes('\n')) {
+      console.error('❌ Response does not appear to be CSV data');
+      console.error('Response might be an error message or redirect');
+      return restaurants;
+    }
     
     // Parse CSV data
-    const lines = csvText.split('\n');
+    const lines = responseText.split('\n');
+    console.log(`📊 Total lines in CSV: ${lines.length}`);
+    
     if (lines.length < 2) {
-      console.error('❌ No data found in CSV');
+      console.error('❌ No data found in CSV (less than 2 lines)');
       return restaurants;
     }
     
     // Get headers
     const headers = lines[0].split(',').map(h => h.trim().replace(/"/g, ''));
     console.log('📋 CSV Headers:', headers);
+    console.log('📋 Number of columns:', headers.length);
     
     // Parse rows
     let parsedCount = 0;
@@ -170,6 +195,11 @@ export async function fetchMichelinDataFromKaggle(): Promise<MichelinRestaurant[
         headers.forEach((header, index) => {
           record[header] = values[index] || '';
         });
+        
+        // Log first record for debugging
+        if (i === 1) {
+          console.log('📄 First record sample:', JSON.stringify(record, null, 2));
+        }
         
         // Extract location components
         const name = record.Name || record.name || '';
@@ -245,6 +275,9 @@ export async function fetchMichelinDataFromKaggle(): Promise<MichelinRestaurant[
     return restaurants;
   } catch (error) {
     console.error('❌ Error fetching Michelin data from Kaggle:', error);
+    if (error instanceof Error) {
+      console.error('❌ Error stack:', error.stack);
+    }
     return restaurants;
   }
 }
