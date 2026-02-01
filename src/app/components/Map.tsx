@@ -1008,7 +1008,28 @@ export function Map({
                     fields: ['displayName', 'formattedAddress', 'location', 'photos', 'rating', 'userRatingCount', 'types', 'websiteURI', 'nationalPhoneNumber']
                   });
                   
-                  const michelinScore = 1; // Default, will be calculated properly
+                  // Find the full Michelin restaurant data from the loaded restaurants
+                  const fullMichelinData = michelinRestaurants.find(r => r.id === validationPopup.michelinData.id);
+                  
+                  // Parse Michelin Award to get stars, distinction, and green star
+                  const award = fullMichelinData?.Award || '';
+                  let michelinStars: number | null = null;
+                  let michelinDistinction: string | null = null;
+                  let michelinGreenStar = false;
+                  
+                  if (award.includes('3 Stars')) {
+                    michelinStars = 3;
+                  } else if (award.includes('2 Stars')) {
+                    michelinStars = 2;
+                  } else if (award.includes('1 Star')) {
+                    michelinStars = 1;
+                  } else if (award.includes('Bib Gourmand')) {
+                    michelinDistinction = 'Bib Gourmand';
+                  }
+                  
+                  if (fullMichelinData?.GreenStar) {
+                    michelinGreenStar = true;
+                  }
                   
                   const placeResult: google.maps.places.PlaceResult = {
                     place_id: place.id,
@@ -1033,10 +1054,13 @@ export function Map({
                     lvEditorsScore: undefined,
                     lvCrowdsourceScore: undefined,
                     googleRating: place.rating || 0,
-                    michelinScore: michelinScore,
+                    michelinStars: michelinStars,
+                    michelinDistinction: michelinDistinction,
+                    michelinGreenStar: michelinGreenStar,
                     tags: [],
                     description: validationPopup.michelinData.location,
                     address: validationPopup.michelinData.address,
+                    cuisine: fullMichelinData?.Cuisine,
                     place_id: place.id,
                   };
                   

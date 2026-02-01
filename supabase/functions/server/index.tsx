@@ -1091,7 +1091,7 @@ app.get('/make-server-48182530/michelin/restaurants', async (c) => {
       price: r.Price,
       location: r.Location,
       address: r.Address,
-      googlePlaceId: r.GooglePlaceId, // Include discovered Google Place ID
+      googlePlaceId: r.google_place_id, // Include discovered Google Place ID
     })) || [];
     
     return c.json({ restaurants: formattedRestaurants });
@@ -1120,7 +1120,7 @@ app.post('/make-server-48182530/michelin/discover-place-ids', verifyAuth, async 
     const { data: restaurants, error } = await supabase
       .from('michelin_restaurants')
       .select('*')
-      .is('GooglePlaceId', null)
+      .is('google_place_id', null)
       .range(offset, offset + limit - 1);
     
     if (error) {
@@ -1189,7 +1189,7 @@ app.post('/make-server-48182530/michelin/discover-place-ids', verifyAuth, async 
           // Store the update to be batched
           updates.push({
             id: restaurant.id,
-            GooglePlaceId: placeId,
+            google_place_id: placeId,
           });
           
           discovered++;
@@ -1210,7 +1210,7 @@ app.post('/make-server-48182530/michelin/discover-place-ids', verifyAuth, async 
       for (const update of updates) {
         const { error: updateError } = await supabase
           .from('michelin_restaurants')
-          .update({ GooglePlaceId: update.GooglePlaceId })
+          .update({ google_place_id: update.google_place_id })
           .eq('id', update.id);
         
         if (updateError) {
@@ -1258,12 +1258,12 @@ app.get('/make-server-48182530/michelin/:michelinId/suggest-place', async (c) =>
       return c.json({ error: 'Michelin restaurant not found' }, 404);
     }
 
-    // If it already has a GooglePlaceId, return that
-    if (restaurant.GooglePlaceId) {
-      console.log('✅ Restaurant already has GooglePlaceId:', restaurant.GooglePlaceId);
+    // If it already has a google_place_id, return that
+    if (restaurant.google_place_id) {
+      console.log('✅ Restaurant already has google_place_id:', restaurant.google_place_id);
       return c.json({ 
         hasPlaceId: true,
-        googlePlaceId: restaurant.GooglePlaceId,
+        googlePlaceId: restaurant.google_place_id,
       });
     }
 
@@ -1514,20 +1514,20 @@ app.post('/make-server-48182530/michelin/:michelinId/validate-place', verifyAuth
     // (Lowered threshold for testing - can increase to 3 later for production)
     let autoUpdated = false;
     if (confirmedWeight >= 1 && confirmedWeight > rejectedWeight) {
-      console.log(`🎯 Auto-updating GooglePlaceId for Michelin restaurant ${michelinId} (${confirmedWeight} weighted confirmations)`);
+      console.log(`🎯 Auto-updating google_place_id for Michelin restaurant ${michelinId} (${confirmedWeight} weighted confirmations)`);
       
       const { error: updateError } = await supabase
         .from('michelin_restaurants')
         .update({ 
-          GooglePlaceId: placeId,
+          google_place_id: placeId,
           updated_at: new Date().toISOString()
         })
         .eq('id', michelinId);
 
       if (updateError) {
-        console.error('❌ Error auto-updating GooglePlaceId:', updateError);
+        console.error('❌ Error auto-updating google_place_id:', updateError);
       } else {
-        console.log(`✅ Successfully auto-updated GooglePlaceId for Michelin restaurant ${michelinId}`);
+        console.log(`✅ Successfully auto-updated google_place_id for Michelin restaurant ${michelinId}`);
         autoUpdated = true;
       }
     }
