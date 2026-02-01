@@ -8,6 +8,7 @@ import { CityInfoWindow } from './CityInfoWindow';
 import { LuxuryMarker } from './LuxuryMarker';
 import { PlaceIdValidationPopup } from './PlaceIdValidationPopup';
 import { Locate, Plus, Minus } from 'lucide-react';
+import { toast } from 'sonner';
 
 // Map component for Le Voyageur
 interface MapProps {
@@ -842,6 +843,8 @@ export function Map({
                   try {
                     const suggestionData = await api.suggestPlaceForMichelin(restaurant.id);
                     
+                    console.log('📦 Suggestion data received:', suggestionData);
+                    
                     if (suggestionData.hasPlaceId) {
                       // Place ID was found and saved while we were checking
                       console.log('✅ Place ID already exists:', suggestionData.googlePlaceId);
@@ -859,10 +862,19 @@ export function Map({
                         confidenceScore: suggestionData.confidenceScore,
                       });
                     } else {
-                      console.log('⚠️ Low confidence or no suggestions - showing Michelin-only InfoWindow');
+                      console.log('⚠️ Not showing validation popup:');
+                      console.log('   - Has results:', suggestionData.hasResults);
+                      console.log('   - Confidence score:', suggestionData.confidenceScore);
+                      console.log('   - Threshold required: 70%');
+                      if (suggestionData.hasResults && suggestionData.confidenceScore < 70) {
+                        toast.info(`No suggestion available (confidence: ${suggestionData.confidenceScore}% < 70%)`);
+                      } else if (!suggestionData.hasResults) {
+                        toast.info('No matching Google Places found nearby');
+                      }
                     }
                   } catch (suggestionError) {
                     console.error('❌ Error getting suggestions:', suggestionError);
+                    toast.error('Error checking for place suggestions');
                     // InfoWindow is already showing, just don't show validation popup
                   }
                 } catch (error) {

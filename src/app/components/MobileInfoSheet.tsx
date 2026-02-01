@@ -4,6 +4,7 @@ import { motion, AnimatePresence, PanInfo, useMotionValue, useTransform } from '
 import { Award, Users, Star, ChevronLeft, ChevronRight, MapPin, Edit3, Navigation, Heart, Bookmark, Calendar, X, ExternalLink } from 'lucide-react';
 import { EditorRatingModal } from './EditorRatingModal';
 import { api, type Location } from '../../utils/api';
+import { MichelinFlower, MichelinStar, MichelinBib, MichelinPlate, MichelinGreenStar } from '@/app/components/MichelinIcons';
 
 interface MobileInfoSheetProps {
   place: google.maps.places.PlaceResult;
@@ -310,6 +311,48 @@ export function MobileInfoSheet({
                     </div>
                   )}
                 </>
+              )}
+
+              {/* Michelin Guide - Show when Michelin data is available */}
+              {(lvLocation?.michelinStars || lvLocation?.michelinDistinction || lvLocation?.michelinGreenStar) && (
+                <div className="flex items-center justify-between p-4 bg-gradient-to-r from-red-50 to-rose-50 rounded-xl border border-red-200">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 bg-red-100 rounded-lg">
+                      <MichelinFlower className="w-5 h-5 text-red-600" />
+                    </div>
+                    <div>
+                      <div className="text-xs font-medium text-red-900 uppercase tracking-wide">MICHELIN Guide</div>
+                      {lvLocation.cuisine && (
+                        <div className="text-sm text-red-700">{lvLocation.cuisine}</div>
+                      )}
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    {/* Stars */}
+                    {lvLocation.michelinStars && (
+                      <div className="flex items-center gap-0.5">
+                        {Array.from({ length: lvLocation.michelinStars }).map((_, i) => (
+                          <MichelinStar key={i} className="w-5 h-5" />
+                        ))}
+                      </div>
+                    )}
+                    
+                    {/* Bib Gourmand - just icon */}
+                    {lvLocation.michelinDistinction === 'Bib Gourmand' && (
+                      <MichelinBib className="w-6 h-6" />
+                    )}
+                    
+                    {/* Other distinctions */}
+                    {lvLocation.michelinDistinction && lvLocation.michelinDistinction !== 'Bib Gourmand' && (
+                      <MichelinPlate className="w-6 h-6" />
+                    )}
+                    
+                    {/* Green Star */}
+                    {lvLocation.michelinGreenStar && (
+                      <MichelinGreenStar className="w-5 h-5" />
+                    )}
+                  </div>
+                </div>
               )}
 
               {place.rating && (
