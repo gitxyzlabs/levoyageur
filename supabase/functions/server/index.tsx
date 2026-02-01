@@ -397,6 +397,48 @@ app.put('/make-server-48182530/user', verifyAuth, async (c) => {
   }
 });
 
+// ============================================
+// FAVORITES ROUTES
+// ============================================
+
+// Get city favorites stats (public endpoint - aggregate data only)
+// IMPORTANT: This must be BEFORE the parametrized routes to avoid matching "city-stats" as a locationId
+app.post('/make-server-48182530/favorites/city-stats', async (c) => {
+  console.log('📊 POST /favorites/city-stats - Start (PUBLIC ENDPOINT - NO AUTH)');
+  console.log('📊 Request headers:', JSON.stringify(Object.fromEntries(c.req.raw.headers.entries())));
+  
+  try {
+    const { locationIds } = await c.req.json();
+    console.log('📊 Location IDs count:', locationIds?.length || 0);
+    
+    if (!locationIds || !Array.isArray(locationIds)) {
+      console.log('❌ Invalid locationIds array');
+      return c.json({ error: 'Invalid locationIds array' }, 400);
+    }
+
+    // Use getSupabaseAdmin to ensure we're using service role key
+    const supabase = getSupabaseAdmin();
+    console.log('📊 Using admin client for query');
+    
+    // Count total favorites for all locations in this city
+    const { count, error } = await supabase
+      .from('favorites')
+      .select('*', { count: 'exact', head: true })
+      .in('location_id', locationIds);
+
+    if (error) {
+      console.error('❌ Error fetching city favorites:', error);
+      return c.json({ error: 'Failed to fetch city favorites', details: error.message }, 500);
+    }
+
+    console.log('✅ City favorites count:', count);
+    return c.json({ totalFavorites: count || 0 });
+  } catch (error) {
+    console.error('❌ Error in POST /favorites/city-stats:', error);
+    return c.json({ error: 'Failed to fetch city favorites', details: error.message }, 500);
+  }
+});
+
 // Get user's favorites
 app.get('/make-server-48182530/favorites', verifyAuth, async (c) => {
   console.log('📍 GET /favorites - Start');
@@ -577,43 +619,6 @@ app.delete('/make-server-48182530/favorites/:locationId', verifyAuth, async (c) 
   } catch (error) {
     console.error('❌ Error in DELETE /favorites:', error);
     return c.json({ error: 'Failed to remove favorite' }, 500);
-  }
-});
-
-// Get city favorites stats (public endpoint - aggregate data only)
-app.post('/make-server-48182530/favorites/city-stats', async (c) => {
-  console.log('📊 POST /favorites/city-stats - Start (PUBLIC ENDPOINT - NO AUTH)');
-  console.log('📊 Request headers:', JSON.stringify(Object.fromEntries(c.req.raw.headers.entries())));
-  
-  try {
-    const { locationIds } = await c.req.json();
-    console.log('📊 Location IDs count:', locationIds?.length || 0);
-    
-    if (!locationIds || !Array.isArray(locationIds)) {
-      console.log('❌ Invalid locationIds array');
-      return c.json({ error: 'Invalid locationIds array' }, 400);
-    }
-
-    // Use getSupabaseAdmin to ensure we're using service role key
-    const supabase = getSupabaseAdmin();
-    console.log('📊 Using admin client for query');
-    
-    // Count total favorites for all locations in this city
-    const { count, error } = await supabase
-      .from('favorites')
-      .select('*', { count: 'exact', head: true })
-      .in('location_id', locationIds);
-
-    if (error) {
-      console.error('❌ Error fetching city favorites:', error);
-      return c.json({ error: 'Failed to fetch city favorites', details: error.message }, 500);
-    }
-
-    console.log('✅ City favorites count:', count);
-    return c.json({ totalFavorites: count || 0 });
-  } catch (error) {
-    console.error('❌ Error in POST /favorites/city-stats:', error);
-    return c.json({ error: 'Failed to fetch city favorites', details: error.message }, 500);
   }
 });
 
