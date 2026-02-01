@@ -1336,10 +1336,12 @@ app.get('/make-server-48182530/michelin/:michelinId/suggest-place', async (c) =>
       name2: string,
       distance: number
     ): number => {
+      // Ensure both names are strings and handle null/undefined
+      const str1 = String(name1 || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+      const str2 = String(name2 || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+      
       // Name similarity (simple check)
-      const n1 = name1.toLowerCase().replace(/[^a-z0-9]/g, '');
-      const n2 = name2.toLowerCase().replace(/[^a-z0-9]/g, '');
-      const nameMatch = n1.includes(n2) || n2.includes(n1);
+      const nameMatch = str1.includes(str2) || str2.includes(str1);
       
       // Distance-based confidence
       let confidence = 0;
@@ -1357,22 +1359,28 @@ app.get('/make-server-48182530/michelin/:michelinId/suggest-place', async (c) =>
 
     // Use the first result as the best match
     const place = searchData.places[0];
+    
+    // Extract displayName - it might be a string or an object with a 'text' property
+    const displayName = typeof place.displayName === 'string' 
+      ? place.displayName 
+      : place.displayName?.text || String(place.displayName || '');
+    
     const distance = calculateDistance(
       restaurant.Latitude,
       restaurant.Longitude,
       place.location.latitude,
       place.location.longitude
     );
-    const confidence = calculateConfidence(restaurant.Name, place.displayName, distance);
+    const confidence = calculateConfidence(restaurant.Name, displayName, distance);
 
-    console.log(`✅ Found suggested place: ${place.displayName} (${distance.toFixed(1)}m away, ${confidence}% confidence)`);
+    console.log(`✅ Found suggested place: ${displayName} (${distance.toFixed(1)}m away, ${confidence}% confidence)`);
 
     return c.json({
       hasResults: true,
       hasPlaceId: false,
       suggestedPlace: {
         id: place.id,
-        displayName: place.displayName,
+        displayName: displayName,
         formattedAddress: place.formattedAddress,
         distance: distance,
         rating: place.rating,
