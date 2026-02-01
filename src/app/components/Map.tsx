@@ -774,40 +774,8 @@ export function Map({
                     return;
                   }
                   
-                  // No GooglePlaceId - Check if we should show validation popup
-                  console.log('🔍 No GooglePlaceId - checking for suggestions...');
-                  
-                  try {
-                    const suggestionData = await api.suggestPlaceForMichelin(restaurant.id);
-                    
-                    if (suggestionData.hasPlaceId) {
-                      // Place ID was found and saved while we were checking
-                      console.log('✅ Place ID already exists:', suggestionData.googlePlaceId);
-                      // Reload Michelin restaurants to get the updated data
-                      await loadMichelinRestaurants();
-                      return;
-                    }
-                    
-                    if (suggestionData.hasResults && suggestionData.confidenceScore >= 70) {
-                      // Show validation popup
-                      console.log('🎯 Showing validation popup (confidence:', suggestionData.confidenceScore, '%)');
-                      setValidationPopup({
-                        michelinData: suggestionData.michelinData,
-                        suggestedPlace: suggestionData.suggestedPlace,
-                        confidenceScore: suggestionData.confidenceScore,
-                      });
-                      return;
-                    }
-                    
-                    // Low confidence or no results - show Michelin-only info window
-                    console.log('⚠️ Low confidence or no suggestions - showing Michelin-only data');
-                  } catch (suggestionError) {
-                    console.error('❌ Error getting suggestions:', suggestionError);
-                    // Continue to show Michelin-only data
-                  }
-                  
-                  // Fallback: Show Michelin-only info window
-                  const placeResult: google.maps.places.PlaceResult = {
+                  // No GooglePlaceId - Show Michelin-only InfoWindow first
+                  const michelinOnlyPlaceResult: google.maps.places.PlaceResult = {
                     place_id: `michelin-${restaurant.id}`,
                     name: restaurant.name,
                     formatted_address: restaurant.address || restaurant.location,
@@ -816,7 +784,7 @@ export function Map({
                     },
                   };
                   
-                  const lvLocation: Location = {
+                  const michelinOnlyLocation: Location = {
                     id: `michelin-${restaurant.id}`,
                     name: restaurant.name,
                     lat: restaurant.lat,
@@ -831,8 +799,39 @@ export function Map({
                     place_id: `michelin-${restaurant.id}`,
                   };
                   
+                  // Show the InfoWindow with Michelin-only data
                   if (onPOIClick) {
-                    onPOIClick(placeResult, lvLocation);
+                    onPOIClick(michelinOnlyPlaceResult, michelinOnlyLocation);
+                  }
+                  
+                  // Now check if we should show validation popup
+                  console.log('🔍 No GooglePlaceId - checking for suggestions...');
+                  
+                  try {
+                    const suggestionData = await api.suggestPlaceForMichelin(restaurant.id);
+                    
+                    if (suggestionData.hasPlaceId) {
+                      // Place ID was found and saved while we were checking
+                      console.log('✅ Place ID already exists:', suggestionData.googlePlaceId);
+                      // Reload Michelin restaurants to get the updated data
+                      await loadMichelinRestaurants();
+                      return;
+                    }
+                    
+                    if (suggestionData.hasResults && suggestionData.confidenceScore >= 70) {
+                      // Show validation popup ON TOP of the InfoWindow
+                      console.log('🎯 Showing validation popup (confidence:', suggestionData.confidenceScore, '%)')
+                      setValidationPopup({
+                        michelinData: suggestionData.michelinData,
+                        suggestedPlace: suggestionData.suggestedPlace,
+                        confidenceScore: suggestionData.confidenceScore,
+                      });
+                    } else {
+                      console.log('⚠️ Low confidence or no suggestions - showing Michelin-only InfoWindow');
+                    }
+                  } catch (suggestionError) {
+                    console.error('❌ Error getting suggestions:', suggestionError);
+                    // InfoWindow is already showing, just don't show validation popup
                   }
                 } catch (error) {
                   console.error('❌ Error in Michelin marker click:', error);
@@ -990,18 +989,17 @@ export function Map({
 
               console.log('✅ Validation submitted:', result);
 
-              // Close the popup
-              setValidationPopup(null);
-
-              // If auto-updated, reload the Michelin restaurants
-              if (result.autoUpdated) {
-                console.log('🔄 GooglePlaceId auto-updated, reloading markers...');
+              // If auto-updated or confirmed, reload the Michelin restaurants FIRST
+              if (result.autoUpdated || status === 'confirmed') {
+                console.log('🔄 Place ID updated, reloading markers...');
+                
+                // Close popup first
+                setValidationPopup(null);
+                
+                // Wait for reload to complete
                 await loadMichelinRestaurants();
-              }
-
-              // Show the info window for the restaurant
-              if (status === 'confirmed' || result.autoUpdated) {
-                // Fetch and show the place details
+                
+                // Now fetch and show the place details with the updated Place ID
                 try {
                   const { Place } = await google.maps.importLibrary("places") as google.maps.PlacesLibrary;
                   const place = new Place({ id: validationPopup.suggestedPlace.id });
@@ -1009,6 +1007,8 @@ export function Map({
                   await place.fetchFields({
                     fields: ['displayName', 'formattedAddress', 'location', 'photos', 'rating', 'userRatingCount', 'types', 'websiteURI', 'nationalPhoneNumber']
                   });
+                  
+                  const michelinScore = 1; // Default, will be calculated properly
                   
                   const placeResult: google.maps.places.PlaceResult = {
                     place_id: place.id,
@@ -1033,7 +1033,7 @@ export function Map({
                     lvEditorsScore: undefined,
                     lvCrowdsourceScore: undefined,
                     googleRating: place.rating || 0,
-                    michelinScore: 1, // Will be properly calculated
+                    michelinScore: michelinScore,
                     tags: [],
                     description: validationPopup.michelinData.location,
                     address: validationPopup.michelinData.address,
@@ -1046,6 +1046,9 @@ export function Map({
                 } catch (error) {
                   console.error('Error fetching place details after validation:', error);
                 }
+              } else {
+                // Just close the popup for unsure/rejected
+                setValidationPopup(null);
               }
             } catch (error) {
               console.error('❌ Error submitting validation:', error);

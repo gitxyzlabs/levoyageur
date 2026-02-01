@@ -19,6 +19,7 @@ interface PlaceIdValidationPopupProps {
     userRatingCount?: number;
     priceLevel?: string;
     types?: string[];
+    photoUri?: string;
   };
   confidenceScore: number; // 0-100
   onValidate: (status: 'confirmed' | 'rejected' | 'unsure') => void;
@@ -188,6 +189,17 @@ export function PlaceIdValidationPopup({
 
           {/* Google Place Data */}
           <div className="mb-6">
+            {/* Photo if available */}
+            {suggestedPlace.photoUri && (
+              <div className="mb-4 rounded-lg overflow-hidden">
+                <img 
+                  src={suggestedPlace.photoUri} 
+                  alt={suggestedPlace.displayName}
+                  className="w-full h-48 object-cover"
+                />
+              </div>
+            )}
+            
             <div className="flex items-start gap-2 mb-2">
               <div className="mt-0.5">
                 <div className="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center">
