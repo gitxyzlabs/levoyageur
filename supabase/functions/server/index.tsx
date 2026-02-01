@@ -1283,7 +1283,7 @@ app.get('/make-server-48182530/michelin/:michelinId/suggest-place', async (c) =>
       headers: {
         'Content-Type': 'application/json',
         'X-Goog-Api-Key': googleMapsApiKey,
-        'X-Goog-FieldMask': 'places.id,places.displayName,places.formattedAddress,places.location,places.rating,places.userRatingCount,places.priceLevel,places.types',
+        'X-Goog-FieldMask': 'places.id,places.displayName,places.formattedAddress,places.location,places.rating,places.userRatingCount,places.priceLevel,places.types,places.photos',
       },
       body: JSON.stringify({
         textQuery: searchQuery,
@@ -1375,6 +1375,11 @@ app.get('/make-server-48182530/michelin/:michelinId/suggest-place', async (c) =>
 
     console.log(`✅ Found suggested place: ${displayName} (${distance.toFixed(1)}m away, ${confidence}% confidence)`);
 
+    // Get the first photo if available
+    const photoUri = place.photos && place.photos.length > 0 
+      ? `https://places.googleapis.com/v1/${place.photos[0].name}/media?key=${googleMapsApiKey}&maxHeightPx=400&maxWidthPx=400`
+      : undefined;
+
     return c.json({
       hasResults: true,
       hasPlaceId: false,
@@ -1387,6 +1392,7 @@ app.get('/make-server-48182530/michelin/:michelinId/suggest-place', async (c) =>
         userRatingCount: place.userRatingCount,
         priceLevel: place.priceLevel,
         types: place.types,
+        photoUri: photoUri,
       },
       confidenceScore: confidence,
       michelinData: {
@@ -1504,18 +1510,24 @@ app.post('/make-server-48182530/michelin/:michelinId/validate-place', verifyAuth
 
     console.log(`📊 Validation counts: confirmed=${confirmedWeight}, rejected=${rejectedWeight}, unsure=${unsureWeight}`);
 
-    // Auto-update if 3+ weighted confirmations and no rejections
+    // Auto-update if 1+ weighted confirmations and confirmations > rejections
+    // (Lowered threshold for testing - can increase to 3 later for production)
     let autoUpdated = false;
-    if (confirmedWeight >= 3 && rejectedWeight === 0) {
+    if (confirmedWeight >= 1 && confirmedWeight > rejectedWeight) {
+      console.log(`🎯 Auto-updating GooglePlaceId for Michelin restaurant ${michelinId} (${confirmedWeight} weighted confirmations)`);
+      
       const { error: updateError } = await supabase
         .from('michelin_restaurants')
-        .update({ GooglePlaceId: placeId })
+        .update({ 
+          GooglePlaceId: placeId,
+          updated_at: new Date().toISOString()
+        })
         .eq('id', michelinId);
 
       if (updateError) {
         console.error('❌ Error auto-updating GooglePlaceId:', updateError);
       } else {
-        console.log(`✅ Auto-updated GooglePlaceId for Michelin restaurant ${michelinId}`);
+        console.log(`✅ Successfully auto-updated GooglePlaceId for Michelin restaurant ${michelinId}`);
         autoUpdated = true;
       }
     }
