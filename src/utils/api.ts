@@ -4,14 +4,24 @@ import { projectId, publicAnonKey } from '/utils/supabase/info.tsx';
 const supabaseUrl = `https://${projectId}.supabase.co`;
 
 // Create a singleton Supabase client with a unique storage key to avoid conflicts
-export const supabase = createClient(supabaseUrl, publicAnonKey, {
-  auth: {
-    storageKey: 'lv-auth-token', // Unique key for this app
-    autoRefreshToken: true,
-    persistSession: true,
-    detectSessionInUrl: true,
-  },
-});
+// Use a global variable to ensure only one instance exists even with hot reloading
+let supabaseInstance: ReturnType<typeof createClient> | null = null;
+
+const getSupabaseClient = () => {
+  if (!supabaseInstance) {
+    supabaseInstance = createClient(supabaseUrl, publicAnonKey, {
+      auth: {
+        storageKey: 'lv-auth-token', // Unique key for this app
+        autoRefreshToken: true,
+        persistSession: true,
+        detectSessionInUrl: true,
+      },
+    });
+  }
+  return supabaseInstance;
+};
+
+export const supabase = getSupabaseClient();
 
 const API_BASE = `${supabaseUrl}/functions/v1/make-server-48182530`;
 
@@ -548,12 +558,7 @@ export const api = {
       body: JSON.stringify({ placeId, status }),
     });
 
-    if (!response.ok) {
-      const error = await response.json().catch(() => ({ error: response.statusText }));
-      console.error('❌ validateMichelinPlace error:', error);
-      throw new Error(error.error || `HTTP error! status: ${response.status}`);
-    }
-
-    return response.json();
+    // fetchWithAuth already returns parsed JSON, not a Response object
+    return response;
   },
 };
