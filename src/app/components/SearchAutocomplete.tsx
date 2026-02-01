@@ -23,6 +23,7 @@ export function SearchAutocomplete({ onPlaceSelect, onTagSelect, onClear, mapBou
   const [supabaseTags, setSupabaseTags] = useState<string[]>([]);
   const [michelinLocations, setMichelinLocations] = useState<Location[]>([]);
   const [focusedIndex, setFocusedIndex] = useState(-1);
+  const [justSelected, setJustSelected] = useState(false); // Track if user just made a selection
   
   const inputRef = useRef<HTMLInputElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -186,6 +187,7 @@ export function SearchAutocomplete({ onPlaceSelect, onTagSelect, onClear, mapBou
       setSearchValue(prediction.description);
       // Blur the input to prevent dropdown from reopening
       inputRef.current?.blur();
+      setJustSelected(true);
     } catch (error) {
       console.error('Error fetching place details:', error);
       
@@ -200,6 +202,7 @@ export function SearchAutocomplete({ onPlaceSelect, onTagSelect, onClear, mapBou
       setSearchValue(prediction.description);
       // Blur the input to prevent dropdown from reopening
       inputRef.current?.blur();
+      setJustSelected(true);
     }
   };
 
@@ -212,6 +215,7 @@ export function SearchAutocomplete({ onPlaceSelect, onTagSelect, onClear, mapBou
     setMichelinLocations([]);
     // Blur the input to prevent dropdown from reopening
     inputRef.current?.blur();
+    setJustSelected(true);
   };
 
   const handleMichelinLocationSelect = async (location: Location) => {
@@ -253,6 +257,7 @@ export function SearchAutocomplete({ onPlaceSelect, onTagSelect, onClear, mapBou
         onPlaceSelect(placeResult);
         setSearchValue(location.name);
         inputRef.current?.blur();
+        setJustSelected(true);
       } catch (error) {
         console.error('Error fetching place details for Michelin location:', error);
         
@@ -269,6 +274,7 @@ export function SearchAutocomplete({ onPlaceSelect, onTagSelect, onClear, mapBou
         onPlaceSelect(fallbackResult);
         setSearchValue(location.name);
         inputRef.current?.blur();
+        setJustSelected(true);
       }
     } else {
       // No place_id, use location data directly
@@ -284,6 +290,7 @@ export function SearchAutocomplete({ onPlaceSelect, onTagSelect, onClear, mapBou
       onPlaceSelect(placeResult);
       setSearchValue(location.name);
       inputRef.current?.blur();
+      setJustSelected(true);
     }
   };
 
@@ -335,6 +342,7 @@ export function SearchAutocomplete({ onPlaceSelect, onTagSelect, onClear, mapBou
     }
     
     inputRef.current?.blur();
+    setJustSelected(true);
   };
 
   const hasResults = googlePredictions.length > 0 || supabaseTags.length > 0 || michelinLocations.length > 0;
@@ -349,11 +357,19 @@ export function SearchAutocomplete({ onPlaceSelect, onTagSelect, onClear, mapBou
           ref={inputRef}
           type="text"
           value={searchValue}
-          onChange={(e) => setSearchValue(e.target.value)}
+          onChange={(e) => {
+            setSearchValue(e.target.value);
+            setJustSelected(false); // Reset flag when user starts typing
+          }}
           onKeyDown={handleKeyDown}
           onFocus={() => {
-            if (hasResults) {
+            // Only show dropdown if there are results AND user didn't just make a selection
+            if (hasResults && !justSelected) {
               setShowDropdown(true);
+            }
+            // Reset the flag after a small delay to allow user to refocus later
+            if (justSelected) {
+              setTimeout(() => setJustSelected(false), 100);
             }
           }}
           placeholder="Search cities, tags, or places"

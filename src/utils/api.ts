@@ -1,5 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
-import { projectId, publicAnonKey } from '../../utils/supabase/info.tsx';
+import { projectId, publicAnonKey } from '/utils/supabase/info.tsx';
 
 const supabaseUrl = `https://${projectId}.supabase.co`;
 
@@ -20,20 +20,47 @@ export interface Location {
   name: string;
   lat: number;
   lng: number;
-  lvEditorsScore: number;
-  lvCrowdsourceScore: number;
-  googleRating: number;
-  michelinScore: number;
+  // Le Voyageur ratings (new unified naming)
+  lvEditorScore?: number | null; // 0.0-11.0 scale
+  lvEditorNotes?: string | null;
+  lvAvgUserScore?: number | null; // 0.0-10.0 scale (cached from user_ratings)
+  lvUserRatingsCount?: number;
+  // External ratings
+  googleRating?: number | null; // 0-5 scale
+  googleRatingsCount?: number;
+  michelinStars?: number | null; // 1, 2, or 3
+  michelinDistinction?: string | null; // 'Bib Gourmand', etc.
+  michelinGreenStar?: boolean;
+  // Core data
   tags: string[];
-  description?: string;
-  placeId?: string; // Google Place ID (camelCase to match backend)
+  category?: string | null; // 'restaurant', 'hotel', 'bar'
+  description?: string | null;
+  address?: string | null;
+  city?: string | null;
+  country?: string | null;
+  cuisine?: string | null;
+  area?: string | null;
+  image?: string | null;
+  // External identifiers
+  googlePlaceId?: string | null; // Google Place ID
+  michelinId?: string | null; // Michelin restaurant ID
+  // Backward compatibility
+  placeId?: string; // Alias for googlePlaceId (camelCase to match backend)
   place_id?: string; // Also support snake_case for Map component
-  address?: string;
+  // Metadata
   createdBy?: string;
   createdAt?: string;
   updatedBy?: string;
   updatedAt?: string;
   favoritesCount?: number; // Number of users who have favorited this location
+  
+  // Deprecated fields (for backward compatibility during migration)
+  /** @deprecated Use lvEditorScore instead */
+  lvEditorsScore?: number;
+  /** @deprecated Use lvAvgUserScore instead */
+  lvCrowdsourceScore?: number;
+  /** @deprecated Use michelinStars/michelinDistinction instead */
+  michelinScore?: number;
 }
 
 export interface User {
@@ -317,23 +344,29 @@ export const api = {
 
   // Get total favorites count for locations in a city
   getCityFavorites: async (locationIds: string[]): Promise<{ totalFavorites: number }> => {
-    // Public endpoint - use anon key for access
-    const response = await fetch(`${API_BASE}/favorites/city-stats`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${publicAnonKey}`,
-      },
-      body: JSON.stringify({ locationIds }),
-    });
+    // Public endpoint - no auth required
+    try {
+      const response = await fetch(`${API_BASE}/favorites/city-stats`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ locationIds }),
+      });
 
-    if (!response.ok) {
-      const error = await response.json().catch(() => ({ error: response.statusText }));
-      console.error('❌ getCityFavorites error:', error);
-      throw new Error(error.error || `HTTP error! status: ${response.status}`);
+      if (!response.ok) {
+        const error = await response.json().catch(() => ({ error: response.statusText }));
+        console.error('❌ getCityFavorites error:', error);
+        // Return 0 favorites if endpoint fails instead of throwing
+        return { totalFavorites: 0 };
+      }
+
+      return response.json();
+    } catch (error) {
+      console.error('❌ getCityFavorites network error:', error);
+      // Return 0 favorites on network error
+      return { totalFavorites: 0 };
     }
-
-    return response.json();
   },
 
   // Want to Go
@@ -424,6 +457,16 @@ export const api = {
     });
   },
 
+  discoverMichelinPlaceIds: async (offset: number = 0, limit: number = 50): Promise<{ success: boolean; processed: number; discovered: number; message: string }> => {
+    return fetchWithAuth(`${API_BASE}/michelin/discover-place-ids`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ offset, limit }),
+    });
+  },
+
   getMichelinRating: async (lat: number, lng: number, name?: string): Promise<{ michelinScore: number | null; hasMichelinRating: boolean }> => {
     // Public endpoint - doesn't require auth
     const params = new URLSearchParams({
@@ -438,12 +481,76 @@ export const api = {
     const response = await fetch(`${API_BASE}/michelin/rating?${params.toString()}`, {
       headers: {
         'Content-Type': 'application/json',
+        'Authorization': `Bearer ${publicAnonKey}`, // Add public key for Supabase
       },
     });
 
     if (!response.ok) {
       const error = await response.json().catch(() => ({ error: response.statusText }));
       console.error('❌ getMichelinRating error:', error);
+      throw new Error(error.error || `HTTP error! status: ${response.status}`);
+    }
+
+    return response.json();
+  },
+
+  getMichelinRestaurants: async (north: number, south: number, east: number, west: number) => {
+    // Public endpoint - doesn't require auth
+    const params = new URLSearchParams({
+      north: north.toString(),
+      south: south.toString(),
+      east: east.toString(),
+      west: west.toString(),
+    });
+    
+    const response = await fetch(`${API_BASE}/michelin/restaurants?${params.toString()}`, {
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${publicAnonKey}`, // Add public key for Supabase
+      },
+    });
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ error: response.statusText }));
+      console.error('❌ getMichelinRestaurants error:', error);
+      throw new Error(error.error || `HTTP error! status: ${response.status}`);
+    }
+
+    return response.json();
+  },
+
+  // Suggest Google Place ID for a Michelin restaurant
+  suggestPlaceForMichelin: async (michelinId: number) => {
+    // Public endpoint - doesn't require auth
+    const response = await fetch(`${API_BASE}/michelin/${michelinId}/suggest-place`, {
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${publicAnonKey}`,
+      },
+    });
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ error: response.statusText }));
+      console.error('❌ suggestPlaceForMichelin error:', error);
+      throw new Error(error.error || `HTTP error! status: ${response.status}`);
+    }
+
+    return response.json();
+  },
+
+  // Validate a suggested Place ID for a Michelin restaurant
+  validateMichelinPlace: async (michelinId: number, placeId: string, status: 'confirmed' | 'rejected' | 'unsure') => {
+    const response = await fetchWithAuth(`${API_BASE}/michelin/${michelinId}/validate-place`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ placeId, status }),
+    });
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ error: response.statusText }));
+      console.error('❌ validateMichelinPlace error:', error);
       throw new Error(error.error || `HTTP error! status: ${response.status}`);
     }
 

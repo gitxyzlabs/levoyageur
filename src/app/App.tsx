@@ -30,7 +30,7 @@ import { Card, CardContent, CardHeader, CardTitle } from './components/ui/card';
 
 import { api, supabase } from '../utils/api';
 import type { Location as APILocation, User as APIUser } from '../utils/api';
-import { projectId, publicAnonKey } from '../../utils/supabase/info.tsx';
+import { projectId, publicAnonKey } from '/utils/supabase/info.tsx';
 
 // Use types from API
 type Location = APILocation & {
@@ -469,7 +469,6 @@ export default function App() {
       
       const request = {
         textQuery: query,
-        fields: ['displayName', 'location', 'formattedAddress', 'id', 'rating', 'userRatingCount', 'types', 'photos'],
         locationBias: {
           center: { lat: center.lat(), lng: center.lng() },
           radius: radius

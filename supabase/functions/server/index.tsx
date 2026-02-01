@@ -1,8 +1,9 @@
-import { Hono } from "npm:hono";
+import { Hono } from "npm:hono@4";
 import { cors } from "npm:hono/cors";
 import { logger } from "npm:hono/logger";
 import { createClient } from "npm:@supabase/supabase-js@2";
-import { syncMichelinData, getMichelinRating } from "./michelin.tsx";
+import { getMichelinRating } from "./michelin.tsx";
+import { formatLocationForAPI, formatLocationForDB, type LocationRow } from "./helpers.tsx";
 
 /**
  * IMPORTANT: Platform-level JWT verification is DISABLED
@@ -175,28 +176,10 @@ app.get('/make-server-48182530/locations', async (c) => {
     
     console.log('📊 Favorites count map:', Object.fromEntries(favCountMap));
     
-    // Convert snake_case from DB to camelCase for frontend
-    const formattedLocations = locations?.map(loc => ({
-      id: loc.id,
-      name: loc.name,
-      description: loc.description,
-      lat: loc.lat,
-      lng: loc.lng,
-      lvEditorsScore: loc.lv_editors_score,
-      lvCrowdsourceScore: loc.lv_crowdsource_score,
-      googleRating: loc.google_rating,
-      michelinScore: loc.michelin_score,
-      tags: loc.tags || [],
-      cuisine: loc.cuisine,
-      area: loc.area,
-      image: loc.image,
-      placeId: loc.place_id,
-      createdBy: loc.created_by,
-      createdAt: loc.created_at,
-      updatedBy: loc.updated_by,
-      updatedAt: loc.updated_at,
-      favoritesCount: favCountMap.get(loc.id) || 0, // Use loc.id (UUID), not place_id
-    })) || [];
+    // Convert database format to API format using helper
+    const formattedLocations = locations?.map(loc => 
+      formatLocationForAPI(loc as LocationRow, favCountMap.get(loc.id))
+    ) || [];
     
     return c.json({ locations: formattedLocations });
   } catch (error) {
@@ -243,28 +226,10 @@ app.get('/make-server-48182530/locations/tag/:tag', async (c) => {
       favCountMap.set(fav.location_id, count + 1);
     });
     
-    // Convert snake_case to camelCase
-    const formattedLocations = locations?.map(loc => ({
-      id: loc.id,
-      name: loc.name,
-      description: loc.description,
-      lat: loc.lat,
-      lng: loc.lng,
-      lvEditorsScore: loc.lv_editors_score,
-      lvCrowdsourceScore: loc.lv_crowdsource_score,
-      googleRating: loc.google_rating,
-      michelinScore: loc.michelin_score,
-      tags: loc.tags || [],
-      cuisine: loc.cuisine,
-      area: loc.area,
-      image: loc.image,
-      placeId: loc.place_id,
-      createdBy: loc.created_by,
-      createdAt: loc.created_at,
-      updatedBy: loc.updated_by,
-      updatedAt: loc.updated_at,
-      favoritesCount: favCountMap.get(loc.id) || 0, // Use loc.id (UUID), not place_id
-    })) || [];
+    // Convert database format to API format using helper
+    const formattedLocations = locations?.map(loc => 
+      formatLocationForAPI(loc as LocationRow, favCountMap.get(loc.id))
+    ) || [];
     
     return c.json({ locations: formattedLocations });
   } catch (error) {
@@ -458,29 +423,10 @@ app.get('/make-server-48182530/favorites', verifyAuth, async (c) => {
 
     console.log('GET /favorites - Found favorites:', favorites?.length || 0);
     
-    // Extract and format location data
+    // Extract and format location data using helper
     const formattedFavorites = favorites?.map(fav => {
       const loc = fav.locations as any;
-      return {
-        id: loc.id,
-        name: loc.name,
-        description: loc.description,
-        lat: loc.lat,
-        lng: loc.lng,
-        lvEditorsScore: loc.lv_editors_score,
-        lvCrowdsourceScore: loc.lv_crowdsource_score,
-        googleRating: loc.google_rating,
-        michelinScore: loc.michelin_score,
-        tags: loc.tags || [],
-        cuisine: loc.cuisine,
-        area: loc.area,
-        image: loc.image,
-        placeId: loc.place_id,
-        createdBy: loc.created_by,
-        createdAt: loc.created_at,
-        updatedBy: loc.updated_by,
-        updatedAt: loc.updated_at,
-      };
+      return formatLocationForAPI(loc as LocationRow);
     }) || [];
     
     return c.json({ favorites: formattedFavorites });
@@ -511,18 +457,18 @@ app.post('/make-server-48182530/favorites/:locationId', verifyAuth, async (c) =>
       placeData = null;
     }
     
-    // First, try to find the location by place_id (Google Place ID)
+    // First, try to find the location by google_place_id (Google Place ID)
     let { data: location, error: locError } = await supabase
       .from('locations')
       .select('id, name')
-      .eq('place_id', locationId)
+      .eq('google_place_id', locationId)
       .single();
 
-    // If not found by place_id, try by UUID (for LV locations)
+    // If not found by google_place_id, try by UUID (for LV locations)
     if (locError || !location) {
       const { data: lvLoc, error: lvError } = await supabase
         .from('locations')
-        .select('id, name, place_id')
+        .select('id, name, google_place_id')
         .eq('id', locationId)
         .single();
 
@@ -530,18 +476,18 @@ app.post('/make-server-48182530/favorites/:locationId', verifyAuth, async (c) =>
         location = lvLoc;
         console.log('✅ Found location by UUID:', location.id);
         
-        // If this location doesn't have a place_id yet, and we have one in placeData, update it
-        if (!location.place_id && placeData?.place_id) {
-          console.log('💾 Updating location with place_id:', placeData.place_id);
+        // If this location doesn't have a google_place_id yet, and we have one in placeData, update it
+        if (!location.google_place_id && placeData?.place_id) {
+          console.log('💾 Updating location with google_place_id:', placeData.place_id);
           const { error: updateError } = await supabase
             .from('locations')
-            .update({ place_id: placeData.place_id })
+            .update({ google_place_id: placeData.place_id })
             .eq('id', location.id);
             
           if (updateError) {
-            console.error('⚠️ Failed to update place_id:', updateError);
+            console.error('⚠️ Failed to update google_place_id:', updateError);
           } else {
-            console.log('✅ place_id saved to location');
+            console.log('✅ google_place_id saved to location');
           }
         }
       }
@@ -558,11 +504,8 @@ app.post('/make-server-48182530/favorites/:locationId', verifyAuth, async (c) =>
             name: placeData.name,
             lat: placeData.lat,
             lng: placeData.lng,
-            description: placeData.formatted_address || '',
-            place_id: placeData.place_id || locationId, // Save place_id from placeData or use locationId
-            // Leave ratings null - only editors can rate
-            lv_editors_score: null,
-            lv_crowdsource_score: null,
+            address: placeData.formatted_address || '',
+            google_place_id: placeData.place_id || locationId,
             tags: []
           })
           .select('id, name')
@@ -594,7 +537,7 @@ app.post('/make-server-48182530/favorites/:locationId', verifyAuth, async (c) =>
     if (error) {
       // Check if it's a duplicate key error
       if (error.code === '23505') {
-        console.log('📍 Location already favorited');
+        console.log(' Location already favorited');
         return c.json({ success: true, message: 'Already favorited' });
       }
       console.error('❌ Error adding favorite:', error);
@@ -639,16 +582,21 @@ app.delete('/make-server-48182530/favorites/:locationId', verifyAuth, async (c) 
 
 // Get city favorites stats (public endpoint - aggregate data only)
 app.post('/make-server-48182530/favorites/city-stats', async (c) => {
-  console.log('📊 POST /favorites/city-stats - Start');
+  console.log('📊 POST /favorites/city-stats - Start (PUBLIC ENDPOINT - NO AUTH)');
+  console.log('📊 Request headers:', JSON.stringify(Object.fromEntries(c.req.raw.headers.entries())));
   
   try {
     const { locationIds } = await c.req.json();
+    console.log('📊 Location IDs count:', locationIds?.length || 0);
     
     if (!locationIds || !Array.isArray(locationIds)) {
+      console.log('❌ Invalid locationIds array');
       return c.json({ error: 'Invalid locationIds array' }, 400);
     }
 
+    // Use getSupabaseAdmin to ensure we're using service role key
     const supabase = getSupabaseAdmin();
+    console.log('📊 Using admin client for query');
     
     // Count total favorites for all locations in this city
     const { count, error } = await supabase
@@ -658,14 +606,14 @@ app.post('/make-server-48182530/favorites/city-stats', async (c) => {
 
     if (error) {
       console.error('❌ Error fetching city favorites:', error);
-      return c.json({ error: 'Failed to fetch city favorites' }, 500);
+      return c.json({ error: 'Failed to fetch city favorites', details: error.message }, 500);
     }
 
     console.log('✅ City favorites count:', count);
     return c.json({ totalFavorites: count || 0 });
   } catch (error) {
     console.error('❌ Error in POST /favorites/city-stats:', error);
-    return c.json({ error: 'Failed to fetch city favorites' }, 500);
+    return c.json({ error: 'Failed to fetch city favorites', details: error.message }, 500);
   }
 });
 
@@ -699,29 +647,10 @@ app.get('/make-server-48182530/want-to-go', verifyAuth, async (c) => {
 
     console.log('GET /want-to-go - Found items:', wantToGo?.length || 0);
     
-    // Extract and format location data
+    // Extract and format location data using helper
     const formattedWantToGo = wantToGo?.map(wtg => {
       const loc = wtg.locations as any;
-      return {
-        id: loc.id,
-        name: loc.name,
-        description: loc.description,
-        lat: loc.lat,
-        lng: loc.lng,
-        lvEditorsScore: loc.lv_editors_score,
-        lvCrowdsourceScore: loc.lv_crowdsource_score,
-        googleRating: loc.google_rating,
-        michelinScore: loc.michelin_score,
-        tags: loc.tags || [],
-        cuisine: loc.cuisine,
-        area: loc.area,
-        image: loc.image,
-        placeId: loc.place_id,
-        createdBy: loc.created_by,
-        createdAt: loc.created_at,
-        updatedBy: loc.updated_by,
-        updatedAt: loc.updated_at,
-      };
+      return formatLocationForAPI(loc as LocationRow);
     }) || [];
     
     return c.json({ wantToGo: formattedWantToGo });
@@ -752,18 +681,18 @@ app.post('/make-server-48182530/want-to-go/:locationId', verifyAuth, async (c) =
       placeData = null;
     }
     
-    // First, try to find the location by place_id (Google Place ID)
+    // First, try to find the location by google_place_id (Google Place ID)
     let { data: location, error: locError } = await supabase
       .from('locations')
       .select('id, name')
-      .eq('place_id', locationId)
+      .eq('google_place_id', locationId)
       .single();
 
-    // If not found by place_id, try by UUID (for LV locations)
+    // If not found by google_place_id, try by UUID (for LV locations)
     if (locError || !location) {
       const { data: lvLoc, error: lvError } = await supabase
         .from('locations')
-        .select('id, name, place_id')
+        .select('id, name, google_place_id')
         .eq('id', locationId)
         .single();
 
@@ -771,18 +700,18 @@ app.post('/make-server-48182530/want-to-go/:locationId', verifyAuth, async (c) =
         location = lvLoc;
         console.log('✅ Found location by UUID:', location.id);
         
-        // If this location doesn't have a place_id yet, and we have one in placeData, update it
-        if (!location.place_id && placeData?.place_id) {
-          console.log('💾 Updating location with place_id:', placeData.place_id);
+        // If this location doesn't have a google_place_id yet, and we have one in placeData, update it
+        if (!location.google_place_id && placeData?.place_id) {
+          console.log('💾 Updating location with google_place_id:', placeData.place_id);
           const { error: updateError } = await supabase
             .from('locations')
-            .update({ place_id: placeData.place_id })
+            .update({ google_place_id: placeData.place_id })
             .eq('id', location.id);
             
           if (updateError) {
-            console.error('⚠️ Failed to update place_id:', updateError);
+            console.error('⚠️ Failed to update google_place_id:', updateError);
           } else {
-            console.log('✅ place_id saved to location');
+            console.log('✅ google_place_id saved to location');
           }
         }
       }
@@ -799,11 +728,8 @@ app.post('/make-server-48182530/want-to-go/:locationId', verifyAuth, async (c) =
             name: placeData.name,
             lat: placeData.lat,
             lng: placeData.lng,
-            description: placeData.formatted_address || '',
-            place_id: placeData.place_id || locationId, // Save place_id from placeData or use locationId
-            // Leave ratings null - only editors can rate
-            lv_editors_score: null,
-            lv_crowdsource_score: null,
+            address: placeData.formatted_address || '',
+            google_place_id: placeData.place_id || locationId,
             tags: []
           })
           .select('id, name')
@@ -895,24 +821,10 @@ app.post('/make-server-48182530/locations', verifyAuth, verifyEditor, async (c) 
   try {
     const supabase = getSupabaseAdmin();
     
-    // Convert camelCase to snake_case for database
-    const dbLocation = {
-      name: location.name,
-      description: location.description,
-      lat: location.lat,
-      lng: location.lng,
-      lv_editors_score: location.lvEditorsScore || 0,
-      lv_crowdsource_score: location.lvCrowdsourceScore || 0,
-      google_rating: location.googleRating || 0,
-      michelin_score: location.michelinScore || 0,
-      tags: location.tags || [],
-      cuisine: location.cuisine,
-      area: location.area,
-      image: location.image,
-      place_id: location.placeId,
-      created_by: userId,
-      updated_by: userId,
-    };
+    // Convert API format to database format using helper
+    const dbLocation = formatLocationForDB(location);
+    dbLocation.created_by_user_id = userId;
+    dbLocation.updated_by_user_id = userId;
     
     const { data: newLocation, error } = await supabase
       .from('locations')
@@ -927,27 +839,8 @@ app.post('/make-server-48182530/locations', verifyAuth, verifyEditor, async (c) 
 
     console.log('✅ Location created:', newLocation.id);
     
-    // Convert to camelCase for response
-    return c.json({
-      id: newLocation.id,
-      name: newLocation.name,
-      description: newLocation.description,
-      lat: newLocation.lat,
-      lng: newLocation.lng,
-      lvEditorsScore: newLocation.lv_editors_score,
-      lvCrowdsourceScore: newLocation.lv_crowdsource_score,
-      googleRating: newLocation.google_rating,
-      michelinScore: newLocation.michelin_score,
-      tags: newLocation.tags || [],
-      cuisine: newLocation.cuisine,
-      area: newLocation.area,
-      image: newLocation.image,
-      placeId: newLocation.place_id,
-      createdBy: newLocation.created_by,
-      createdAt: newLocation.created_at,
-      updatedBy: newLocation.updated_by,
-      updatedAt: newLocation.updated_at,
-    });
+    // Convert database format to API format using helper
+    return c.json(formatLocationForAPI(newLocation as LocationRow));
   } catch (error) {
     console.error('❌ Error in POST /locations:', error);
     return c.json({ error: 'Failed to create location' }, 500);
@@ -964,25 +857,10 @@ app.put('/make-server-48182530/locations/:id', verifyAuth, verifyEditor, async (
   try {
     const supabase = getSupabaseAdmin();
     
-    // Convert camelCase to snake_case for database
-    const dbUpdates: any = {
-      updated_by: userId,
-      updated_at: new Date().toISOString(),
-    };
-    
-    if (updates.name) dbUpdates.name = updates.name;
-    if (updates.description !== undefined) dbUpdates.description = updates.description;
-    if (updates.lat !== undefined) dbUpdates.lat = updates.lat;
-    if (updates.lng !== undefined) dbUpdates.lng = updates.lng;
-    if (updates.lvEditorsScore !== undefined) dbUpdates.lv_editors_score = updates.lvEditorsScore;
-    if (updates.lvCrowdsourceScore !== undefined) dbUpdates.lv_crowdsource_score = updates.lvCrowdsourceScore;
-    if (updates.googleRating !== undefined) dbUpdates.google_rating = updates.googleRating;
-    if (updates.michelinScore !== undefined) dbUpdates.michelin_score = updates.michelinScore;
-    if (updates.tags !== undefined) dbUpdates.tags = updates.tags;
-    if (updates.cuisine !== undefined) dbUpdates.cuisine = updates.cuisine;
-    if (updates.area !== undefined) dbUpdates.area = updates.area;
-    if (updates.image !== undefined) dbUpdates.image = updates.image;
-    if (updates.placeId !== undefined) dbUpdates.place_id = updates.placeId;
+    // Convert API format to database format using helper
+    const dbUpdates = formatLocationForDB(updates);
+    dbUpdates.updated_by_user_id = userId;
+    dbUpdates.updated_at = new Date().toISOString();
     
     const { data: updatedLocation, error } = await supabase
       .from('locations')
@@ -998,27 +876,8 @@ app.put('/make-server-48182530/locations/:id', verifyAuth, verifyEditor, async (
 
     console.log('✅ Location updated:', locationId);
     
-    // Convert to camelCase for response
-    return c.json({
-      id: updatedLocation.id,
-      name: updatedLocation.name,
-      description: updatedLocation.description,
-      lat: updatedLocation.lat,
-      lng: updatedLocation.lng,
-      lvEditorsScore: updatedLocation.lv_editors_score,
-      lvCrowdsourceScore: updatedLocation.lv_crowdsource_score,
-      googleRating: updatedLocation.google_rating,
-      michelinScore: updatedLocation.michelin_score,
-      tags: updatedLocation.tags || [],
-      cuisine: updatedLocation.cuisine,
-      area: updatedLocation.area,
-      image: updatedLocation.image,
-      placeId: updatedLocation.place_id,
-      createdBy: updatedLocation.created_by,
-      createdAt: updatedLocation.created_at,
-      updatedBy: updatedLocation.updated_by,
-      updatedAt: updatedLocation.updated_at,
-    });
+    // Convert database format to API format using helper
+    return c.json(formatLocationForAPI(updatedLocation as LocationRow));
   } catch (error) {
     console.error('❌ Error in PUT /locations:', error);
     return c.json({ error: 'Failed to update location' }, 500);
@@ -1080,8 +939,8 @@ app.put('/make-server-48182530/locations/:id/rating', verifyAuth, verifyEditor, 
       // It's a UUID, query by id
       query = query.eq('id', locationId);
     } else {
-      // It's a Google Place ID, query by place_id
-      query = query.eq('place_id', locationId);
+      // It's a Google Place ID, query by google_place_id
+      query = query.eq('google_place_id', locationId);
     }
     
     const { data: existingLocation, error: fetchError } = await query.single();
@@ -1100,17 +959,16 @@ app.put('/make-server-48182530/locations/:id/rating', verifyAuth, verifyEditor, 
       
       // Create the location
       const newLocation = {
-        place_id: locationId,
+        google_place_id: locationId,
         name: placeData.name,
-        description: placeData.formatted_address || null,
+        address: placeData.formatted_address || null,
         lat: placeData.lat,
         lng: placeData.lng,
         google_rating: placeData.rating || null,
-        lv_editors_score: lvEditorsScore,
-        michelin_score: michelinScore,
+        lv_editor_score: lvEditorsScore,
         tags: tags || [],
-        created_by: userId,
-        updated_by: userId,
+        created_by_user_id: userId,
+        updated_by_user_id: userId,
       };
       
       const { data: createdLocation, error: createError } = await supabase
@@ -1126,36 +984,16 @@ app.put('/make-server-48182530/locations/:id/rating', verifyAuth, verifyEditor, 
       
       console.log('✅ Location created and rating added:', createdLocation.id);
       
-      return c.json({
-        id: createdLocation.id,
-        name: createdLocation.name,
-        description: createdLocation.description,
-        lat: createdLocation.lat,
-        lng: createdLocation.lng,
-        lvEditorsScore: createdLocation.lv_editors_score,
-        lvCrowdsourceScore: createdLocation.lv_crowdsource_score,
-        googleRating: createdLocation.google_rating,
-        michelinScore: createdLocation.michelin_score,
-        tags: createdLocation.tags || [],
-        cuisine: createdLocation.cuisine,
-        area: createdLocation.area,
-        image: createdLocation.image,
-        placeId: createdLocation.place_id,
-        createdBy: createdLocation.created_by,
-        createdAt: createdLocation.created_at,
-        updatedBy: createdLocation.updated_by,
-        updatedAt: createdLocation.updated_at,
-      });
+      return c.json(formatLocationForAPI(createdLocation as LocationRow));
     }
     
     // Location exists, update it
     const dbUpdates: any = {
-      updated_by: userId,
+      updated_by_user_id: userId,
       updated_at: new Date().toISOString(),
     };
     
-    if (lvEditorsScore !== undefined) dbUpdates.lv_editors_score = lvEditorsScore;
-    if (michelinScore !== undefined) dbUpdates.michelin_score = michelinScore;
+    if (lvEditorsScore !== undefined) dbUpdates.lv_editor_score = lvEditorsScore;
     if (tags !== undefined) dbUpdates.tags = tags;
     
     const { data: updatedLocation, error } = await supabase
@@ -1172,27 +1010,8 @@ app.put('/make-server-48182530/locations/:id/rating', verifyAuth, verifyEditor, 
 
     console.log('✅ Location rating/tags updated:', existingLocation.id);
     
-    // Convert to camelCase for response
-    return c.json({
-      id: updatedLocation.id,
-      name: updatedLocation.name,
-      description: updatedLocation.description,
-      lat: updatedLocation.lat,
-      lng: updatedLocation.lng,
-      lvEditorsScore: updatedLocation.lv_editors_score,
-      lvCrowdsourceScore: updatedLocation.lv_crowdsource_score,
-      googleRating: updatedLocation.google_rating,
-      michelinScore: updatedLocation.michelin_score,
-      tags: updatedLocation.tags || [],
-      cuisine: updatedLocation.cuisine,
-      area: updatedLocation.area,
-      image: updatedLocation.image,
-      placeId: updatedLocation.place_id,
-      createdBy: updatedLocation.created_by,
-      createdAt: updatedLocation.created_at,
-      updatedBy: updatedLocation.updated_by,
-      updatedAt: updatedLocation.updated_at,
-    });
+    // Convert database format to API format using helper
+    return c.json(formatLocationForAPI(updatedLocation as LocationRow));
   } catch (error) {
     console.error('❌ Error in PUT /locations/:id/rating:', error);
     return c.json({ error: 'Failed to update location rating/tags' }, 500);
@@ -1202,57 +1021,6 @@ app.put('/make-server-48182530/locations/:id/rating', verifyAuth, verifyEditor, 
 // ============================================
 // MICHELIN DATA ROUTES
 // ============================================
-
-// Sync Michelin data (editor-only for manual sync, or can be public for automation)
-app.post('/make-server-48182530/michelin/sync', verifyAuth, verifyEditor, async (c) => {
-  console.log('🍽️ POST /michelin/sync - Start');
-  console.log('📍 User ID:', c.get('userId'));
-  console.log('📍 User Email:', c.get('userEmail'));
-  
-  try {
-    // Get pagination parameters from request body
-    const body = await c.req.json().catch(() => ({}));
-    const offset = parseInt(body.offset || '0');
-    const limit = parseInt(body.limit || '500');
-    
-    console.log(`🔍 Starting Michelin sync process with offset: ${offset}, limit: ${limit}...`);
-    const result = await syncMichelinData(offset, limit);
-    
-    console.log('📊 Michelin sync result:', JSON.stringify(result, null, 2));
-    
-    if (result.success) {
-      console.log(`✅ Michelin sync completed: ${result.message}`);
-      return c.json({
-        success: true,
-        added: result.count,
-        updated: 0,
-        errors: 0,
-        message: result.message,
-        totalAvailable: result.totalAvailable,
-        imported: result.imported
-      });
-    } else {
-      console.error(`❌ Michelin sync failed: ${result.message}`);
-      return c.json({
-        success: false,
-        added: 0,
-        updated: 0,
-        errors: 1,
-        message: result.message,
-        totalAvailable: result.totalAvailable
-      }, 400);
-    }
-  } catch (error) {
-    console.error('❌ Error in POST /michelin/sync:', error);
-    return c.json({ 
-      success: false, 
-      added: 0,
-      updated: 0,
-      errors: 1,
-      message: `Error: ${error instanceof Error ? error.message : String(error)}` 
-    }, 500);
-  }
-});
 
 // Get Michelin rating for a specific location (public endpoint)
 app.get('/make-server-48182530/michelin/rating', async (c) => {
@@ -1276,6 +1044,486 @@ app.get('/make-server-48182530/michelin/rating', async (c) => {
   } catch (error) {
     console.error('❌ Error in GET /michelin/rating:', error);
     return c.json({ error: 'Failed to get Michelin rating' }, 500);
+  }
+});
+
+// Get Michelin restaurants within a viewport (public endpoint)
+app.get('/make-server-48182530/michelin/restaurants', async (c) => {
+  console.log('📍 GET /michelin/restaurants - Start');
+  
+  const north = parseFloat(c.req.query('north') || '0');
+  const south = parseFloat(c.req.query('south') || '0');
+  const east = parseFloat(c.req.query('east') || '0');
+  const west = parseFloat(c.req.query('west') || '0');
+  
+  if (!north || !south || !east || !west) {
+    return c.json({ error: 'Viewport bounds (north, south, east, west) are required' }, 400);
+  }
+  
+  try {
+    const supabase = getSupabaseAdmin();
+    
+    // Query Michelin restaurants within the viewport bounds
+    const { data: restaurants, error } = await supabase
+      .from('michelin_restaurants')
+      .select('*')
+      .gte('Latitude', south)
+      .lte('Latitude', north)
+      .gte('Longitude', west)
+      .lte('Longitude', east)
+      .limit(500); // Limit to prevent overload
+    
+    if (error) {
+      console.error('❌ Error querying Michelin restaurants:', error);
+      return c.json({ error: 'Failed to query Michelin restaurants' }, 500);
+    }
+    
+    console.log(`✅ Found ${restaurants?.length || 0} Michelin restaurants in viewport`);
+    
+    // Convert to a simpler format for frontend
+    const formattedRestaurants = restaurants?.map(r => ({
+      id: r.id,
+      name: r.Name,
+      lat: r.Latitude,
+      lng: r.Longitude,
+      award: r.Award,
+      cuisine: r.Cuisine,
+      price: r.Price,
+      location: r.Location,
+      address: r.Address,
+      googlePlaceId: r.GooglePlaceId, // Include discovered Google Place ID
+    })) || [];
+    
+    return c.json({ restaurants: formattedRestaurants });
+  } catch (error) {
+    console.error('❌ Error in GET /michelin/restaurants:', error);
+    return c.json({ error: 'Failed to get Michelin restaurants' }, 500);
+  }
+});
+
+// Discover Google Place IDs for Michelin restaurants (requires auth + Google Maps API key)
+app.post('/make-server-48182530/michelin/discover-place-ids', verifyAuth, async (c) => {
+  console.log('📍 POST /michelin/discover-place-ids - Start');
+  
+  const { offset = 0, limit = 50 } = await c.req.json();
+  const googleMapsApiKey = Deno.env.get('GOOGLE_MAPS_API_KEY');
+  
+  if (!googleMapsApiKey) {
+    console.error('❌ GOOGLE_MAPS_API_KEY environment variable not set');
+    return c.json({ error: 'Google Maps API key not configured' }, 500);
+  }
+  
+  try {
+    const supabase = getSupabaseAdmin();
+    
+    // Get Michelin restaurants that don't have a Google Place ID yet
+    const { data: restaurants, error } = await supabase
+      .from('michelin_restaurants')
+      .select('*')
+      .is('GooglePlaceId', null)
+      .range(offset, offset + limit - 1);
+    
+    if (error) {
+      console.error('❌ Error querying Michelin restaurants:', error);
+      return c.json({ error: 'Failed to query Michelin restaurants' }, 500);
+    }
+    
+    if (!restaurants || restaurants.length === 0) {
+      console.log('✅ No restaurants to process');
+      return c.json({ 
+        success: true, 
+        processed: 0, 
+        discovered: 0,
+        message: 'No restaurants need Place ID discovery'
+      });
+    }
+    
+    console.log(`🔍 Processing ${restaurants.length} Michelin restaurants...`);
+    
+    let discovered = 0;
+    const updates = [];
+    
+    // Process each restaurant
+    for (const restaurant of restaurants) {
+      try {
+        // Search for the place using Google Places API Text Search
+        const searchQuery = `${restaurant.Name} ${restaurant.Address || restaurant.Location}`;
+        const textSearchUrl = `https://places.googleapis.com/v1/places:searchText`;
+        
+        const textSearchResponse = await fetch(textSearchUrl, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-Goog-Api-Key': googleMapsApiKey,
+            'X-Goog-FieldMask': 'places.id,places.displayName,places.formattedAddress,places.location',
+          },
+          body: JSON.stringify({
+            textQuery: searchQuery,
+            locationBias: {
+              circle: {
+                center: {
+                  latitude: restaurant.Latitude,
+                  longitude: restaurant.Longitude,
+                },
+                radius: 100, // 100 meters
+              },
+            },
+            maxResultCount: 1,
+          }),
+        });
+        
+        if (!textSearchResponse.ok) {
+          const errorText = await textSearchResponse.text();
+          console.error(`❌ Google Places API error for ${restaurant.Name}:`, textSearchResponse.status, errorText);
+          continue;
+        }
+        
+        const searchData = await textSearchResponse.json();
+        
+        if (searchData.places && searchData.places.length > 0) {
+          const place = searchData.places[0];
+          const placeId = place.id;
+          
+          console.log(`✅ Found Place ID for ${restaurant.Name}: ${placeId}`);
+          
+          // Store the update to be batched
+          updates.push({
+            id: restaurant.id,
+            GooglePlaceId: placeId,
+          });
+          
+          discovered++;
+        } else {
+          console.log(`⚠️ No Place ID found for ${restaurant.Name}`);
+        }
+        
+        // Add a small delay to avoid rate limiting
+        await new Promise(resolve => setTimeout(resolve, 100));
+        
+      } catch (error) {
+        console.error(`❌ Error processing restaurant ${restaurant.Name}:`, error);
+      }
+    }
+    
+    // Batch update all discovered Place IDs
+    if (updates.length > 0) {
+      for (const update of updates) {
+        const { error: updateError } = await supabase
+          .from('michelin_restaurants')
+          .update({ GooglePlaceId: update.GooglePlaceId })
+          .eq('id', update.id);
+        
+        if (updateError) {
+          console.error(`❌ Error updating restaurant ${update.id}:`, updateError);
+        }
+      }
+    }
+    
+    console.log(`✅ Discovered ${discovered} Place IDs out of ${restaurants.length} restaurants`);
+    
+    return c.json({
+      success: true,
+      processed: restaurants.length,
+      discovered: discovered,
+      message: `Discovered ${discovered} Place IDs`,
+    });
+    
+  } catch (error) {
+    console.error('❌ Error in POST /michelin/discover-place-ids:', error);
+    return c.json({ error: 'Failed to discover Place IDs' }, 500);
+  }
+});
+
+// Suggest a Google Place for a Michelin restaurant (public endpoint)
+app.get('/make-server-48182530/michelin/:michelinId/suggest-place', async (c) => {
+  console.log('📍 GET /michelin/:michelinId/suggest-place - Start');
+  const michelinId = parseInt(c.req.param('michelinId'));
+
+  if (!michelinId) {
+    return c.json({ error: 'Invalid michelinId' }, 400);
+  }
+
+  try {
+    const supabase = getSupabaseAdmin();
+    
+    // Get the Michelin restaurant
+    const { data: restaurant, error } = await supabase
+      .from('michelin_restaurants')
+      .select('*')
+      .eq('id', michelinId)
+      .single();
+
+    if (error || !restaurant) {
+      console.error('❌ Michelin restaurant not found:', michelinId);
+      return c.json({ error: 'Michelin restaurant not found' }, 404);
+    }
+
+    // If it already has a GooglePlaceId, return that
+    if (restaurant.GooglePlaceId) {
+      console.log('✅ Restaurant already has GooglePlaceId:', restaurant.GooglePlaceId);
+      return c.json({ 
+        hasPlaceId: true,
+        googlePlaceId: restaurant.GooglePlaceId,
+      });
+    }
+
+    // Search for the place using Google Places API
+    const googleMapsApiKey = Deno.env.get('GOOGLE_MAPS_API_KEY');
+    if (!googleMapsApiKey) {
+      return c.json({ error: 'Google Maps API key not configured' }, 500);
+    }
+
+    const searchQuery = `${restaurant.Name} ${restaurant.Location || ''}`.trim();
+    const textSearchUrl = `https://places.googleapis.com/v1/places:searchText`;
+    
+    console.log(`🔍 Searching for: "${searchQuery}" near (${restaurant.Latitude}, ${restaurant.Longitude})`);
+    
+    const textSearchResponse = await fetch(textSearchUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Goog-Api-Key': googleMapsApiKey,
+        'X-Goog-FieldMask': 'places.id,places.displayName,places.formattedAddress,places.location,places.rating,places.userRatingCount,places.priceLevel,places.types',
+      },
+      body: JSON.stringify({
+        textQuery: searchQuery,
+        locationBias: {
+          circle: {
+            center: {
+              latitude: restaurant.Latitude,
+              longitude: restaurant.Longitude,
+            },
+            radius: 100, // 100 meters
+          },
+        },
+        maxResultCount: 3, // Get top 3 results
+      }),
+    });
+    
+    if (!textSearchResponse.ok) {
+      const errorText = await textSearchResponse.text();
+      console.error(`❌ Google Places API error:`, textSearchResponse.status, errorText);
+      return c.json({ error: 'Failed to search Google Places' }, 500);
+    }
+    
+    const searchData = await textSearchResponse.json();
+    
+    if (!searchData.places || searchData.places.length === 0) {
+      console.log(`⚠️ No Google Places found for: ${restaurant.Name}`);
+      return c.json({ 
+        hasResults: false,
+        message: 'No matching Google Places found',
+      });
+    }
+
+    // Calculate distance and confidence for each result
+    const calculateDistance = (lat1: number, lon1: number, lat2: number, lon2: number): number => {
+      const R = 6371000; // Earth's radius in meters
+      const dLat = (lat2 - lat1) * (Math.PI / 180);
+      const dLon = (lon2 - lon1) * (Math.PI / 180);
+      
+      const a =
+        Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+        Math.cos(lat1 * (Math.PI / 180)) * Math.cos(lat2 * (Math.PI / 180)) *
+        Math.sin(dLon / 2) * Math.sin(dLon / 2);
+      
+      const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+      return R * c; // Distance in meters
+    };
+
+    const calculateConfidence = (
+      name1: string,
+      name2: string,
+      distance: number
+    ): number => {
+      // Name similarity (simple check)
+      const n1 = name1.toLowerCase().replace(/[^a-z0-9]/g, '');
+      const n2 = name2.toLowerCase().replace(/[^a-z0-9]/g, '');
+      const nameMatch = n1.includes(n2) || n2.includes(n1);
+      
+      // Distance-based confidence
+      let confidence = 0;
+      if (distance < 10) confidence = 95;
+      else if (distance < 50) confidence = 85;
+      else if (distance < 100) confidence = 75;
+      else if (distance < 200) confidence = 60;
+      else confidence = 40;
+      
+      // Boost if names match
+      if (nameMatch) confidence = Math.min(100, confidence + 10);
+      
+      return confidence;
+    };
+
+    // Use the first result as the best match
+    const place = searchData.places[0];
+    const distance = calculateDistance(
+      restaurant.Latitude,
+      restaurant.Longitude,
+      place.location.latitude,
+      place.location.longitude
+    );
+    const confidence = calculateConfidence(restaurant.Name, place.displayName, distance);
+
+    console.log(`✅ Found suggested place: ${place.displayName} (${distance.toFixed(1)}m away, ${confidence}% confidence)`);
+
+    return c.json({
+      hasResults: true,
+      hasPlaceId: false,
+      suggestedPlace: {
+        id: place.id,
+        displayName: place.displayName,
+        formattedAddress: place.formattedAddress,
+        distance: distance,
+        rating: place.rating,
+        userRatingCount: place.userRatingCount,
+        priceLevel: place.priceLevel,
+        types: place.types,
+      },
+      confidenceScore: confidence,
+      michelinData: {
+        id: restaurant.id,
+        name: restaurant.Name,
+        address: restaurant.Address,
+        location: restaurant.Location,
+        lat: restaurant.Latitude,
+        lng: restaurant.Longitude,
+      },
+    });
+  } catch (error) {
+    console.error('❌ Error in GET /michelin/:michelinId/suggest-place:', error);
+    return c.json({ error: 'Failed to suggest place' }, 500);
+  }
+});
+
+// Validate a suggested Place ID for a Michelin restaurant (authenticated)
+app.post('/make-server-48182530/michelin/:michelinId/validate-place', verifyAuth, async (c) => {
+  console.log('📍 POST /michelin/:michelinId/validate-place - Start');
+  const michelinId = parseInt(c.req.param('michelinId'));
+  const userId = c.get('userId');
+  const { placeId, status } = await c.req.json();
+
+  if (!michelinId || !placeId || !status) {
+    return c.json({ error: 'Missing required parameters' }, 400);
+  }
+
+  if (!['confirmed', 'rejected', 'unsure'].includes(status)) {
+    return c.json({ error: 'Invalid status' }, 400);
+  }
+
+  try {
+    const supabase = getSupabaseAdmin();
+    
+    // Get the user's role
+    const { data: userData } = await supabase
+      .from('user_metadata')
+      .select('role')
+      .eq('user_id', userId)
+      .single();
+    
+    const isEditor = userData?.role === 'editor';
+    const voteWeight = isEditor ? 2 : 1; // Editors get 2x weight
+
+    // Check if user already validated this
+    const { data: existingValidation } = await supabase
+      .from('place_id_validations')
+      .select('*')
+      .eq('michelin_id', michelinId)
+      .eq('suggested_place_id', placeId)
+      .eq('user_id', userId)
+      .single();
+
+    if (existingValidation) {
+      // Update existing validation
+      const { error: updateError } = await supabase
+        .from('place_id_validations')
+        .update({
+          validation_status: status,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', existingValidation.id);
+
+      if (updateError) {
+        console.error('❌ Error updating validation:', updateError);
+        return c.json({ error: 'Failed to update validation' }, 500);
+      }
+
+      console.log(`✅ Updated validation for user ${userId}`);
+    } else {
+      // Insert new validation
+      const { error: insertError } = await supabase
+        .from('place_id_validations')
+        .insert({
+          michelin_id: michelinId,
+          suggested_place_id: placeId,
+          user_id: userId,
+          validation_status: status,
+          vote_weight: voteWeight,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        });
+
+      if (insertError) {
+        console.error('❌ Error inserting validation:', insertError);
+        return c.json({ error: 'Failed to insert validation' }, 500);
+      }
+
+      console.log(`✅ Added validation for user ${userId} (weight: ${voteWeight})`);
+    }
+
+    // Count total weighted validations
+    const { data: validations, error: countError } = await supabase
+      .from('place_id_validations')
+      .select('validation_status, vote_weight')
+      .eq('michelin_id', michelinId)
+      .eq('suggested_place_id', placeId);
+
+    if (countError) {
+      console.error('❌ Error counting validations:', countError);
+    }
+
+    // Calculate weighted votes
+    let confirmedWeight = 0;
+    let rejectedWeight = 0;
+    let unsureWeight = 0;
+
+    validations?.forEach(v => {
+      const weight = v.vote_weight || 1;
+      if (v.validation_status === 'confirmed') confirmedWeight += weight;
+      else if (v.validation_status === 'rejected') rejectedWeight += weight;
+      else if (v.validation_status === 'unsure') unsureWeight += weight;
+    });
+
+    console.log(`📊 Validation counts: confirmed=${confirmedWeight}, rejected=${rejectedWeight}, unsure=${unsureWeight}`);
+
+    // Auto-update if 3+ weighted confirmations and no rejections
+    let autoUpdated = false;
+    if (confirmedWeight >= 3 && rejectedWeight === 0) {
+      const { error: updateError } = await supabase
+        .from('michelin_restaurants')
+        .update({ GooglePlaceId: placeId })
+        .eq('id', michelinId);
+
+      if (updateError) {
+        console.error('❌ Error auto-updating GooglePlaceId:', updateError);
+      } else {
+        console.log(`✅ Auto-updated GooglePlaceId for Michelin restaurant ${michelinId}`);
+        autoUpdated = true;
+      }
+    }
+
+    return c.json({
+      success: true,
+      autoUpdated,
+      validationCounts: {
+        confirmed: confirmedWeight,
+        rejected: rejectedWeight,
+        unsure: unsureWeight,
+      },
+    });
+  } catch (error) {
+    console.error('❌ Error in POST /michelin/:michelinId/validate-place:', error);
+    return c.json({ error: 'Failed to validate place' }, 500);
   }
 });
 

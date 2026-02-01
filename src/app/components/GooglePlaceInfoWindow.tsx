@@ -37,6 +37,39 @@ export function GooglePlaceInfoWindow({
 }: GooglePlaceInfoWindowProps) {
   const [currentPhotoIndex, setCurrentPhotoIndex] = useState(0);
   const [showEditorModal, setShowEditorModal] = useState(false);
+  const [michelinData, setMichelinData] = useState<{ score: number | null; loading: boolean }>({ 
+    score: null, 
+    loading: true 
+  });
+
+  // Fetch Michelin rating from database when place changes
+  useEffect(() => {
+    async function fetchMichelinRating() {
+      if (!place.geometry?.location) {
+        setMichelinData({ score: null, loading: false });
+        return;
+      }
+
+      setMichelinData({ score: null, loading: true });
+
+      try {
+        const lat = typeof place.geometry.location.lat === 'function' 
+          ? place.geometry.location.lat() 
+          : place.geometry.location.lat;
+        const lng = typeof place.geometry.location.lng === 'function' 
+          ? place.geometry.location.lng() 
+          : place.geometry.location.lng;
+
+        const result = await api.getMichelinRating(lat, lng, place.name);
+        setMichelinData({ score: result.michelinScore, loading: false });
+      } catch (error) {
+        console.error('Error fetching Michelin rating:', error);
+        setMichelinData({ score: null, loading: false });
+      }
+    }
+
+    fetchMichelinRating();
+  }, [place.place_id, place.name, place.geometry?.location]);
 
   // Process photos from the place object (already fetched by Map component)
   const photos = useMemo(() => {
@@ -318,27 +351,36 @@ export function GooglePlaceInfoWindow({
             )}
 
             {/* Michelin Rating - if available */}
-            {lvLocation?.michelinScore && lvLocation.michelinScore > 0 && (
+            {(lvLocation?.michelinScore && lvLocation.michelinScore > 0) || (michelinData.score && michelinData.score > 0) ? (
               <div className="flex items-center justify-between text-sm pb-2 border-b border-gray-100">
                 <div className="flex items-center gap-2">
                   <MichelinFlower className="w-4 h-4" />
                   <span className="text-gray-600">Michelin Guide</span>
                 </div>
                 <div className="flex items-center gap-0.5">
-                  {/* Display visual Michelin logos */}
-                  {lvLocation.michelinScore <= 3 ? (
-                    // Show 1-3 Michelin stars
-                    Array.from({ length: lvLocation.michelinScore }).map((_, i) => (
-                      <MichelinStar key={i} className="w-4 h-4" />
-                    ))
-                  ) : lvLocation.michelinScore === 4 ? (
-                    <MichelinBib className="w-5 h-5" />
+                  {michelinData.loading ? (
+                    <span className="text-xs text-gray-400">Loading...</span>
                   ) : (
-                    <MichelinPlate className="w-5 h-5" />
+                    (() => {
+                      const score = lvLocation?.michelinScore || michelinData.score || 0;
+                      // Display visual Michelin logos
+                      if (score <= 3) {
+                        // Show 1-3 Michelin stars
+                        return Array.from({ length: score }).map((_, i) => (
+                          <MichelinStar key={i} className="w-4 h-4" />
+                        ));
+                      } else if (score === 0.5 || score === 4) {
+                        // Bib Gourmand
+                        return <MichelinBib className="w-5 h-5" />;
+                      } else {
+                        // Michelin Plate
+                        return <MichelinPlate className="w-5 h-5" />;
+                      }
+                    })()
                   )}
                 </div>
               </div>
-            )}
+            ) : null}
 
             {/* Google Rating */}
             <div className="flex items-center justify-between text-sm">

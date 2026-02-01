@@ -24,10 +24,17 @@ export function Profile({
 }: ProfileProps) {
   const [isSyncing, setIsSyncing] = React.useState(false);
   const [syncProgress, setSyncProgress] = React.useState<{
-    current: number;
     total: number;
+    current: number;
     imported: number;
     added: number;
+  } | null>(null);
+
+  const [isDiscovering, setIsDiscovering] = React.useState(false);
+  const [discoveryProgress, setDiscoveryProgress] = React.useState<{
+    total: number;
+    current: number;
+    discovered: number;
   } | null>(null);
 
   const handleMichelinSyncBatch = async () => {
@@ -67,8 +74,8 @@ export function Profile({
 
         // Update progress
         setSyncProgress({
-          current: offset + (result.imported || 0),
           total: totalAvailable,
+          current: offset + (result.imported || 0),
           imported: totalImported,
           added: totalAdded
         });
@@ -106,6 +113,81 @@ export function Profile({
     } finally {
       setIsSyncing(false);
       setSyncProgress(null);
+    }
+  };
+
+  const handleMichelinPlaceIdDiscovery = async () => {
+    setIsDiscovering(true);
+    setDiscoveryProgress(null);
+    
+    try {
+      const BATCH_SIZE = 50; // Process 50 restaurants at a time to avoid API rate limits
+      let offset = 0;
+      let totalProcessed = 0;
+      let totalDiscovered = 0;
+      let hasMore = true;
+
+      toast.info('Starting Google Place ID discovery...', {
+        description: 'This will enrich Michelin restaurants with Google Place IDs'
+      });
+
+      while (hasMore) {
+        console.log(`🔍 Discovering Place IDs at offset ${offset}...`);
+        
+        const result = await api.discoverMichelinPlaceIds(offset, BATCH_SIZE);
+        
+        console.log('✅ Discovery result:', result);
+        
+        if (!result.success) {
+          toast.error('Place ID discovery failed', {
+            description: result.message
+          });
+          break;
+        }
+
+        totalProcessed += result.processed;
+        totalDiscovered += result.discovered;
+
+        // Update progress
+        setDiscoveryProgress({
+          total: totalProcessed + BATCH_SIZE, // Estimate total
+          current: totalProcessed,
+          discovered: totalDiscovered
+        });
+
+        // If we processed less than BATCH_SIZE, we're done
+        if (result.processed < BATCH_SIZE) {
+          hasMore = false;
+        } else {
+          // Move to next batch
+          offset += BATCH_SIZE;
+          
+          // Show progress toast
+          toast.info(`Discovery progress: ${totalProcessed} processed`, {
+            description: `Found ${totalDiscovered} Google Place IDs`
+          });
+          
+          // Delay to avoid rate limiting (Google Places API has rate limits)
+          await new Promise(resolve => setTimeout(resolve, 2000));
+        }
+      }
+
+      toast.success('Place ID discovery complete!', {
+        description: `Discovered ${totalDiscovered} Place IDs out of ${totalProcessed} restaurants`
+      });
+
+      // Refresh locations on the map
+      if (onMichelinSyncComplete) {
+        onMichelinSyncComplete();
+      }
+    } catch (error: any) {
+      console.error('Failed to discover Place IDs:', error);
+      toast.error('Failed to discover Place IDs', {
+        description: error.message || 'Please check the console for details'
+      });
+    } finally {
+      setIsDiscovering(false);
+      setDiscoveryProgress(null);
     }
   };
 
@@ -293,6 +375,61 @@ export function Profile({
                 <p className="text-xs text-amber-800">
                   <strong>Note:</strong> The full import of 18,000+ restaurants will take several minutes. 
                   All synced Michelin ratings will be visible on the map with special red star markers.
+                </p>
+              </div>
+              
+              {/* Divider */}
+              <div className="border-t border-gray-200 my-4" />
+              
+              {/* Google Place ID Discovery */}
+              <div className="flex items-start gap-3">
+                <div className="flex-1">
+                  <p className="text-sm font-medium text-gray-700 mb-1">Discover Google Place IDs</p>
+                  <p className="text-xs text-muted-foreground mb-3">
+                    Enriches Michelin restaurant data with accurate Google Place IDs for better integration. 
+                    This process uses the Google Places API and may take time.
+                  </p>
+                  <button
+                    onClick={handleMichelinPlaceIdDiscovery}
+                    disabled={isDiscovering || isSyncing}
+                    className={`inline-flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium transition-all ${
+                      isDiscovering || isSyncing
+                        ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                        : 'bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white shadow-md hover:shadow-lg'
+                    }`}
+                  >
+                    <MapPin className={`h-4 w-4 ${isDiscovering ? 'animate-pulse' : ''}`} />
+                    {isDiscovering ? 'Discovering Place IDs...' : 'Discover Place IDs'}
+                  </button>
+                </div>
+              </div>
+              
+              {/* Discovery Progress Bar */}
+              {discoveryProgress && (
+                <div className="bg-green-50 border border-green-200 rounded-lg p-4 space-y-2">
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="font-medium text-green-900">Discovery Progress</span>
+                    <span className="text-green-700">
+                      {discoveryProgress.current.toLocaleString()} processed
+                    </span>
+                  </div>
+                  <div className="w-full bg-green-200 rounded-full h-2 overflow-hidden">
+                    <div 
+                      className="bg-green-600 h-full transition-all duration-300 ease-out animate-pulse"
+                      style={{ width: '100%' }}
+                    />
+                  </div>
+                  <div className="flex items-center justify-between text-xs text-green-700">
+                    <span>Place IDs found: {discoveryProgress.discovered.toLocaleString()}</span>
+                    <span>{Math.round((discoveryProgress.discovered / Math.max(1, discoveryProgress.current)) * 100)}% success rate</span>
+                  </div>
+                </div>
+              )}
+              
+              {/* Info Box for Place ID Discovery */}
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+                <p className="text-xs text-blue-800">
+                  <strong>Tip:</strong> Run this after syncing Michelin data to link restaurants with Google Places for richer information and accurate InfoWindows.
                 </p>
               </div>
             </div>
