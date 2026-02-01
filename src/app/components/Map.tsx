@@ -774,151 +774,68 @@ export function Map({
                     return;
                   }
                   
-                  // Otherwise, search for the actual Google Place using Places API
-                  const { Place } = await google.maps.importLibrary("places") as google.maps.PlacesLibrary;
+                  // No GooglePlaceId - Check if we should show validation popup
+                  console.log('🔍 No GooglePlaceId - checking for suggestions...');
                   
-                  // Use Text Search to find the place
-                  const request = {
-                    textQuery: restaurant.name,
-                    locationBias: {
-                      center: { lat: restaurant.lat, lng: restaurant.lng },
-                      radius: 100, // Search within 100 meters
+                  try {
+                    const suggestionData = await api.suggestPlaceForMichelin(restaurant.id);
+                    
+                    if (suggestionData.hasPlaceId) {
+                      // Place ID was found and saved while we were checking
+                      console.log('✅ Place ID already exists:', suggestionData.googlePlaceId);
+                      // Reload Michelin restaurants to get the updated data
+                      await loadMichelinRestaurants();
+                      return;
+                    }
+                    
+                    if (suggestionData.hasResults && suggestionData.confidenceScore >= 70) {
+                      // Show validation popup
+                      console.log('🎯 Showing validation popup (confidence:', suggestionData.confidenceScore, '%)');
+                      setValidationPopup({
+                        michelinData: suggestionData.michelinData,
+                        suggestedPlace: suggestionData.suggestedPlace,
+                        confidenceScore: suggestionData.confidenceScore,
+                      });
+                      return;
+                    }
+                    
+                    // Low confidence or no results - show Michelin-only info window
+                    console.log('⚠️ Low confidence or no suggestions - showing Michelin-only data');
+                  } catch (suggestionError) {
+                    console.error('❌ Error getting suggestions:', suggestionError);
+                    // Continue to show Michelin-only data
+                  }
+                  
+                  // Fallback: Show Michelin-only info window
+                  const placeResult: google.maps.places.PlaceResult = {
+                    place_id: `michelin-${restaurant.id}`,
+                    name: restaurant.name,
+                    formatted_address: restaurant.address || restaurant.location,
+                    geometry: {
+                      location: new google.maps.LatLng(restaurant.lat, restaurant.lng)
                     },
-                    maxResultCount: 1,
                   };
                   
-                  // @ts-ignore - searchByText is available but TypeScript definitions may be incomplete
-                  const { places } = await Place.searchByText(request);
+                  const lvLocation: Location = {
+                    id: `michelin-${restaurant.id}`,
+                    name: restaurant.name,
+                    lat: restaurant.lat,
+                    lng: restaurant.lng,
+                    lvEditorsScore: undefined,
+                    lvCrowdsourceScore: undefined,
+                    googleRating: 0,
+                    michelinScore: michelinScore,
+                    tags: [],
+                    description: restaurant.location,
+                    address: restaurant.address,
+                    place_id: `michelin-${restaurant.id}`,
+                  };
                   
-                  if (places && places.length > 0) {
-                    const foundPlace = places[0];
-                    console.log('✅ Found Google Place for Michelin restaurant:', foundPlace.id);
-                    console.log('Place data:', {
-                      displayName: foundPlace.displayName,
-                      formattedAddress: foundPlace.formattedAddress,
-                      rating: foundPlace.rating,
-                      hasPhotos: !!foundPlace.photos,
-                      photoCount: foundPlace.photos?.length
-                    });
-                    
-                    // searchByText might return full data already, try without fetchFields first
-                    // If we need more fields, we can create a new Place object and fetch
-                    const needsMoreData = !foundPlace.photos || !foundPlace.displayName;
-                    
-                    if (needsMoreData) {
-                      console.log('⚠️ Need to fetch more place data...');
-                      // Create a new Place instance and fetch fields
-                      const detailedPlace = new Place({ id: foundPlace.id });
-                      await detailedPlace.fetchFields({
-                        fields: ['displayName', 'formattedAddress', 'location', 'photos', 'rating', 'userRatingCount', 'types', 'websiteURI', 'nationalPhoneNumber']
-                      });
-                      
-                      // Use the detailed place data
-                      const placeResult: google.maps.places.PlaceResult = {
-                        place_id: detailedPlace.id,
-                        name: detailedPlace.displayName || restaurant.name,
-                        formatted_address: detailedPlace.formattedAddress || restaurant.address || restaurant.location,
-                        geometry: {
-                          location: detailedPlace.location || new google.maps.LatLng(restaurant.lat, restaurant.lng)
-                        },
-                        rating: detailedPlace.rating,
-                        user_ratings_total: detailedPlace.userRatingCount,
-                        website: detailedPlace.websiteURI,
-                        formatted_phone_number: detailedPlace.nationalPhoneNumber,
-                        photos: detailedPlace.photos,
-                        types: detailedPlace.types,
-                      };
-                      
-                      // Create LV location with Michelin score
-                      const lvLocation: Location = {
-                        id: `michelin-${restaurant.id}`,
-                        name: restaurant.name,
-                        lat: restaurant.lat,
-                        lng: restaurant.lng,
-                        lvEditorsScore: undefined,
-                        lvCrowdsourceScore: undefined,
-                        googleRating: detailedPlace.rating || 0,
-                        michelinScore: michelinScore,
-                        tags: [],
-                        description: restaurant.location,
-                        address: restaurant.address,
-                        place_id: detailedPlace.id,
-                      };
-                      
-                      if (onPOIClick) {
-                        onPOIClick(placeResult, lvLocation);
-                      }
-                    } else {
-                      // Use search result data directly
-                      const placeResult: google.maps.places.PlaceResult = {
-                        place_id: foundPlace.id,
-                        name: foundPlace.displayName || restaurant.name,
-                        formatted_address: foundPlace.formattedAddress || restaurant.address || restaurant.location,
-                        geometry: {
-                          location: foundPlace.location || new google.maps.LatLng(restaurant.lat, restaurant.lng)
-                        },
-                        rating: foundPlace.rating,
-                        user_ratings_total: foundPlace.userRatingCount,
-                        website: foundPlace.websiteURI,
-                        formatted_phone_number: foundPlace.nationalPhoneNumber,
-                        photos: foundPlace.photos,
-                        types: foundPlace.types,
-                      };
-                      
-                      // Create LV location with Michelin score
-                      const lvLocation: Location = {
-                        id: `michelin-${restaurant.id}`,
-                        name: restaurant.name,
-                        lat: restaurant.lat,
-                        lng: restaurant.lng,
-                        lvEditorsScore: undefined,
-                        lvCrowdsourceScore: undefined,
-                        googleRating: foundPlace.rating || 0,
-                        michelinScore: michelinScore,
-                        tags: [],
-                        description: restaurant.location,
-                        address: restaurant.address,
-                        place_id: foundPlace.id,
-                      };
-                      
-                      if (onPOIClick) {
-                        onPOIClick(placeResult, lvLocation);
-                      }
-                    }
-                  } else {
-                    console.log('⚠️ No Google Place found for Michelin restaurant - using Michelin data only');
-                    
-                    // Fallback: Create minimal PlaceResult without real Google data
-                    const placeResult: google.maps.places.PlaceResult = {
-                      place_id: `michelin-${restaurant.id}`,
-                      name: restaurant.name,
-                      formatted_address: restaurant.address || restaurant.location,
-                      geometry: {
-                        location: new google.maps.LatLng(restaurant.lat, restaurant.lng)
-                      },
-                    };
-                    
-                    const lvLocation: Location = {
-                      id: `michelin-${restaurant.id}`,
-                      name: restaurant.name,
-                      lat: restaurant.lat,
-                      lng: restaurant.lng,
-                      lvEditorsScore: undefined,
-                      lvCrowdsourceScore: undefined,
-                      googleRating: 0,
-                      michelinScore: michelinScore,
-                      tags: [],
-                      description: restaurant.location,
-                      address: restaurant.address,
-                      place_id: `michelin-${restaurant.id}`, // Add place_id to lvLocation
-                    };
-                    
-                    if (onPOIClick) {
-                      onPOIClick(placeResult, lvLocation);
-                    }
+                  if (onPOIClick) {
+                    onPOIClick(placeResult, lvLocation);
                   }
                 } catch (error) {
-                  console.error('❌ Error searching for Google Place:', error);
+                  console.error('❌ Error in Michelin marker click:', error);
                   
                   // On error, show Michelin-only data
                   const placeResult: google.maps.places.PlaceResult = {
@@ -942,7 +859,7 @@ export function Map({
                     tags: [],
                     description: restaurant.location,
                     address: restaurant.address,
-                    place_id: `michelin-${restaurant.id}`, // Add place_id to lvLocation
+                    place_id: `michelin-${restaurant.id}`,
                   };
                   
                   if (onPOIClick) {
@@ -1047,6 +964,101 @@ export function Map({
           />
         )}
       </div>
+
+      {/* Place ID Validation Popup */}
+      {validationPopup && (
+        <PlaceIdValidationPopup
+          michelinData={validationPopup.michelinData}
+          suggestedPlace={validationPopup.suggestedPlace}
+          confidenceScore={validationPopup.confidenceScore}
+          isAuthenticated={isAuthenticated || false}
+          onValidate={async (status) => {
+            try {
+              console.log('📝 Submitting validation:', status);
+              
+              if (!isAuthenticated) {
+                console.log('⚠️ User not authenticated');
+                setValidationPopup(null);
+                return;
+              }
+
+              const result = await api.validateMichelinPlace(
+                validationPopup.michelinData.id,
+                validationPopup.suggestedPlace.id,
+                status
+              );
+
+              console.log('✅ Validation submitted:', result);
+
+              // Close the popup
+              setValidationPopup(null);
+
+              // If auto-updated, reload the Michelin restaurants
+              if (result.autoUpdated) {
+                console.log('🔄 GooglePlaceId auto-updated, reloading markers...');
+                await loadMichelinRestaurants();
+              }
+
+              // Show the info window for the restaurant
+              if (status === 'confirmed' || result.autoUpdated) {
+                // Fetch and show the place details
+                try {
+                  const { Place } = await google.maps.importLibrary("places") as google.maps.PlacesLibrary;
+                  const place = new Place({ id: validationPopup.suggestedPlace.id });
+                  
+                  await place.fetchFields({
+                    fields: ['displayName', 'formattedAddress', 'location', 'photos', 'rating', 'userRatingCount', 'types', 'websiteURI', 'nationalPhoneNumber']
+                  });
+                  
+                  const placeResult: google.maps.places.PlaceResult = {
+                    place_id: place.id,
+                    name: place.displayName || validationPopup.michelinData.name,
+                    formatted_address: place.formattedAddress,
+                    geometry: {
+                      location: place.location || new google.maps.LatLng(validationPopup.michelinData.lat, validationPopup.michelinData.lng)
+                    },
+                    rating: place.rating,
+                    user_ratings_total: place.userRatingCount,
+                    website: place.websiteURI,
+                    formatted_phone_number: place.nationalPhoneNumber,
+                    photos: place.photos,
+                    types: place.types,
+                  };
+                  
+                  const lvLocation: Location = {
+                    id: `michelin-${validationPopup.michelinData.id}`,
+                    name: validationPopup.michelinData.name,
+                    lat: validationPopup.michelinData.lat,
+                    lng: validationPopup.michelinData.lng,
+                    lvEditorsScore: undefined,
+                    lvCrowdsourceScore: undefined,
+                    googleRating: place.rating || 0,
+                    michelinScore: 1, // Will be properly calculated
+                    tags: [],
+                    description: validationPopup.michelinData.location,
+                    address: validationPopup.michelinData.address,
+                    place_id: place.id,
+                  };
+                  
+                  if (onPOIClick) {
+                    onPOIClick(placeResult, lvLocation);
+                  }
+                } catch (error) {
+                  console.error('Error fetching place details after validation:', error);
+                }
+              }
+            } catch (error) {
+              console.error('❌ Error submitting validation:', error);
+              // Still close the popup
+              setValidationPopup(null);
+            }
+          }}
+          onClose={() => {
+            console.log('❌ Validation popup closed without action');
+            setValidationPopup(null);
+          }}
+        />
+      )}
     </div>
   );
 }
