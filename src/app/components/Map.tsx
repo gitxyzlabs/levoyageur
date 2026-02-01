@@ -9,6 +9,7 @@ import { LuxuryMarker } from './LuxuryMarker';
 import { PlaceIdValidationPopup } from './PlaceIdValidationPopup';
 import { Locate, Plus, Minus } from 'lucide-react';
 
+// Map component for Le Voyageur
 interface MapProps {
   locations: Location[];
   heatMapData?: Location[];
@@ -738,6 +739,28 @@ export function Map({
                       fields: ['displayName', 'formattedAddress', 'location', 'photos', 'rating', 'userRatingCount', 'types', 'websiteURI', 'nationalPhoneNumber']
                     });
                     
+                    // Parse Michelin Award to get stars, distinction, and green star
+                    const award = restaurant.award || '';
+                    let michelinStars: number | null = null;
+                    let michelinDistinction: string | null = null;
+                    let michelinGreenStar = false;
+                    
+                    if (award.includes('3 Stars')) {
+                      michelinStars = 3;
+                    } else if (award.includes('2 Stars')) {
+                      michelinStars = 2;
+                    } else if (award.includes('1 Star')) {
+                      michelinStars = 1;
+                    } else if (award.includes('Bib Gourmand')) {
+                      michelinDistinction = 'Bib Gourmand';
+                    }
+                    
+                    // Check for Green Star (assuming it's in the restaurant object)
+                    // Note: Adjust this based on your actual data structure
+                    if ((restaurant as any).GreenStar) {
+                      michelinGreenStar = true;
+                    }
+                    
                     const placeResult: google.maps.places.PlaceResult = {
                       place_id: place.id,
                       name: place.displayName || restaurant.name,
@@ -762,9 +785,13 @@ export function Map({
                       lvCrowdsourceScore: undefined,
                       googleRating: place.rating || 0,
                       michelinScore: michelinScore,
+                      michelinStars: michelinStars,
+                      michelinDistinction: michelinDistinction,
+                      michelinGreenStar: michelinGreenStar,
                       tags: [],
                       description: restaurant.location,
                       address: restaurant.address,
+                      cuisine: restaurant.cuisine,
                       place_id: place.id,
                     };
                     

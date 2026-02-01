@@ -6,8 +6,9 @@ import { EditorRatingModal } from './EditorRatingModal';
 import { api, type Location } from '../../utils/api';
 import { InfoWindow } from '@vis.gl/react-google-maps';
 import { toast } from 'sonner';
-import { MichelinFlower, MichelinStar, MichelinBib, MichelinPlate } from '@/app/components/MichelinIcons';
+import { MichelinFlower, MichelinStar, MichelinBib, MichelinPlate, MichelinGreenStar } from '@/app/components/MichelinIcons';
 
+// GooglePlaceInfoWindow - Displays detailed information about a selected place
 interface GooglePlaceInfoWindowProps {
   place: google.maps.places.PlaceResult;
   onClose: () => void;
@@ -139,7 +140,11 @@ export function GooglePlaceInfoWindow({
     rawPhotosLength: place.photos?.length || 0,
     tags: lvLocation?.tags,
     types: place.types,
-    placeId: place.place_id
+    placeId: place.place_id,
+    michelinStars: lvLocation?.michelinStars,
+    michelinDistinction: lvLocation?.michelinDistinction,
+    michelinGreenStar: lvLocation?.michelinGreenStar,
+    cuisine: lvLocation?.cuisine
   });
 
   return (
@@ -317,6 +322,60 @@ export function GooglePlaceInfoWindow({
         )}
 
         <div className="px-4 pb-4">
+          {/* Michelin Guide Banner - Show when Michelin data is available */}
+          {(lvLocation?.michelinStars || lvLocation?.michelinDistinction || lvLocation?.michelinGreenStar) && (
+            <div className="mb-3 p-3 bg-gradient-to-br from-red-50 to-rose-50 border border-red-200 rounded-lg">
+              <div className="flex items-center gap-2 mb-2">
+                <MichelinFlower className="w-5 h-5" />
+                <span className="text-sm font-bold text-red-900">MICHELIN Guide</span>
+              </div>
+              
+              {/* Stars/Distinction */}
+              <div className="flex items-center gap-2 mb-2">
+                {lvLocation.michelinStars && (
+                  <div className="flex items-center gap-1">
+                    {Array.from({ length: lvLocation.michelinStars }).map((_, i) => (
+                      <MichelinStar key={i} className="w-5 h-5" />
+                    ))}
+                    <span className="ml-1 text-sm font-semibold text-red-900">
+                      {lvLocation.michelinStars} {lvLocation.michelinStars === 1 ? 'Star' : 'Stars'}
+                    </span>
+                  </div>
+                )}
+                
+                {lvLocation.michelinDistinction && (
+                  <div className="flex items-center gap-1">
+                    {lvLocation.michelinDistinction === 'Bib Gourmand' ? (
+                      <>
+                        <MichelinBib className="w-6 h-6" />
+                        <span className="text-sm font-semibold text-red-900">Bib Gourmand</span>
+                      </>
+                    ) : (
+                      <>
+                        <MichelinPlate className="w-6 h-6" />
+                        <span className="text-sm font-semibold text-red-900">{lvLocation.michelinDistinction}</span>
+                      </>
+                    )}
+                  </div>
+                )}
+                
+                {lvLocation.michelinGreenStar && (
+                  <div className="flex items-center gap-1 ml-2">
+                    <MichelinGreenStar className="w-5 h-5" />
+                    <span className="text-xs font-medium text-green-700">Green Star</span>
+                  </div>
+                )}
+              </div>
+              
+              {/* Cuisine */}
+              {lvLocation.cuisine && (
+                <div className="text-xs text-red-800">
+                  <span className="font-semibold">Cuisine:</span> {lvLocation.cuisine}
+                </div>
+              )}
+            </div>
+          )}
+
           {/* Ratings Section - Unified Style */}
           <div className="space-y-2 mb-3">
             {/* LV Editors Score - if available */}
@@ -349,38 +408,6 @@ export function GooglePlaceInfoWindow({
                 </div>
               </div>
             )}
-
-            {/* Michelin Rating - if available */}
-            {(lvLocation?.michelinScore && lvLocation.michelinScore > 0) || (michelinData.score && michelinData.score > 0) ? (
-              <div className="flex items-center justify-between text-sm pb-2 border-b border-gray-100">
-                <div className="flex items-center gap-2">
-                  <MichelinFlower className="w-4 h-4" />
-                  <span className="text-gray-600">Michelin Guide</span>
-                </div>
-                <div className="flex items-center gap-0.5">
-                  {michelinData.loading ? (
-                    <span className="text-xs text-gray-400">Loading...</span>
-                  ) : (
-                    (() => {
-                      const score = lvLocation?.michelinScore || michelinData.score || 0;
-                      // Display visual Michelin logos
-                      if (score <= 3) {
-                        // Show 1-3 Michelin stars
-                        return Array.from({ length: score }).map((_, i) => (
-                          <MichelinStar key={i} className="w-4 h-4" />
-                        ));
-                      } else if (score === 0.5 || score === 4) {
-                        // Bib Gourmand
-                        return <MichelinBib className="w-5 h-5" />;
-                      } else {
-                        // Michelin Plate
-                        return <MichelinPlate className="w-5 h-5" />;
-                      }
-                    })()
-                  )}
-                </div>
-              </div>
-            ) : null}
 
             {/* Google Rating */}
             <div className="flex items-center justify-between text-sm">
