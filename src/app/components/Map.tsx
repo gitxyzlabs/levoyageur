@@ -741,6 +741,7 @@ export function Map({
                     
                     // Parse Michelin Award to get stars, distinction, and green star
                     const award = restaurant.award || '';
+                    console.log('🏆 Parsing Michelin award:', award, 'for restaurant:', restaurant.name);
                     let michelinStars: number | null = null;
                     let michelinDistinction: string | null = null;
                     let michelinGreenStar = false;
@@ -754,6 +755,8 @@ export function Map({
                     } else if (award.includes('Bib Gourmand')) {
                       michelinDistinction = 'Bib Gourmand';
                     }
+                    
+                    console.log('✨ Parsed Michelin data:', { michelinStars, michelinDistinction, michelinGreenStar, award });
                     
                     // Check for Green Star (assuming it's in the restaurant object)
                     // Note: Adjust this based on your actual data structure
@@ -794,6 +797,8 @@ export function Map({
                       cuisine: restaurant.cuisine,
                       place_id: place.id,
                     };
+                    
+                    console.log('📦 Final lvLocation object:', lvLocation);
                     
                     if (onPOIClick) {
                       onPOIClick(placeResult, lvLocation);
