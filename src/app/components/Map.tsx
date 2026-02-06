@@ -261,8 +261,11 @@ export function Map({
     if (!isAuthenticated || !wantToGoLocations) return [];
     
     return wantToGoLocations.filter((location) => {
-      // Only show want-to-go markers for locations that DON'T have LV ratings
-      return !(location.lvEditorsScore || location.lvCrowdsourceScore);
+      // Only show want-to-go markers for locations that DON'T have LV ratings or Michelin scores
+      const hasLVRating = !!(location.lvEditorsScore || location.lvCrowdsourceScore);
+      const isMichelinLocation = location.id?.startsWith('michelin-') || location.place_id?.startsWith('michelin-');
+      
+      return !hasLVRating && !isMichelinLocation;
     });
   }, [isAuthenticated, wantToGoLocations]);
 
