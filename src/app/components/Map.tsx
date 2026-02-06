@@ -807,6 +807,8 @@ export function Map({
                 type="want-to-go"
                 locationName={location.name}
                 currentZoom={currentZoom}
+                favoritesCount={location.favoritesCount}
+                wantToGoCount={location.wantToGoCount}
               />
             </AdvancedMarker>
           );

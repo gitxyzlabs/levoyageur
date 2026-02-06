@@ -141,6 +141,89 @@ app.get('/make-server-48182530/config/google-maps-key', (c) => {
   return c.json({ apiKey });
 });
 
+// Get Google Place details with reviews and photos
+app.get('/make-server-48182530/google-places/:placeId/details', async (c) => {
+  console.log('📍 GET /google-places/:placeId/details - Start');
+  const placeId = c.req.param('placeId');
+  
+  if (!placeId) {
+    return c.json({ error: 'Place ID is required' }, 400);
+  }
+
+  const googleMapsApiKey = Deno.env.get('GOOGLE_MAPS_API_KEY');
+  if (!googleMapsApiKey) {
+    return c.json({ error: 'Google Maps API key not configured' }, 500);
+  }
+
+  try {
+    // Use the new Places API (v1) to get place details
+    const placeDetailsUrl = `https://places.googleapis.com/v1/places/${placeId}`;
+    
+    console.log(`🔍 Fetching details for Place ID: ${placeId}`);
+    
+    const response = await fetch(placeDetailsUrl, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Goog-Api-Key': googleMapsApiKey,
+        // Request reviews and photos in the field mask
+        'X-Goog-FieldMask': 'id,displayName,formattedAddress,location,rating,userRatingCount,reviews,photos,websiteUri,nationalPhoneNumber,googleMapsUri',
+      },
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error(`❌ Google Places API error:`, response.status, errorText);
+      return c.json({ error: 'Failed to fetch place details' }, response.status);
+    }
+
+    const placeData = await response.json();
+    console.log(`✅ Fetched place details: ${placeData.displayName?.text || 'Unknown'}`);
+    console.log(`📸 Photos from main call: ${placeData.photos?.length || 0}`);
+    console.log(`⭐ Reviews: ${placeData.reviews?.length || 0}`);
+
+    // Google Places API v1 returns max 10 photos by default
+    // All available photos are returned in the photos array - this is the limit from Google
+    // We'll return all of them at high resolution
+    const allPhotos = placeData.photos?.map((photo: any) => ({
+      photoReference: `https://places.googleapis.com/v1/${photo.name}/media?key=${googleMapsApiKey}&maxHeightPx=2400&maxWidthPx=2400`,
+      width: photo.widthPx || 800,
+      height: photo.heightPx || 600,
+    })) || [];
+
+    console.log(`📸 Total photos being returned: ${allPhotos.length}`);
+
+    // Transform the response to match our app's expected format
+    const transformedData = {
+      place_id: placeData.id,
+      name: placeData.displayName?.text,
+      formatted_address: placeData.formattedAddress,
+      rating: placeData.rating,
+      user_ratings_total: placeData.userRatingCount,
+      website: placeData.websiteUri,
+      formatted_phone_number: placeData.nationalPhoneNumber,
+      google_maps_url: placeData.googleMapsUri,
+      // Transform reviews (Google returns max 5 most relevant reviews)
+      reviews: placeData.reviews?.map((review: any) => ({
+        author_name: review.authorAttribution?.displayName || 'Anonymous',
+        author_url: review.authorAttribution?.uri,
+        profile_photo_url: review.authorAttribution?.photoUri,
+        rating: review.rating || 0,
+        relative_time_description: review.relativePublishTimeDescription || '',
+        text: review.text?.text || review.originalText?.text || '',
+        time: new Date(review.publishTime).getTime() / 1000, // Convert to Unix timestamp
+      })) || [],
+      // All available photos at high resolution
+      photos: allPhotos,
+    };
+
+    return c.json(transformedData);
+  } catch (error: any) {
+    console.error('❌ Error fetching place details:', error);
+    return c.json({ error: error.message || 'Internal server error' }, 500);
+  }
+});
+
 // Get all locations (public - no auth required)
 app.get('/make-server-48182530/locations', async (c) => {
   console.log('📍 GET /locations - Start');
@@ -498,10 +581,32 @@ app.get('/make-server-48182530/favorites', verifyAuth, async (c) => {
 
     console.log('GET /favorites - Found favorites:', favorites?.length || 0);
     
+    // Get favorites count and want-to-go count for each location
+    const { data: allFavoriteCounts } = await supabase
+      .from('favorites')
+      .select('location_id');
+    
+    const { data: allWantToGoCounts } = await supabase
+      .from('want_to_go')
+      .select('location_id');
+    
+    // Create maps of location_id to counts
+    const favCountMap = new Map<string, number>();
+    allFavoriteCounts?.forEach(fav => {
+      const count = favCountMap.get(fav.location_id) || 0;
+      favCountMap.set(fav.location_id, count + 1);
+    });
+    
+    const wtgCountMap = new Map<string, number>();
+    allWantToGoCounts?.forEach(wtg => {
+      const count = wtgCountMap.get(wtg.location_id) || 0;
+      wtgCountMap.set(wtg.location_id, count + 1);
+    });
+    
     // Extract and format location data using helper
     const formattedFavorites = favorites?.map(fav => {
       const loc = fav.locations as any;
-      return formatLocationForAPI(loc as LocationRow);
+      return formatLocationForAPI(loc as LocationRow, favCountMap.get(loc.id), wtgCountMap.get(loc.id));
     }) || [];
     
     return c.json({ favorites: formattedFavorites });
@@ -685,10 +790,32 @@ app.get('/make-server-48182530/want-to-go', verifyAuth, async (c) => {
 
     console.log('GET /want-to-go - Found items:', wantToGo?.length || 0);
     
+    // Get favorites count and want-to-go count for each location
+    const { data: allFavoriteCounts } = await supabase
+      .from('favorites')
+      .select('location_id');
+    
+    const { data: allWantToGoCounts } = await supabase
+      .from('want_to_go')
+      .select('location_id');
+    
+    // Create maps of location_id to counts
+    const favCountMap = new Map<string, number>();
+    allFavoriteCounts?.forEach(fav => {
+      const count = favCountMap.get(fav.location_id) || 0;
+      favCountMap.set(fav.location_id, count + 1);
+    });
+    
+    const wtgCountMap = new Map<string, number>();
+    allWantToGoCounts?.forEach(wtg => {
+      const count = wtgCountMap.get(wtg.location_id) || 0;
+      wtgCountMap.set(wtg.location_id, count + 1);
+    });
+    
     // Extract and format location data using helper
     const formattedWantToGo = wantToGo?.map(wtg => {
       const loc = wtg.locations as any;
-      return formatLocationForAPI(loc as LocationRow);
+      return formatLocationForAPI(loc as LocationRow, favCountMap.get(loc.id), wtgCountMap.get(loc.id));
     }) || [];
     
     return c.json({ wantToGo: formattedWantToGo });

@@ -7,6 +7,9 @@ import { api, type Location } from '../../utils/api';
 import { InfoWindow } from '@vis.gl/react-google-maps';
 import { toast } from 'sonner';
 import { MichelinFlower, MichelinStar, MichelinBib, MichelinPlate, MichelinGreenStar } from '@/app/components/MichelinIcons';
+import { GoogleReviewsModal } from './GoogleReviewsModal';
+import { PhotoGalleryModal } from './PhotoGalleryModal';
+import { projectId, publicAnonKey } from '/utils/supabase/info';
 
 // GooglePlaceInfoWindow - Displays detailed information about a selected place
 interface GooglePlaceInfoWindowProps {
@@ -38,6 +41,10 @@ export function GooglePlaceInfoWindow({
 }: GooglePlaceInfoWindowProps) {
   const [currentPhotoIndex, setCurrentPhotoIndex] = useState(0);
   const [showEditorModal, setShowEditorModal] = useState(false);
+  const [showReviewsModal, setShowReviewsModal] = useState(false);
+  const [showPhotoGallery, setShowPhotoGallery] = useState(false);
+  const [placeDetails, setPlaceDetails] = useState<any>(null);
+  const [loadingDetails, setLoadingDetails] = useState(false);
   const [michelinData, setMichelinData] = useState<{ score: number | null; loading: boolean }>({ 
     score: null, 
     loading: true 
@@ -99,6 +106,52 @@ export function GooglePlaceInfoWindow({
   useEffect(() => {
     setCurrentPhotoIndex(0);
   }, [place.place_id]);
+
+  // Function to fetch full place details with reviews and all photos
+  const fetchPlaceDetails = async () => {
+    if (!place.place_id || loadingDetails || placeDetails) return;
+    
+    setLoadingDetails(true);
+    try {
+      const response = await fetch(
+        `https://${projectId}.supabase.co/functions/v1/make-server-48182530/google-places/${place.place_id}/details`,
+        {
+          headers: {
+            'Authorization': `Bearer ${publicAnonKey}`,
+          },
+        }
+      );
+      
+      if (!response.ok) {
+        throw new Error('Failed to fetch place details');
+      }
+      
+      const data = await response.json();
+      setPlaceDetails(data);
+      console.log('📍 Fetched place details:', data);
+    } catch (error) {
+      console.error('Error fetching place details:', error);
+      toast.error('Failed to load reviews and photos');
+    } finally {
+      setLoadingDetails(false);
+    }
+  };
+
+  // Function to open reviews modal
+  const handleOpenReviews = async () => {
+    if (!placeDetails) {
+      await fetchPlaceDetails();
+    }
+    setShowReviewsModal(true);
+  };
+
+  // Function to open photo gallery
+  const handleOpenPhotoGallery = async () => {
+    if (!placeDetails) {
+      await fetchPlaceDetails();
+    }
+    setShowPhotoGallery(true);
+  };
 
   const nextPhoto = () => {
     setCurrentPhotoIndex((prev) => (prev + 1) % photos.length);
@@ -245,14 +298,14 @@ export function GooglePlaceInfoWindow({
               }}
               className={`p-2 rounded-full transition-all hover:scale-110 ${
                 wantToGoIds?.has(place.place_id || '')
-                  ? 'bg-green-50 hover:bg-green-100'
+                  ? 'bg-green-500 hover:bg-green-600'
                   : 'bg-gray-100 hover:bg-gray-200'
               }`}
-              title="Want to Go"
+              title={wantToGoIds?.has(place.place_id || '') ? 'Remove from Want to Go' : 'Add to Want to Go'}
             >
               <Bookmark className={`w-4 h-4 ${
                 wantToGoIds?.has(place.place_id || '') 
-                  ? 'fill-green-500 stroke-green-500' 
+                  ? 'fill-white stroke-white' 
                   : 'stroke-gray-600'
               }`} />
             </button>
@@ -272,7 +325,11 @@ export function GooglePlaceInfoWindow({
 
         {/* Photo Carousel */}
         {photos.length > 0 ? (
-          <div className="relative mb-3 bg-gray-100 rounded-lg overflow-hidden mx-4">
+          <div 
+            className="relative mb-3 bg-gray-100 rounded-lg overflow-hidden mx-4 cursor-pointer group"
+            onClick={handleOpenPhotoGallery}
+            title="Click to view all photos"
+          >
             <div className="aspect-video">
               <img
                 src={photos[currentPhotoIndex].photoReference}
@@ -281,28 +338,44 @@ export function GooglePlaceInfoWindow({
               />
             </div>
             
+            {/* View All Photos overlay */}
+            <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition-all duration-200 flex items-center justify-center">
+              <div className="opacity-0 group-hover:opacity-100 transition-opacity duration-200 bg-white/90 backdrop-blur-sm px-4 py-2 rounded-full text-sm font-medium text-gray-900">
+                View All Photos
+              </div>
+            </div>
+            
             {photos.length > 1 && (
               <>
                 {/* Navigation Buttons */}
                 <button
-                  onClick={prevPhoto}
-                  className="absolute left-2 top-1/2 -translate-y-1/2 bg-white/90 hover:bg-white p-1.5 rounded-full shadow-lg transition-all"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    prevPhoto();
+                  }}
+                  className="absolute left-2 top-1/2 -translate-y-1/2 bg-white/90 hover:bg-white p-1.5 rounded-full shadow-lg transition-all z-10"
                 >
                   <ChevronLeft className="w-4 h-4 text-gray-800" />
                 </button>
                 <button
-                  onClick={nextPhoto}
-                  className="absolute right-2 top-1/2 -translate-y-1/2 bg-white/90 hover:bg-white p-1.5 rounded-full shadow-lg transition-all"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    nextPhoto();
+                  }}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 bg-white/90 hover:bg-white p-1.5 rounded-full shadow-lg transition-all z-10"
                 >
                   <ChevronRight className="w-4 h-4 text-gray-800" />
                 </button>
 
                 {/* Photo Indicators */}
-                <div className="absolute bottom-2 left-1/2 -translate-x-1/2 flex gap-1.5">
+                <div className="absolute bottom-2 left-1/2 -translate-x-1/2 flex gap-1.5 z-10">
                   {photos.map((_, idx) => (
                     <button
                       key={idx}
-                      onClick={() => setCurrentPhotoIndex(idx)}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setCurrentPhotoIndex(idx);
+                      }}
                       className={`w-1.5 h-1.5 rounded-full transition-all ${
                         idx === currentPhotoIndex 
                           ? 'bg-white w-4' 
@@ -391,10 +464,15 @@ export function GooglePlaceInfoWindow({
             )}
 
             {/* Google Rating */}
-            <div className="flex items-center justify-between text-sm pb-2 border-b border-gray-100">
+            {/* Google Rating - Clickable to view reviews */}
+            <button 
+              onClick={handleOpenReviews}
+              className="flex items-center justify-between text-sm pb-2 border-b border-gray-100 w-full hover:bg-blue-50 transition-colors px-2 -mx-2 rounded cursor-pointer group"
+              title="Click to read Google reviews"
+            >
               <div className="flex items-center gap-2">
                 <Star className="w-4 h-4 text-amber-600" />
-                <span className="text-gray-600">Google Rating</span>
+                <span className="text-gray-600 group-hover:text-blue-600 transition-colors">Google Rating</span>
               </div>
               <div className="flex items-center gap-2">
                 {renderStars(place.rating ?? null)}
@@ -403,13 +481,13 @@ export function GooglePlaceInfoWindow({
                     {place.rating?.toFixed(1) || 'N/A'}
                   </span>
                   {place.user_ratings_total && (
-                    <span className="text-xs text-gray-500">
+                    <span className="text-xs text-gray-500 group-hover:text-blue-600 transition-colors">
                       ({place.user_ratings_total.toLocaleString()})
                     </span>
                   )}
                 </div>
               </div>
-            </div>
+            </button>
 
             {/* Cuisine - below Google rating */}
             {lvLocation?.cuisine && (
@@ -593,6 +671,26 @@ export function GooglePlaceInfoWindow({
                 // Reload locations after rating is updated
                 onRefresh?.();
               }}
+            />
+          )}
+
+          {/* Reviews Modal */}
+          {showReviewsModal && placeDetails && (
+            <GoogleReviewsModal
+              reviews={placeDetails.reviews || []}
+              placeName={place.name || 'Unknown Place'}
+              googleMapsUrl={placeDetails.google_maps_url}
+              onClose={() => setShowReviewsModal(false)}
+            />
+          )}
+
+          {/* Photo Gallery Modal */}
+          {showPhotoGallery && placeDetails && placeDetails.photos && placeDetails.photos.length > 0 && (
+            <PhotoGalleryModal
+              photos={placeDetails.photos}
+              initialIndex={0}
+              placeName={place.name || 'Unknown Place'}
+              onClose={() => setShowPhotoGallery(false)}
             />
           )}
         </div>

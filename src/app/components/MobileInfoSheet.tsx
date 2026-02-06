@@ -5,6 +5,9 @@ import { Award, Users, Star, ChevronLeft, ChevronRight, MapPin, Edit3, Navigatio
 import { EditorRatingModal } from './EditorRatingModal';
 import { api, type Location } from '../../utils/api';
 import { MichelinFlower, MichelinStar, MichelinBib, MichelinPlate, MichelinGreenStar } from '@/app/components/MichelinIcons';
+import { GoogleReviewsModal } from './GoogleReviewsModal';
+import { PhotoGalleryModal } from './PhotoGalleryModal';
+import { projectId, publicAnonKey } from '/utils/supabase/info';
 
 interface MobileInfoSheetProps {
   place: google.maps.places.PlaceResult;
@@ -33,6 +36,10 @@ export function MobileInfoSheet({
 }: MobileInfoSheetProps) {
   const [currentPhotoIndex, setCurrentPhotoIndex] = useState(0);
   const [showEditorModal, setShowEditorModal] = useState(false);
+  const [showReviewsModal, setShowReviewsModal] = useState(false);
+  const [showPhotoGallery, setShowPhotoGallery] = useState(false);
+  const [placeDetails, setPlaceDetails] = useState<any>(null);
+  const [loadingDetails, setLoadingDetails] = useState(false);
   const [dragProgress, setDragProgress] = useState(0);
   const y = useMotionValue(0);
   const opacity = useTransform(y, [0, 300], [1, 0]);
@@ -98,6 +105,52 @@ export function MobileInfoSheet({
     }
   };
 
+  // Function to fetch full place details with reviews and all photos
+  const fetchPlaceDetails = async () => {
+    if (!place.place_id || loadingDetails || placeDetails) return;
+    
+    setLoadingDetails(true);
+    try {
+      const response = await fetch(
+        `https://${projectId}.supabase.co/functions/v1/make-server-48182530/google-places/${place.place_id}/details`,
+        {
+          headers: {
+            'Authorization': `Bearer ${publicAnonKey}`,
+          },
+        }
+      );
+      
+      if (!response.ok) {
+        throw new Error('Failed to fetch place details');
+      }
+      
+      const data = await response.json();
+      setPlaceDetails(data);
+      console.log('📍 Fetched place details:', data);
+    } catch (error) {
+      console.error('Error fetching place details:', error);
+      toast.error('Failed to load reviews and photos');
+    } finally {
+      setLoadingDetails(false);
+    }
+  };
+
+  // Function to open reviews modal
+  const handleOpenReviews = async () => {
+    if (!placeDetails) {
+      await fetchPlaceDetails();
+    }
+    setShowReviewsModal(true);
+  };
+
+  // Function to open photo gallery
+  const handleOpenPhotoGallery = async () => {
+    if (!placeDetails) {
+      await fetchPlaceDetails();
+    }
+    setShowPhotoGallery(true);
+  };
+
   return (
     <>
       <motion.div
@@ -129,7 +182,7 @@ export function MobileInfoSheet({
         <div className="flex-1 overflow-y-auto">
           {/* Photo Carousel */}
           {photos.length > 0 && (
-            <div className="relative bg-gray-100">
+            <div className="relative bg-gray-100 group cursor-pointer" onClick={handleOpenPhotoGallery}>
               <div className="aspect-video">
                 <img
                   src={photos[currentPhotoIndex].photoReference}
@@ -138,28 +191,44 @@ export function MobileInfoSheet({
                 />
               </div>
               
+              {/* View All Photos overlay */}
+              <div className="absolute inset-0 bg-black/0 group-active:bg-black/30 transition-all duration-200 flex items-center justify-center pointer-events-none">
+                <div className="opacity-0 group-active:opacity-100 transition-opacity duration-200 bg-white/90 backdrop-blur-sm px-5 py-2.5 rounded-full text-sm font-medium text-gray-900">
+                  View All Photos
+                </div>
+              </div>
+              
               {photos.length > 1 && (
                 <>
                   {/* Navigation Buttons */}
                   <button
-                    onClick={prevPhoto}
-                    className="absolute left-3 top-1/2 -translate-y-1/2 bg-white/90 hover:bg-white p-2 rounded-full shadow-lg transition-all"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      prevPhoto();
+                    }}
+                    className="absolute left-3 top-1/2 -translate-y-1/2 bg-white/90 hover:bg-white p-2 rounded-full shadow-lg transition-all z-10"
                   >
                     <ChevronLeft className="w-5 h-5 text-gray-800" />
                   </button>
                   <button
-                    onClick={nextPhoto}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 bg-white/90 hover:bg-white p-2 rounded-full shadow-lg transition-all"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      nextPhoto();
+                    }}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 bg-white/90 hover:bg-white p-2 rounded-full shadow-lg transition-all z-10"
                   >
                     <ChevronRight className="w-5 h-5 text-gray-800" />
                   </button>
 
                   {/* Photo Indicators */}
-                  <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex gap-2">
+                  <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex gap-2 z-10">
                     {photos.map((_, idx) => (
                       <button
                         key={idx}
-                        onClick={() => setCurrentPhotoIndex(idx)}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setCurrentPhotoIndex(idx);
+                        }}
                         className={`w-2 h-2 rounded-full transition-all ${
                           idx === currentPhotoIndex 
                             ? 'bg-white w-6' 
@@ -173,8 +242,11 @@ export function MobileInfoSheet({
 
               {/* Close Button */}
               <button
-                onClick={onClose}
-                className="absolute top-3 right-3 p-2 bg-white/90 hover:bg-white rounded-full shadow-lg transition-all"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onClose();
+                }}
+                className="absolute top-3 right-3 p-2 bg-white/90 hover:bg-white rounded-full shadow-lg transition-all z-10"
               >
                 <X className="w-5 h-5 text-gray-800" />
               </button>
@@ -262,14 +334,14 @@ export function MobileInfoSheet({
                 }}
                 className={`flex items-center justify-center gap-2 py-3 px-4 rounded-xl font-medium transition-all ${
                   wantToGoIds?.has(place.place_id || '')
-                    ? 'bg-green-50 text-green-600 border-2 border-green-200'
+                    ? 'bg-green-500 text-white hover:bg-green-600'
                     : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                 }`}
               >
                 <Bookmark className={`w-5 h-5 ${
-                  wantToGoIds?.has(place.place_id || '') ? 'fill-green-500 stroke-green-500' : ''
+                  wantToGoIds?.has(place.place_id || '') ? 'fill-white stroke-white' : ''
                 }`} />
-                Want to Go
+                {wantToGoIds?.has(place.place_id || '') ? 'Added to List' : 'Want to Go'}
               </button>
             </div>
 
@@ -363,23 +435,26 @@ export function MobileInfoSheet({
               )}
 
               {place.rating && (
-                <div className="flex items-center justify-between p-4 bg-slate-50 rounded-xl border border-slate-200">
+                <button 
+                  onClick={handleOpenReviews}
+                  className="flex items-center justify-between p-4 bg-slate-50 rounded-xl border border-slate-200 w-full hover:bg-blue-50 hover:border-blue-300 transition-colors cursor-pointer group"
+                >
                   <div className="flex items-center gap-3">
-                    <div className="p-2 bg-white rounded-lg">
+                    <div className="p-2 bg-white rounded-lg group-hover:bg-blue-100 transition-colors">
                       <Star className="w-5 h-5 text-blue-500" />
                     </div>
                     <div>
-                      <div className="text-xs font-medium text-slate-700 uppercase tracking-wide">Google Rating</div>
+                      <div className="text-xs font-medium text-slate-700 uppercase tracking-wide group-hover:text-blue-700 transition-colors">Google Rating</div>
                       {place.user_ratings_total && (
-                        <div className="text-sm text-slate-500">{place.user_ratings_total.toLocaleString()} reviews</div>
+                        <div className="text-sm text-slate-500 group-hover:text-blue-600 transition-colors">{place.user_ratings_total.toLocaleString()} reviews</div>
                       )}
                     </div>
                   </div>
                   <div className="text-right">
-                    <div className="text-2xl font-bold text-slate-900">{place.rating.toFixed(1)}</div>
+                    <div className="text-2xl font-bold text-slate-900 group-hover:text-blue-700 transition-colors">{place.rating.toFixed(1)}</div>
                     <div className="mt-1">{renderStars(place.rating)}</div>
                   </div>
-                </div>
+                </button>
               )}
             </div>
 
@@ -447,6 +522,26 @@ export function MobileInfoSheet({
                 onRatingAdded();
               }
             }}
+          />
+        )}
+
+        {/* Reviews Modal */}
+        {showReviewsModal && placeDetails && (
+          <GoogleReviewsModal
+            reviews={placeDetails.reviews || []}
+            placeName={place.name || 'Unknown Place'}
+            googleMapsUrl={placeDetails.google_maps_url}
+            onClose={() => setShowReviewsModal(false)}
+          />
+        )}
+
+        {/* Photo Gallery Modal */}
+        {showPhotoGallery && placeDetails && placeDetails.photos && placeDetails.photos.length > 0 && (
+          <PhotoGalleryModal
+            photos={placeDetails.photos}
+            initialIndex={0}
+            placeName={place.name || 'Unknown Place'}
+            onClose={() => setShowPhotoGallery(false)}
           />
         )}
       </motion.div>

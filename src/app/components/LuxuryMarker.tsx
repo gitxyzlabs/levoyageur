@@ -403,8 +403,8 @@ export function LuxuryMarker({
         <div
           className="absolute flex items-center gap-1 px-1.5 py-0.5 rounded-full shadow-md backdrop-blur-sm border border-white/40"
           style={{
-            left: `${-18 * scale}px`,
-            top: `${-8 * scale}px`,
+            left: `${-30 * scale}px`,
+            top: `${-7 * scale}px`,
             background: 'linear-gradient(135deg, rgba(255, 255, 255, 0.97) 0%, rgba(254, 242, 242, 0.95) 100%)',
             fontSize: `${8 * scale}px`,
             fontWeight: '600',
