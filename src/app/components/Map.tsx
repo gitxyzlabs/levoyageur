@@ -268,6 +268,51 @@ export function Map({
       return !hasLVRating && !isMichelinLocation;
     });
   }, [isAuthenticated, wantToGoLocations]);
+  
+  // Create a Set of location IDs and coordinates that are already rendered as LV markers
+  // This prevents duplicate rendering from the Michelin markers array
+  const renderedLocationIds = useMemo(() => {
+    const ids = new Set<string>();
+    const coords = new Set<string>();
+    
+    // Track all LV markers (including those with Michelin data)
+    lvMarkersToDisplay.forEach(location => {
+      if (location.id) ids.add(location.id);
+      if (location.place_id) ids.add(location.place_id);
+      // Also track coordinates to catch duplicates
+      coords.add(`${location.lat.toFixed(6)},${location.lng.toFixed(6)}`);
+    });
+    
+    // Track all Want to Go markers
+    wantToGoMarkersToDisplay.forEach(location => {
+      if (location.id) ids.add(location.id);
+      if (location.place_id) ids.add(location.place_id);
+      coords.add(`${location.lat.toFixed(6)},${location.lng.toFixed(6)}`);
+    });
+    
+    return { ids, coords };
+  }, [lvMarkersToDisplay, wantToGoMarkersToDisplay]);
+  
+  // Filter Michelin restaurants to only show those NOT already rendered as LV markers
+  const michelinMarkersToDisplay = useMemo(() => {
+    return michelinRestaurants.filter(restaurant => {
+      const michelinId = `michelin-${restaurant.id}`;
+      const coordKey = `${restaurant.lat.toFixed(6)},${restaurant.lng.toFixed(6)}`;
+      
+      // Skip if already rendered as an LV marker (by ID or coordinates)
+      if (renderedLocationIds.ids.has(michelinId)) {
+        console.log(`⏭️ Skipping Michelin marker ${restaurant.name} - already in LV markers (by ID)`);
+        return false;
+      }
+      
+      if (renderedLocationIds.coords.has(coordKey)) {
+        console.log(`⏭️ Skipping Michelin marker ${restaurant.name} - already in LV markers (by coords)`);
+        return false;
+      }
+      
+      return true;
+    });
+  }, [michelinRestaurants, renderedLocationIds]);
 
   // Debug logging for marker filtering
   useEffect(() => {
@@ -276,9 +321,13 @@ export function Map({
       totalLocations: locations.length,
       heatMapDataCount: heatMapData?.length || 0,
       displayingCount: displayLocations.length,
-      isFiltered: showHeatMap && heatMapData ? true : false
+      isFiltered: showHeatMap && heatMapData ? true : false,
+      lvMarkers: lvMarkersToDisplay.length,
+      wantToGoMarkers: wantToGoMarkersToDisplay.length,
+      michelinMarkers: michelinMarkersToDisplay.length,
+      totalMichelinRestaurants: michelinRestaurants.length,
     });
-  }, [showHeatMap, locations, heatMapData, displayLocations]);
+  }, [showHeatMap, locations, heatMapData, displayLocations, lvMarkersToDisplay, wantToGoMarkersToDisplay, michelinMarkersToDisplay, michelinRestaurants]);
 
   // Get user's current location
   const getUserLocation = () => {
@@ -818,7 +867,7 @@ export function Map({
         })}
         
         {/* Michelin Restaurant Markers - Show red Michelin markers for database restaurants */}
-        {!showSearchResults && showMichelinMarkers && michelinRestaurants.map((restaurant) => {
+        {!showSearchResults && showMichelinMarkers && michelinMarkersToDisplay.map((restaurant) => {
           const michelinScore = michelinAwardToScore(restaurant.award);
           
           // Skip restaurants without a valid Michelin award
