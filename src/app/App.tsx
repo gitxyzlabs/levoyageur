@@ -1388,7 +1388,7 @@ export default function App() {
                 <Bookmark className={`h-5 w-5 ${sidebarView === 'wantToGo' && mobileDrawerOpen ? 'text-blue-500' : 'text-gray-600'}`} />
                 <span className="text-xs font-medium text-gray-700">Want to Go</span>
                 {wantToGoIds.size > 0 && (
-                  <div className="absolute -top-1 right-2 min-w-[18px] h-[18px] bg-blue-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center px-1">
+                  <div className="absolute -top-1 left-0 min-w-[18px] h-[18px] bg-blue-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center px-1">
                     {wantToGoIds.size}
                   </div>
                 )}

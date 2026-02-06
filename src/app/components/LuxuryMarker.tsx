@@ -107,11 +107,20 @@ export function LuxuryMarker({
   // Special handling for Michelin locations
   if (michelinScore && michelinScore > 0 && type === 'lv-location') {
     if (!hasLVRating) {
-      // Michelin rating but NO LV rating: red outer, white inner gradient
-      markerColor = michelinRed;
-      innerGradientColor = '#ffffff';
-      markerGlow = 'rgba(155, 39, 67, 0.4)';
-      iconColor = '#ffffff';
+      // Michelin rating but NO LV rating
+      // If it's in Want to Go list, use green outer ring, otherwise use Michelin red
+      if (isWantToGo) {
+        markerColor = '#10b981'; // Green for Want to Go
+        innerGradientColor = '#ffffff';
+        markerGlow = 'rgba(16, 185, 129, 0.4)';
+        iconColor = '#ffffff';
+      } else {
+        // Standard Michelin red
+        markerColor = michelinRed;
+        innerGradientColor = '#ffffff';
+        markerGlow = 'rgba(155, 39, 67, 0.4)';
+        iconColor = '#ffffff';
+      }
     } else {
       // Michelin rating AND LV rating: LV color outer, white inner gradient
       const style = getMarkerStyle(rating);

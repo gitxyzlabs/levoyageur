@@ -1024,7 +1024,7 @@ export function Map({
                 scale={1}
                 showHeatMap={false}
                 isFavorite={false}
-                isWantToGo={false}
+                isWantToGo={wantToGoIds?.has(`michelin-${restaurant.id}`) || false}
                 hasLVRating={false}
                 type="lv-location"
                 locationName={restaurant.name}
