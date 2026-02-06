@@ -16,7 +16,8 @@ import {
   Heart,
   Bookmark,
   Settings,
-  Menu
+  Menu,
+  Filter
 } from 'lucide-react';
 
 import { Map } from './components/Map';
@@ -66,6 +67,9 @@ export default function App() {
   const [selectedCity, setSelectedCity] = useState<google.maps.places.PlaceResult | null>(null);
   const [cityStats, setCityStats] = useState<{ totalLVRatings: number; totalFavorites: number }>({ totalLVRatings: 0, totalFavorites: 0 });
   const [mobileDrawerOpen, setMobileDrawerOpen] = useState(false);
+  const [showLVMarkers, setShowLVMarkers] = useState(true);
+  const [showMichelinMarkers, setShowMichelinMarkers] = useState(true);
+  const [filterMenuOpen, setFilterMenuOpen] = useState(false);
 
   // Calculate city stats when a city is selected
   useEffect(() => {
@@ -320,7 +324,7 @@ export default function App() {
     );
   }, [wantToGoLocations, searchQuery]);
 
-  const handlePlaceSelect = (place: google.maps.places.PlaceResult) => {
+  const handlePlaceSelect = (place: google.maps.places.PlaceResult, location?: Location) => {
     console.log('🏙️ Place selected:', place.name, 'Types:', place.types);
     
     // Check if this is a city/region (not a specific establishment)
@@ -347,7 +351,8 @@ export default function App() {
       console.log('✅ Detected as specific place - showing place info window');
       // Store the selected Google place to show in Map
       setSelectedGooglePlace(place);
-      setSelectedLVLocation(null);
+      // If location data was passed (e.g., from Michelin search), use it
+      setSelectedLVLocation(location || null);
       setSelectedCity(null);
       
       // Pan map to the selected place location
@@ -473,6 +478,7 @@ export default function App() {
           center: { lat: center.lat(), lng: center.lng() },
           radius: radius
         },
+        fields: ['id', 'displayName', 'formattedAddress', 'location', 'rating', 'userRatingCount', 'types', 'photos'],
         maxResultCount: 20,
         language: 'en-US',
       };
@@ -1057,6 +1063,72 @@ export default function App() {
               )}
             </motion.button>
 
+            {/* Filter Button - Top Right */}
+            <motion.div
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ duration: 0.4 }}
+              className="hidden md:block absolute top-6 right-4 sm:right-6 z-20"
+            >
+              <div className="relative">
+                <button
+                  onClick={() => setFilterMenuOpen(!filterMenuOpen)}
+                  className="p-3 bg-white/95 backdrop-blur-2xl rounded-xl shadow-lg border border-slate-200 hover:bg-white hover:shadow-xl transition-all duration-300"
+                >
+                  <Filter className="h-5 w-5 text-slate-600" />
+                </button>
+
+                {/* Filter Dropdown Menu */}
+                <AnimatePresence>
+                  {filterMenuOpen && (
+                    <motion.div
+                      initial={{ opacity: 0, y: -10, scale: 0.95 }}
+                      animate={{ opacity: 1, y: 0, scale: 1 }}
+                      exit={{ opacity: 0, y: -10, scale: 0.95 }}
+                      transition={{ duration: 0.2 }}
+                      className="absolute top-full right-0 mt-2 w-56 bg-white/95 backdrop-blur-2xl rounded-xl shadow-xl border border-slate-200 overflow-hidden"
+                    >
+                      <div className="p-3 space-y-2">
+                        <div className="text-xs font-semibold text-gray-500 uppercase tracking-wider px-2 py-1">
+                          Show Markers
+                        </div>
+                        
+                        {/* LV Markers Toggle */}
+                        <button
+                          onClick={() => setShowLVMarkers(!showLVMarkers)}
+                          className="w-full flex items-center justify-between px-3 py-2.5 rounded-lg hover:bg-slate-100 transition-all"
+                        >
+                          <span className="text-sm font-medium text-gray-700">LV Markers</span>
+                          <div className={`w-10 h-6 rounded-full transition-all ${
+                            showLVMarkers ? 'bg-blue-500' : 'bg-gray-300'
+                          }`}>
+                            <div className={`w-4 h-4 bg-white rounded-full shadow-md transition-all transform ${
+                              showLVMarkers ? 'translate-x-5 translate-y-1' : 'translate-x-1 translate-y-1'
+                            }`} />
+                          </div>
+                        </button>
+
+                        {/* Michelin Markers Toggle */}
+                        <button
+                          onClick={() => setShowMichelinMarkers(!showMichelinMarkers)}
+                          className="w-full flex items-center justify-between px-3 py-2.5 rounded-lg hover:bg-slate-100 transition-all"
+                        >
+                          <span className="text-sm font-medium text-gray-700">Michelin Markers</span>
+                          <div className={`w-10 h-6 rounded-full transition-all ${
+                            showMichelinMarkers ? 'bg-red-500' : 'bg-gray-300'
+                          }`}>
+                            <div className={`w-4 h-4 bg-white rounded-full shadow-md transition-all transform ${
+                              showMichelinMarkers ? 'translate-x-5 translate-y-1' : 'translate-x-1 translate-y-1'
+                            }`} />
+                          </div>
+                        </button>
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
+            </motion.div>
+
             {/* Map Component */}
             <Map
               locations={locations}
@@ -1086,6 +1158,10 @@ export default function App() {
               searchResults={searchResults}
               showSearchResults={showSearchResults}
               onPOIClick={handlePOIClick}
+              showLVMarkers={showLVMarkers}
+              showMichelinMarkers={showMichelinMarkers}
+              filterMenuOpen={filterMenuOpen}
+              onFilterMenuToggle={setFilterMenuOpen}
             />
           </APIProvider>
         </div>

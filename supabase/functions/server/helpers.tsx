@@ -73,6 +73,7 @@ export interface LocationAPI {
   updatedBy?: string | null;
   updatedAt?: string;
   favoritesCount?: number;
+  wantToGoCount?: number;
   
   // Deprecated fields for backward compatibility
   lvEditorsScore?: number | null; // Alias for lvEditorScore
@@ -83,7 +84,7 @@ export interface LocationAPI {
 /**
  * Convert database row (snake_case) to API format (camelCase)
  */
-export function formatLocationForAPI(loc: LocationRow, favoritesCount?: number): LocationAPI {
+export function formatLocationForAPI(loc: LocationRow, favoritesCount?: number, wantToGoCount?: number): LocationAPI {
   // Calculate legacy michelinScore for backward compatibility
   let michelinScore: number | null = null;
   if (loc.michelin_stars) {
@@ -128,6 +129,7 @@ export function formatLocationForAPI(loc: LocationRow, favoritesCount?: number):
     updatedBy: loc.updated_by_user_id,
     updatedAt: loc.updated_at,
     favoritesCount: favoritesCount || 0,
+    wantToGoCount: wantToGoCount || 0,
     
     // Deprecated fields for backward compatibility
     lvEditorsScore: loc.lv_editor_score, // Alias

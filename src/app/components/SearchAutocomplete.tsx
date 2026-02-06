@@ -7,7 +7,7 @@ import { api, Location } from '../../utils/api';
 import { MichelinFlower, MichelinStar, MichelinKey } from '@/app/components/MichelinIcons';
 
 interface SearchAutocompleteProps {
-  onPlaceSelect: (place: any) => void; // Updated type
+  onPlaceSelect: (place: any, location?: Location) => void; // Updated type
   onTagSelect: (tag: string) => void;
   onClear?: () => void;
   mapBounds?: google.maps.LatLngBounds | null;
@@ -31,6 +31,11 @@ export function SearchAutocomplete({ onPlaceSelect, onTagSelect, onClear, mapBou
 
   // Fetch suggestions when search value changes
   useEffect(() => {
+    // Don't fetch suggestions if user just made a selection
+    if (justSelected) {
+      return;
+    }
+    
     if (!searchValue.trim()) {
       setGooglePredictions([]);
       setSupabaseTags([]);
@@ -254,7 +259,8 @@ export function SearchAutocomplete({ onPlaceSelect, onTagSelect, onClear, mapBou
           types: place.types,
         };
 
-        onPlaceSelect(placeResult);
+        // Pass both the place result AND the location data
+        onPlaceSelect(placeResult, location);
         setSearchValue(location.name);
         inputRef.current?.blur();
         setJustSelected(true);
@@ -271,7 +277,8 @@ export function SearchAutocomplete({ onPlaceSelect, onTagSelect, onClear, mapBou
           } as google.maps.places.PlaceGeometry,
         };
         
-        onPlaceSelect(fallbackResult);
+        // Pass both the place result AND the location data
+        onPlaceSelect(fallbackResult, location);
         setSearchValue(location.name);
         inputRef.current?.blur();
         setJustSelected(true);
@@ -287,7 +294,8 @@ export function SearchAutocomplete({ onPlaceSelect, onTagSelect, onClear, mapBou
         } as google.maps.places.PlaceGeometry,
       };
       
-      onPlaceSelect(placeResult);
+      // Pass both the place result AND the location data
+      onPlaceSelect(placeResult, location);
       setSearchValue(location.name);
       inputRef.current?.blur();
       setJustSelected(true);

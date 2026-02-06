@@ -4,6 +4,21 @@ import { MichelinFlower } from '@/app/components/MichelinIcons';
 import { api } from '../../utils/api';
 import { toast } from 'sonner';
 
+// LV Rating descriptions
+const getRatingDescription = (rating: number): string => {
+  if (rating >= 10) return 'Best in the World';
+  if (rating >= 9) return 'World Class';
+  if (rating >= 8) return 'Exceptional';
+  if (rating >= 7) return 'Very Good';
+  if (rating >= 6) return 'Noteworthy';
+  if (rating >= 5) return 'Acceptable';
+  if (rating >= 4) return 'Sub Par';
+  if (rating >= 3) return 'Poor';
+  if (rating >= 2) return 'Awful';
+  if (rating >= 0) return 'Worst in the World';
+  return '';
+};
+
 interface EditorRatingModalProps {
   locationId: string;
   locationName: string;
@@ -182,9 +197,18 @@ export function EditorRatingModal({
               placeholder="Enter rating..."
               className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-lg"
             />
-            <p className="text-xs text-slate-500 mt-1">
-              Leave empty to remove rating
-            </p>
+            {rating && parseFloat(rating) >= 0 && (
+              <div className="mt-2 p-3 bg-gradient-to-r from-amber-50 to-rose-50 border border-amber-200 rounded-lg">
+                <p className="text-sm font-semibold text-amber-900">
+                  {parseFloat(rating).toFixed(1)} — {getRatingDescription(parseFloat(rating))}
+                </p>
+              </div>
+            )}
+            {!rating && (
+              <p className="text-xs text-slate-500 mt-1">
+                Leave empty to remove rating
+              </p>
+            )}
           </div>
 
           {/* Michelin Score */}

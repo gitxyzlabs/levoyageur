@@ -174,11 +174,28 @@ app.get('/make-server-48182530/locations', async (c) => {
       favCountMap.set(fav.location_id, count + 1);
     });
     
+    // Get want-to-go count for each location
+    const { data: wantToGoCounts, error: wtgCountError } = await supabase
+      .from('want_to_go')
+      .select('location_id');
+    
+    if (wtgCountError) {
+      console.error('❌ Error fetching want-to-go counts:', wtgCountError);
+    }
+    
+    // Create a map of location_id to want-to-go count
+    const wtgCountMap = new Map<string, number>();
+    wantToGoCounts?.forEach(wtg => {
+      const count = wtgCountMap.get(wtg.location_id) || 0;
+      wtgCountMap.set(wtg.location_id, count + 1);
+    });
+    
     console.log('📊 Favorites count map:', Object.fromEntries(favCountMap));
+    console.log('📊 Want-to-go count map:', Object.fromEntries(wtgCountMap));
     
     // Convert database format to API format using helper
     const formattedLocations = locations?.map(loc => 
-      formatLocationForAPI(loc as LocationRow, favCountMap.get(loc.id))
+      formatLocationForAPI(loc as LocationRow, favCountMap.get(loc.id), wtgCountMap.get(loc.id))
     ) || [];
     
     return c.json({ locations: formattedLocations });
@@ -226,9 +243,25 @@ app.get('/make-server-48182530/locations/tag/:tag', async (c) => {
       favCountMap.set(fav.location_id, count + 1);
     });
     
+    // Get want-to-go count for each location
+    const { data: wantToGoCounts, error: wtgCountError } = await supabase
+      .from('want_to_go')
+      .select('location_id');
+    
+    if (wtgCountError) {
+      console.error('❌ Error fetching want-to-go counts:', wtgCountError);
+    }
+    
+    // Create a map of location_id to want-to-go count
+    const wtgCountMap = new Map<string, number>();
+    wantToGoCounts?.forEach(wtg => {
+      const count = wtgCountMap.get(wtg.location_id) || 0;
+      wtgCountMap.set(wtg.location_id, count + 1);
+    });
+    
     // Convert database format to API format using helper
     const formattedLocations = locations?.map(loc => 
-      formatLocationForAPI(loc as LocationRow, favCountMap.get(loc.id))
+      formatLocationForAPI(loc as LocationRow, favCountMap.get(loc.id), wtgCountMap.get(loc.id))
     ) || [];
     
     return c.json({ locations: formattedLocations });

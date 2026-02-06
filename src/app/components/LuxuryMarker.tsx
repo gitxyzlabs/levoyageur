@@ -12,49 +12,71 @@ interface LuxuryMarkerProps {
   locationName?: string; // Place name to display when zoomed in
   currentZoom?: number; // Current map zoom level
   michelinScore?: number; // Michelin rating (1-5)
+  favoritesCount?: number; // Total favorites count
+  wantToGoCount?: number; // Total want-to-go count
 }
 
 // Color palette for different rating tiers
 const getMarkerStyle = (rating: number) => {
-  if (rating >= 10.5) return {
-    primary: '#9b2743', // Legendary
-    secondary: '#7a1f35',
-    glow: 'rgba(155, 39, 67, 0.4)',
+  // 10+ Best in the World - Deep burgundy/maroon
+  if (rating >= 10) return {
+    primary: '#7a1f35', // Rich deep red
+    secondary: '#5a1728',
+    glow: 'rgba(122, 31, 53, 0.5)',
   };
-  if (rating >= 9.5) return {
-    primary: '#8e4452', // Exceptional
-    secondary: '#6e3340',
-    glow: 'rgba(142, 68, 82, 0.4)',
+  // 9+ World Class - Purple burgundy
+  if (rating >= 9) return {
+    primary: '#8e2d54', // Rich purple-burgundy
+    secondary: '#6e2340',
+    glow: 'rgba(142, 45, 84, 0.4)',
   };
-  if (rating >= 8.5) return {
-    primary: '#c97b63', // Outstanding
+  // 8+ Exceptional - Warm burgundy
+  if (rating >= 8) return {
+    primary: '#a84848', // Warm red-brown
+    secondary: '#8a3838',
+    glow: 'rgba(168, 72, 72, 0.4)',
+  };
+  // 7+ Very Good - Terra cotta
+  if (rating >= 7) return {
+    primary: '#c97b63', // Terra cotta
     secondary: '#a8624f',
     glow: 'rgba(201, 123, 99, 0.4)',
   };
-  if (rating >= 7.5) return {
-    primary: '#d99370', // Excellent
-    secondary: '#c17a59',
-    glow: 'rgba(217, 147, 112, 0.4)',
-  };
-  if (rating >= 6.5) return {
-    primary: '#2d6261', // Very Good
+  // 6+ Noteworthy - Teal
+  if (rating >= 6) return {
+    primary: '#2d6261', // Deep teal
     secondary: '#224a49',
     glow: 'rgba(45, 98, 97, 0.4)',
   };
-  if (rating >= 4) return {
-    primary: '#5383a8', // Good
+  // 5+ Acceptable - Blue
+  if (rating >= 5) return {
+    primary: '#5383a8', // Medium blue
     secondary: '#416888',
     glow: 'rgba(83, 131, 168, 0.4)',
   };
-  if (rating >= 2) return {
-    primary: '#8a9a9d', // Fair
+  // 4+ Sub Par - Cool gray-blue
+  if (rating >= 4) return {
+    primary: '#6b7f8a', // Cool gray-blue
+    secondary: '#556672',
+    glow: 'rgba(107, 127, 138, 0.3)',
+  };
+  // 3+ Poor - Gray
+  if (rating >= 3) return {
+    primary: '#8a9a9d', // Medium gray
     secondary: '#6d7d80',
     glow: 'rgba(138, 154, 157, 0.3)',
   };
+  // 2+ Awful - Light gray
+  if (rating >= 2) return {
+    primary: '#a8b5b8', // Light gray
+    secondary: '#8a9799',
+    glow: 'rgba(168, 181, 184, 0.2)',
+  };
+  // 0+ Worst in the World - Very light gray
   return {
-    primary: '#f0f1f2', // Poor
-    secondary: '#e0e1e2',
-    glow: 'rgba(240, 241, 242, 0.2)',
+    primary: '#d1d5d7', // Very light gray
+    secondary: '#b8bfc2',
+    glow: 'rgba(209, 213, 215, 0.2)',
   };
 };
 
@@ -68,7 +90,9 @@ export function LuxuryMarker({
   hasLVRating = true,
   locationName,
   currentZoom,
-  michelinScore
+  michelinScore,
+  favoritesCount,
+  wantToGoCount
 }: LuxuryMarkerProps) {
   // Michelin red color from the logo
   const michelinRed = '#9b2743';
@@ -312,7 +336,7 @@ export function LuxuryMarker({
         <div
           className="absolute top-1/2 -translate-y-1/2 px-3 py-1.5 rounded-lg shadow-xl backdrop-blur-md border border-white/40 flex items-center justify-center"
           style={{
-            right: `${-60 * scale}px`,
+            right: `${-40 * scale}px`,
             background: 'linear-gradient(135deg, rgba(255, 255, 255, 0.97) 0%, rgba(250, 250, 251, 0.94) 100%)',
             minWidth: `${32 * scale}px`,
             height: `${24 * scale}px`,
@@ -371,6 +395,60 @@ export function LuxuryMarker({
           }}
         >
           {locationName}
+        </div>
+      )}
+
+      {/* Favorites Counter - 10 o'clock position (upper left) */}
+      {favoritesCount !== undefined && favoritesCount > 0 && (
+        <div
+          className="absolute flex items-center gap-1 px-1.5 py-0.5 rounded-full shadow-md backdrop-blur-sm border border-white/40"
+          style={{
+            left: `${-18 * scale}px`,
+            top: `${-8 * scale}px`,
+            background: 'linear-gradient(135deg, rgba(255, 255, 255, 0.97) 0%, rgba(254, 242, 242, 0.95) 100%)',
+            fontSize: `${8 * scale}px`,
+            fontWeight: '600',
+            color: '#ef4444',
+            fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
+            zIndex: 20,
+          }}
+        >
+          <Heart 
+            className="fill-current" 
+            style={{ 
+              width: `${8 * scale}px`, 
+              height: `${8 * scale}px`,
+              color: '#ef4444'
+            }} 
+          />
+          <span>{favoritesCount}</span>
+        </div>
+      )}
+
+      {/* Want to Go Counter - 9 o'clock position (left side) */}
+      {wantToGoCount !== undefined && wantToGoCount > 0 && (
+        <div
+          className="absolute flex items-center gap-1 px-1.5 py-0.5 rounded-full shadow-md backdrop-blur-sm border border-white/40"
+          style={{
+            left: `${-18 * scale}px`,
+            top: `${8 * scale}px`,
+            background: 'linear-gradient(135deg, rgba(255, 255, 255, 0.97) 0%, rgba(240, 253, 244, 0.95) 100%)',
+            fontSize: `${8 * scale}px`,
+            fontWeight: '600',
+            color: '#10b981',
+            fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
+            zIndex: 20,
+          }}
+        >
+          <Bookmark 
+            className="fill-current" 
+            style={{ 
+              width: `${8 * scale}px`, 
+              height: `${8 * scale}px`,
+              color: '#10b981'
+            }} 
+          />
+          <span>{wantToGoCount}</span>
         </div>
       )}
     </div>

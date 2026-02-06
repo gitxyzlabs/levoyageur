@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useMemo, useCallback } from 'react';
 import { Map as GoogleMap, AdvancedMarker, useMap } from '@vis.gl/react-google-maps';
-import type { Location, User } from '../../utils/api';
-import { api } from '../../utils/api';
+import type { Location, User } from '@/utils/api';
+import { api } from '@/utils/api';
 import { GooglePlaceInfoWindow } from './GooglePlaceInfoWindow';
 import { MobileInfoSheet } from './MobileInfoSheet';
 import { CityInfoWindow } from './CityInfoWindow';
@@ -9,6 +9,7 @@ import { LuxuryMarker } from './LuxuryMarker';
 import { PlaceIdValidationPopup } from './PlaceIdValidationPopup';
 import { Locate, Plus, Minus } from 'lucide-react';
 import { toast } from 'sonner';
+import { AnimatePresence, motion } from 'motion/react';
 
 // Map component for Le Voyageur
 interface MapProps {
@@ -37,6 +38,10 @@ interface MapProps {
   onMapBoundsChange?: (bounds: google.maps.LatLngBounds) => void;
   searchResults?: google.maps.places.PlaceResult[];
   showSearchResults?: boolean;
+  showLVMarkers?: boolean;
+  showMichelinMarkers?: boolean;
+  filterMenuOpen?: boolean;
+  onFilterMenuToggle?: (open: boolean) => void;
 }
 
 // Helper functions for marker styling
@@ -133,8 +138,8 @@ const michelinAwardToScore = (award: string): number => {
   if (awardLower.includes('3 star')) return 3;
   if (awardLower.includes('2 star')) return 2;
   if (awardLower.includes('1 star')) return 1;
-  if (awardLower.includes('bib gourmand')) return 0.5;
-  return 0;
+  if (awardLower.includes('bib gourmand')) return 4; // Changed from 0.5 to 4 to match LuxuryMarker expectations
+  return 5; // Michelin Plate or other distinction
 };
 
 export function Map({ 
@@ -161,7 +166,11 @@ export function Map({
   onPOIClick,
   onMapBoundsChange,
   searchResults,
-  showSearchResults
+  showSearchResults,
+  showLVMarkers,
+  showMichelinMarkers,
+  filterMenuOpen,
+  onFilterMenuToggle
 }: MapProps) {
   const map = useMap();
   const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
@@ -460,9 +469,97 @@ export function Map({
       console.log('🆔 Place ID (placeId):', location.placeId);
       console.log('⭐ LV Editors Score:', location.lvEditorsScore);
       console.log('👥 LV Crowd Score:', location.lvCrowdsourceScore);
+      console.log('🌟 Michelin Score:', location.michelinScore);
       
       // Support both placeId (camelCase from backend) and place_id (snake_case)
       const placeId = location.placeId || location.place_id;
+      
+      // Special case: Michelin location without a Google Place ID
+      // Try to find the matching Michelin restaurant and trigger validation flow
+      if (!placeId && location.michelinScore && location.michelinScore > 0) {
+        console.log('🌟 Michelin location without Place ID - searching for restaurant data...');
+        
+        // Find matching Michelin restaurant by name and coordinates
+        const matchingRestaurant = michelinRestaurants.find(r => 
+          r.name === location.name &&
+          Math.abs(r.lat - location.lat) < 0.001 &&
+          Math.abs(r.lng - location.lng) < 0.001
+        );
+        
+        if (matchingRestaurant) {
+          console.log('✅ Found matching Michelin restaurant:', matchingRestaurant.id);
+          
+          // Show Michelin-only InfoWindow first
+          const michelinOnlyPlaceResult: google.maps.places.PlaceResult = {
+            place_id: `michelin-${matchingRestaurant.id}`,
+            name: matchingRestaurant.name,
+            formatted_address: matchingRestaurant.address || matchingRestaurant.location,
+            geometry: {
+              location: new google.maps.LatLng(matchingRestaurant.lat, matchingRestaurant.lng)
+            },
+          };
+          
+          const michelinScore = michelinAwardToScore(matchingRestaurant.award);
+          const michelinOnlyLocation: Location = {
+            id: `michelin-${matchingRestaurant.id}`,
+            name: matchingRestaurant.name,
+            lat: matchingRestaurant.lat,
+            lng: matchingRestaurant.lng,
+            lvEditorsScore: location.lvEditorsScore,
+            lvCrowdsourceScore: location.lvCrowdsourceScore,
+            googleRating: 0,
+            michelinScore: michelinScore,
+            tags: location.tags || [],
+            description: matchingRestaurant.location,
+            address: matchingRestaurant.address,
+            cuisine: matchingRestaurant.cuisine,
+            place_id: `michelin-${matchingRestaurant.id}`,
+          };
+          
+          if (onPOIClick) {
+            onPOIClick(michelinOnlyPlaceResult, michelinOnlyLocation);
+          }
+          
+          // Now check for suggestions and show validation popup
+          try {
+            const suggestionData = await api.suggestPlaceForMichelin(matchingRestaurant.id);
+            
+            console.log('📦 Suggestion data received:', suggestionData);
+            
+            if (suggestionData.hasPlaceId) {
+              console.log('✅ Place ID already exists:', suggestionData.googlePlaceId);
+              await loadMichelinRestaurants();
+              return;
+            }
+            
+            if (suggestionData.hasResults && suggestionData.confidenceScore >= 70) {
+              console.log('🎯 Showing validation popup (confidence:', suggestionData.confidenceScore, '%)')
+              setValidationPopup({
+                michelinData: suggestionData.michelinData,
+                suggestedPlace: suggestionData.suggestedPlace,
+                confidenceScore: suggestionData.confidenceScore,
+              });
+            } else {
+              console.log('⚠️ Not showing validation popup:');
+              console.log('   - Has results:', suggestionData.hasResults);
+              console.log('   - Confidence score:', suggestionData.confidenceScore);
+              console.log('   - Threshold required: 70%');
+              if (suggestionData.hasResults && suggestionData.confidenceScore < 70) {
+                toast.info(`No suggestion available (confidence: ${suggestionData.confidenceScore}% < 70%)`);
+              } else if (!suggestionData.hasResults) {
+                toast.info('No matching Google Places found nearby');
+              }
+            }
+          } catch (suggestionError) {
+            console.error('❌ Error getting suggestions:', suggestionError);
+            toast.error('Error checking for place suggestions');
+          }
+          
+          return;
+        } else {
+          console.log('⚠️ No matching Michelin restaurant found in database');
+        }
+      }
       
       // If no place_id, create a minimal PlaceResult from LV data
       if (!placeId) {
@@ -626,7 +723,7 @@ export function Map({
         }}
       >
         {/* LV Location Markers - Show when heat map is active OR when no search results */}
-        {(showHeatMap || !showSearchResults) && lvMarkersToDisplay
+        {(showHeatMap || !showSearchResults) && showLVMarkers && lvMarkersToDisplay
           .map((location) => {
           const rating = location.lvEditorsScore || 5;
           const scale = showHeatMap ? 0.8 : 1;
@@ -653,6 +750,8 @@ export function Map({
                 locationName={location.name}
                 currentZoom={currentZoom}
                 michelinScore={location.michelinScore}
+                favoritesCount={location.favoritesCount}
+                wantToGoCount={location.wantToGoCount}
               />
             </AdvancedMarker>
           );
@@ -714,7 +813,7 @@ export function Map({
         })}
         
         {/* Michelin Restaurant Markers - Show red Michelin markers for database restaurants */}
-        {!showSearchResults && michelinRestaurants.map((restaurant) => {
+        {!showSearchResults && showMichelinMarkers && michelinRestaurants.map((restaurant) => {
           const michelinScore = michelinAwardToScore(restaurant.award);
           
           // Skip restaurants without a valid Michelin award
@@ -839,6 +938,12 @@ export function Map({
                   
                   // Now check if we should show validation popup
                   console.log('🔍 No GooglePlaceId - checking for suggestions...');
+                  
+                  // Only show validation popup if user is authenticated
+                  if (!isAuthenticated) {
+                    console.log('⚠️ User not authenticated - skipping validation popup');
+                    return;
+                  }
                   
                   try {
                     const suggestionData = await api.suggestPlaceForMichelin(restaurant.id);
