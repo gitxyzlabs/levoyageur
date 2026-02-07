@@ -165,8 +165,8 @@ export function LuxuryMarker({
   // Show labels when zoomed in beyond level 15
   const showLabel = currentZoom !== undefined && currentZoom >= 15 && locationName;
   
-  // Show Michelin badge when zoomed in beyond level 14
-  const showMichelinBadge = currentZoom !== undefined && currentZoom >= 14;
+  // Always show Michelin badge when there's a Michelin score (not zoom-dependent)
+  const showMichelinBadge = michelinScore && michelinScore > 0;
 
   return (
     <div
@@ -298,25 +298,6 @@ export function LuxuryMarker({
             letterSpacing: '-0.3px'
           }}
         >
-          {isWantToGo ? (
-            <Bookmark 
-              className="fill-current" 
-              style={{ 
-                width: `${10 * scale}px`, 
-                height: `${10 * scale}px`,
-                color: '#10b981' // Green for want-to-go
-              }} 
-            />
-          ) : isFavorite ? (
-            <Heart 
-              className="fill-current" 
-              style={{ 
-                width: `${10 * scale}px`, 
-                height: `${10 * scale}px`,
-                color: '#ef4444' // Red for favorites
-              }} 
-            />
-          ) : null}
           <span>{rating.toFixed(1)}</span>
         </div>
       )}
@@ -388,7 +369,7 @@ export function LuxuryMarker({
       {/* Location name label - appears below marker when zoomed in */}
       {showLabel && (
         <div
-          className="absolute left-1/2 -translate-x-1/2 px-2.5 py-1 rounded-lg shadow-lg backdrop-blur-md border border-white/40 whitespace-nowrap"
+          className="absolute left-1/2 -translate-x-1/2 px-2.5 py-1 rounded-lg shadow-lg backdrop-blur-md border border-white/40 whitespace-nowrap flex items-center gap-1.5"
           style={{
             top: `${scaledSize + 4}px`, // Position below the marker with 4px gap
             background: 'linear-gradient(135deg, rgba(255,255,255,0.98) 0%, rgba(248,250,252,0.95) 100%)',
@@ -398,12 +379,34 @@ export function LuxuryMarker({
             textAlign: 'center',
             fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
             letterSpacing: '-0.2px',
-            maxWidth: '150px',
+            maxWidth: '180px',
             overflow: 'hidden',
             textOverflow: 'ellipsis',
           }}
         >
-          {locationName}
+          {/* Show favorite heart icon if favorited */}
+          {isFavorite && (
+            <Heart 
+              className="fill-current flex-shrink-0" 
+              style={{ 
+                width: '10px', 
+                height: '10px',
+                color: '#ef4444'
+              }} 
+            />
+          )}
+          {/* Show want-to-go bookmark icon if in want-to-go list */}
+          {isWantToGo && !isFavorite && (
+            <Bookmark 
+              className="fill-current flex-shrink-0" 
+              style={{ 
+                width: '10px', 
+                height: '10px',
+                color: '#10b981'
+              }} 
+            />
+          )}
+          <span className="truncate">{locationName}</span>
         </div>
       )}
 

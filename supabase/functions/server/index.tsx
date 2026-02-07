@@ -241,6 +241,71 @@ app.get('/make-server-48182530/locations', async (c) => {
 
     console.log('GET /locations - Found locations:', locations?.length || 0);
     
+    // Fetch all Michelin restaurants to join with locations
+    const { data: michelinRestaurants, error: michelinError } = await supabase
+      .from('michelin_restaurants')
+      .select('*');
+    
+    if (michelinError) {
+      console.error('❌ Error fetching Michelin restaurants:', michelinError);
+    }
+    
+    console.log('📍 Found Michelin restaurants:', michelinRestaurants?.length || 0);
+    
+    // Create a map to quickly lookup Michelin scores by Google Place ID
+    // LV locations are the primary data - we just attach Michelin scores to verified LV locations
+    const michelinByPlaceId = new Map();
+    
+    michelinRestaurants?.forEach(restaurant => {
+      if (restaurant.google_place_id) {
+        michelinByPlaceId.set(restaurant.google_place_id, restaurant);
+      }
+    });
+    
+    // Attach Michelin scores to LV locations that have been verified by editors
+    const locationsWithMichelin = locations?.map(loc => {
+      // Only match by Google Place ID (verified by editors)
+      if (loc.google_place_id) {
+        const michelinData = michelinByPlaceId.get(loc.google_place_id);
+        
+        if (michelinData) {
+          console.log(`🔗 Attached Michelin score to LV location: "${loc.name}"`);
+          console.log(`   - Award: ${michelinData.Award}`);
+          console.log(`   - Google Place ID: ${loc.google_place_id}`);
+          
+          // Map Award field to michelin_stars and michelin_distinction
+          let michelin_stars = null;
+          let michelin_distinction = null;
+          
+          if (michelinData.Award) {
+            const award = michelinData.Award.toLowerCase();
+            if (award.includes('3 star')) {
+              michelin_stars = 3;
+            } else if (award.includes('2 star')) {
+              michelin_stars = 2;
+            } else if (award.includes('1 star')) {
+              michelin_stars = 1;
+            } else if (award.includes('bib gourmand')) {
+              michelin_distinction = 'Bib Gourmand';
+            } else if (award.includes('selected') || award.includes('plate')) {
+              michelin_distinction = 'Michelin Plate';
+            }
+          }
+          
+          return {
+            ...loc,
+            michelin_stars,
+            michelin_distinction,
+            michelin_green_star: michelinData.GreenStar || false,
+            michelin_cuisine: michelinData.Cuisine || loc.michelin_cuisine,
+            michelin_id: michelinData.id,
+          };
+        }
+      }
+      
+      return loc;
+    }) || [];
+    
     // Get favorites count for each location
     const { data: favoriteCounts, error: favCountError } = await supabase
       .from('favorites')
@@ -277,7 +342,7 @@ app.get('/make-server-48182530/locations', async (c) => {
     console.log('📊 Want-to-go count map:', Object.fromEntries(wtgCountMap));
     
     // Convert database format to API format using helper
-    const formattedLocations = locations?.map(loc => 
+    const formattedLocations = locationsWithMichelin?.map(loc => 
       formatLocationForAPI(loc as LocationRow, favCountMap.get(loc.id), wtgCountMap.get(loc.id))
     ) || [];
     
@@ -309,6 +374,65 @@ app.get('/make-server-48182530/locations/tag/:tag', async (c) => {
     }
     
     console.log('GET /locations/tag - Found locations:', locations?.length || 0);
+    
+    // Fetch all Michelin restaurants to join with locations
+    const { data: michelinRestaurants, error: michelinError } = await supabase
+      .from('michelin_restaurants')
+      .select('*');
+    
+    if (michelinError) {
+      console.error('❌ Error fetching Michelin restaurants:', michelinError);
+    }
+    
+    // Create a map to quickly lookup Michelin scores by Google Place ID
+    // LV locations are the primary data - we just attach Michelin scores to verified LV locations
+    const michelinByPlaceId = new Map();
+    
+    michelinRestaurants?.forEach(restaurant => {
+      if (restaurant.google_place_id) {
+        michelinByPlaceId.set(restaurant.google_place_id, restaurant);
+      }
+    });
+    
+    // Attach Michelin scores to LV locations that have been verified by editors
+    const locationsWithMichelin = locations?.map(loc => {
+      // Only match by Google Place ID (verified by editors)
+      if (loc.google_place_id) {
+        const michelinData = michelinByPlaceId.get(loc.google_place_id);
+        
+        if (michelinData) {
+          // Map Award field to michelin_stars and michelin_distinction
+          let michelin_stars = null;
+          let michelin_distinction = null;
+          
+          if (michelinData.Award) {
+            const award = michelinData.Award.toLowerCase();
+            if (award.includes('3 star')) {
+              michelin_stars = 3;
+            } else if (award.includes('2 star')) {
+              michelin_stars = 2;
+            } else if (award.includes('1 star')) {
+              michelin_stars = 1;
+            } else if (award.includes('bib gourmand')) {
+              michelin_distinction = 'Bib Gourmand';
+            } else if (award.includes('selected') || award.includes('plate')) {
+              michelin_distinction = 'Michelin Plate';
+            }
+          }
+          
+          return {
+            ...loc,
+            michelin_stars,
+            michelin_distinction,
+            michelin_green_star: michelinData.GreenStar || false,
+            michelin_cuisine: michelinData.Cuisine || loc.michelin_cuisine,
+            michelin_id: michelinData.id,
+          };
+        }
+      }
+      
+      return loc;
+    }) || [];
     
     // Get favorites count for each location
     const { data: favoriteCounts, error: favCountError } = await supabase
@@ -343,7 +467,7 @@ app.get('/make-server-48182530/locations/tag/:tag', async (c) => {
     });
     
     // Convert database format to API format using helper
-    const formattedLocations = locations?.map(loc => 
+    const formattedLocations = locationsWithMichelin?.map(loc => 
       formatLocationForAPI(loc as LocationRow, favCountMap.get(loc.id), wtgCountMap.get(loc.id))
     ) || [];
     
@@ -1180,6 +1304,78 @@ app.put('/make-server-48182530/locations/:id/rating', verifyAuth, verifyEditor, 
   } catch (error) {
     console.error('❌ Error in PUT /locations/:id/rating:', error);
     return c.json({ error: 'Failed to update location rating/tags' }, 500);
+  }
+});
+
+// Link a Michelin restaurant to a Google Place ID (editors only)
+app.put('/make-server-48182530/michelin/:michelinId/link-place', verifyAuth, verifyEditor, async (c) => {
+  console.log('📍 PUT /michelin/:michelinId/link-place - Start');
+  const michelinId = parseInt(c.req.param('michelinId'));
+  const { googlePlaceId } = await c.req.json();
+
+  if (!michelinId || !googlePlaceId) {
+    return c.json({ error: 'michelinId and googlePlaceId are required' }, 400);
+  }
+
+  try {
+    const supabase = getSupabaseAdmin();
+    
+    // Update the Michelin restaurant with the Google Place ID
+    const { data: updated, error } = await supabase
+      .from('michelin_restaurants')
+      .update({ 
+        google_place_id: googlePlaceId,
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', michelinId)
+      .select()
+      .single();
+
+    if (error) {
+      console.error('❌ Error linking Michelin restaurant:', error);
+      return c.json({ error: 'Failed to link Michelin restaurant' }, 500);
+    }
+
+    console.log(`✅ Linked Michelin restaurant ${michelinId} to Google Place ID ${googlePlaceId}`);
+    return c.json({ 
+      success: true, 
+      restaurant: updated 
+    });
+  } catch (error) {
+    console.error('❌ Error in PUT /michelin/:michelinId/link-place:', error);
+    return c.json({ error: 'Failed to link Michelin restaurant' }, 500);
+  }
+});
+
+// Find Michelin restaurant by name (to get michelin_id for linking)
+app.get('/make-server-48182530/michelin/search', async (c) => {
+  console.log('📍 GET /michelin/search - Start');
+  const name = c.req.query('name');
+
+  if (!name) {
+    return c.json({ error: 'name query parameter is required' }, 400);
+  }
+
+  try {
+    const supabase = getSupabaseAdmin();
+    
+    // Search for Michelin restaurants by name (case-insensitive)
+    const { data: restaurants, error } = await supabase
+      .from('michelin_restaurants')
+      .select('*')
+      .ilike('Name', `%${name}%`)
+      .limit(10);
+
+    if (error) {
+      console.error('❌ Error searching Michelin restaurants:', error);
+      return c.json({ error: 'Failed to search Michelin restaurants' }, 500);
+    }
+
+    console.log(`✅ Found ${restaurants?.length || 0} Michelin restaurants matching "${name}"`);
+    return c.json({ restaurants: restaurants || [] });
+  } catch (error) {
+    console.error('❌ Error in GET /michelin/search:', error);
+    return c.json({ error: 'Failed to search Michelin restaurants' }, 500);
   }
 });
 

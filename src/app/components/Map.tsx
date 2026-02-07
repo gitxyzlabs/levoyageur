@@ -247,72 +247,40 @@ export function Map({
   const lvMarkersToDisplay = useMemo(() => {
     if (showSearchResults) return [];
     
+    // Priority 1: Show LV markers for ANY location with an LV score
+    // Also include locations with ONLY Michelin scores (these will be filtered out from Michelin markers below)
     return displayLocations.filter((location) => {
-      // Show markers for locations that have an LV rating OR a Michelin rating
       const hasLVRating = !!(location.lvEditorsScore || location.lvCrowdsourceScore);
-      const hasMichelinRating = !!(location.michelinScore && location.michelinScore > 0);
-      
-      return hasLVRating || hasMichelinRating;
+      return hasLVRating; // Only show LV markers if location has an LV rating
     });
   }, [displayLocations, showSearchResults]);
 
-  // Memoize want-to-go markers that should be displayed
-  const wantToGoMarkersToDisplay = useMemo(() => {
-    if (!isAuthenticated || !wantToGoLocations) return [];
+  // Memoize Michelin-only markers (Michelin restaurants WITHOUT LV ratings)
+  const michelinOnlyMarkersToDisplay = useMemo(() => {
+    if (!showMichelinMarkers || showSearchResults) return [];
     
-    return wantToGoLocations.filter((location) => {
-      // Only show want-to-go markers for locations that DON'T have LV ratings or Michelin scores
-      const hasLVRating = !!(location.lvEditorsScore || location.lvCrowdsourceScore);
-      const isMichelinLocation = location.id?.startsWith('michelin-') || location.place_id?.startsWith('michelin-');
+    // Filter Michelin restaurants to only show those that DON'T have LV ratings
+    return michelinRestaurants.filter((restaurant) => {
+      // Check if this Michelin restaurant already exists in our locations array with an LV rating
+      const existsInLVLocations = displayLocations.some(loc => {
+        const hasLVRating = !!(loc.lvEditorsScore || loc.lvCrowdsourceScore);
+        
+        // Match by coordinates (within 0.001 degrees ~ 100m)
+        const coordsMatch = 
+          Math.abs(loc.lat - restaurant.lat) < 0.001 &&
+          Math.abs(loc.lng - restaurant.lng) < 0.001;
+        
+        // Match by Google Place ID if available
+        const placeIdMatch = restaurant.googlePlaceId && 
+          (loc.place_id === restaurant.googlePlaceId || loc.placeId === restaurant.googlePlaceId);
+        
+        return hasLVRating && (coordsMatch || placeIdMatch);
+      });
       
-      return !hasLVRating && !isMichelinLocation;
+      // Only show this Michelin marker if it doesn't exist as an LV location
+      return !existsInLVLocations;
     });
-  }, [isAuthenticated, wantToGoLocations]);
-  
-  // Create a Set of location IDs and coordinates that are already rendered as LV markers
-  // This prevents duplicate rendering from the Michelin markers array
-  const renderedLocationIds = useMemo(() => {
-    const ids = new Set<string>();
-    const coords = new Set<string>();
-    
-    // Track all LV markers (including those with Michelin data)
-    lvMarkersToDisplay.forEach(location => {
-      if (location.id) ids.add(location.id);
-      if (location.place_id) ids.add(location.place_id);
-      // Also track coordinates to catch duplicates
-      coords.add(`${location.lat.toFixed(6)},${location.lng.toFixed(6)}`);
-    });
-    
-    // Track all Want to Go markers
-    wantToGoMarkersToDisplay.forEach(location => {
-      if (location.id) ids.add(location.id);
-      if (location.place_id) ids.add(location.place_id);
-      coords.add(`${location.lat.toFixed(6)},${location.lng.toFixed(6)}`);
-    });
-    
-    return { ids, coords };
-  }, [lvMarkersToDisplay, wantToGoMarkersToDisplay]);
-  
-  // Filter Michelin restaurants to only show those NOT already rendered as LV markers
-  const michelinMarkersToDisplay = useMemo(() => {
-    return michelinRestaurants.filter(restaurant => {
-      const michelinId = `michelin-${restaurant.id}`;
-      const coordKey = `${restaurant.lat.toFixed(6)},${restaurant.lng.toFixed(6)}`;
-      
-      // Skip if already rendered as an LV marker (by ID or coordinates)
-      if (renderedLocationIds.ids.has(michelinId)) {
-        console.log(`⏭️ Skipping Michelin marker ${restaurant.name} - already in LV markers (by ID)`);
-        return false;
-      }
-      
-      if (renderedLocationIds.coords.has(coordKey)) {
-        console.log(`⏭️ Skipping Michelin marker ${restaurant.name} - already in LV markers (by coords)`);
-        return false;
-      }
-      
-      return true;
-    });
-  }, [michelinRestaurants, renderedLocationIds]);
+  }, [michelinRestaurants, displayLocations, showMichelinMarkers, showSearchResults]);
 
   // Debug logging for marker filtering
   useEffect(() => {
@@ -321,13 +289,9 @@ export function Map({
       totalLocations: locations.length,
       heatMapDataCount: heatMapData?.length || 0,
       displayingCount: displayLocations.length,
-      isFiltered: showHeatMap && heatMapData ? true : false,
-      lvMarkers: lvMarkersToDisplay.length,
-      wantToGoMarkers: wantToGoMarkersToDisplay.length,
-      michelinMarkers: michelinMarkersToDisplay.length,
-      totalMichelinRestaurants: michelinRestaurants.length,
+      isFiltered: showHeatMap && heatMapData ? true : false
     });
-  }, [showHeatMap, locations, heatMapData, displayLocations, lvMarkersToDisplay, wantToGoMarkersToDisplay, michelinMarkersToDisplay, michelinRestaurants]);
+  }, [showHeatMap, locations, heatMapData, displayLocations]);
 
   // Get user's current location
   const getUserLocation = () => {
@@ -867,7 +831,7 @@ export function Map({
         })}
         
         {/* Michelin Restaurant Markers - Show red Michelin markers for database restaurants */}
-        {!showSearchResults && showMichelinMarkers && michelinMarkersToDisplay.map((restaurant) => {
+        {!showSearchResults && showMichelinMarkers && michelinOnlyMarkersToDisplay.map((restaurant) => {
           const michelinScore = michelinAwardToScore(restaurant.award);
           
           // Skip restaurants without a valid Michelin award

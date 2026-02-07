@@ -86,11 +86,14 @@ export interface LocationAPI {
  */
 export function formatLocationForAPI(loc: LocationRow, favoritesCount?: number, wantToGoCount?: number): LocationAPI {
   // Calculate legacy michelinScore for backward compatibility
+  // Scoring system: 1-3 = stars, 4 = Bib Gourmand, 5 = Michelin Plate
   let michelinScore: number | null = null;
   if (loc.michelin_stars) {
     michelinScore = loc.michelin_stars;
   } else if (loc.michelin_distinction?.toLowerCase().includes('bib gourmand')) {
-    michelinScore = 0.5;
+    michelinScore = 4; // Bib Gourmand
+  } else if (loc.michelin_distinction) {
+    michelinScore = 5; // Michelin Plate or other distinction
   }
   
   return {
