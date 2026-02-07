@@ -1272,6 +1272,9 @@ app.put('/make-server-48182530/locations/:id/rating', verifyAuth, verifyEditor, 
         updated_by_user_id: userId,
       };
       
+      console.log('📍 Attempting to create location with data:', newLocation);
+      console.log('📍 michelin_id value:', normalizedMichelinId, 'Type:', typeof normalizedMichelinId);
+      
       const { data: createdLocation, error: createError } = await supabase
         .from('locations')
         .insert(newLocation)
@@ -1280,7 +1283,13 @@ app.put('/make-server-48182530/locations/:id/rating', verifyAuth, verifyEditor, 
       
       if (createError) {
         console.error('❌ Error creating location:', createError);
-        return c.json({ error: 'Failed to create location' }, 500);
+        console.error('❌ Error details:', JSON.stringify(createError, null, 2));
+        return c.json({ 
+          error: 'Failed to create location', 
+          details: createError.message,
+          code: createError.code,
+          hint: createError.hint 
+        }, 500);
       }
       
       console.log('✅ Location created and rating added:', createdLocation.id);
