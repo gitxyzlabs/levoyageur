@@ -24,6 +24,7 @@ interface MapProps {
   onFavoriteToggle?: (locationId: string, placeData?: { name?: string; lat?: number; lng?: number; formatted_address?: string }) => void;
   onWantToGoToggle?: (locationId: string, placeData?: { name?: string; lat?: number; lng?: number; formatted_address?: string; place_id?: string }) => void;
   onRatingAdded?: () => void;
+  onRefresh?: () => void; // Callback to refresh locations after rating is saved
   favoriteIds?: Set<string>;
   wantToGoIds?: Set<string>;
   wantToGoLocations?: Location[]; // Full want-to-go locations for rendering markers
@@ -153,6 +154,7 @@ export function Map({
   onFavoriteToggle,
   onWantToGoToggle,
   onRatingAdded,
+  onRefresh,
   favoriteIds,
   wantToGoIds,
   wantToGoLocations,
@@ -1097,6 +1099,7 @@ export function Map({
               onFavoriteToggle={onFavoriteToggle}
               onWantToGoToggle={onWantToGoToggle}
               onRatingAdded={onRatingAdded}
+              onRefresh={onRefresh}
               favoriteIds={favoriteIds}
               wantToGoIds={wantToGoIds}
               lvLocation={selectedLVLocation} // We'll need to pass this from App.tsx
@@ -1137,6 +1140,7 @@ export function Map({
             onFavoriteToggle={onFavoriteToggle}
             onWantToGoToggle={onWantToGoToggle}
             onRatingAdded={onRatingAdded}
+            onRefresh={onRefresh}
             favoriteIds={favoriteIds}
             wantToGoIds={wantToGoIds}
             lvLocation={selectedLVLocation}

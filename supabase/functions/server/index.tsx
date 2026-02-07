@@ -1288,9 +1288,6 @@ app.put('/make-server-48182530/locations/:id/rating', verifyAuth, verifyEditor, 
         .single();
       
       if (createError) {
-        console.error('❌ Error creating location:', createError);
-        console.error('❌ Error details:', JSON.stringify(createError, null, 2));
-        
         // If duplicate michelin_id, find and update the existing location instead
         if (createError.code === '23505' && normalizedMichelinId) {
           console.log('📍 Duplicate michelin_id detected, finding existing location...');
@@ -1302,6 +1299,8 @@ app.put('/make-server-48182530/locations/:id/rating', verifyAuth, verifyEditor, 
             .single();
           
           if (findError || !existingByMichelinId) {
+            console.error('❌ Error creating location:', createError);
+            console.error('❌ Error details:', JSON.stringify(createError, null, 2));
             console.error('❌ Could not find existing location with michelin_id:', normalizedMichelinId);
             return c.json({ 
               error: 'Failed to create location - duplicate michelin_id but could not find existing record', 
@@ -1341,10 +1340,13 @@ app.put('/make-server-48182530/locations/:id/rating', verifyAuth, verifyEditor, 
             }, 500);
           }
           
-          console.log('✅ Updated existing location with new Google Place ID:', updatedLocation.id);
+          console.log('✅ Successfully recovered from duplicate michelin_id - updated existing location:', updatedLocation.id);
           return c.json(formatLocationForAPI(updatedLocation as LocationRow));
         }
         
+        // Not a recoverable error
+        console.error('❌ Error creating location:', createError);
+        console.error('❌ Error details:', JSON.stringify(createError, null, 2));
         return c.json({ 
           error: 'Failed to create location', 
           details: createError.message,

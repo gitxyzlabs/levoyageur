@@ -1140,6 +1140,7 @@ export default function App() {
               onFavoriteToggle={handleToggleFavorite}
               onWantToGoToggle={handleToggleWantToGo}
               onRatingAdded={loadLocations}
+              onRefresh={loadLocations}
               favoriteIds={favoriteIds}
               wantToGoIds={wantToGoIds}
               wantToGoLocations={filteredWantToGoLocations}

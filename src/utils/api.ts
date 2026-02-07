@@ -89,29 +89,30 @@ export const setAccessToken = (token: string | null) => {
 export const getAccessToken = () => accessToken;
 
 const fetchWithAuth = async (url: string, options: RequestInit = {}) => {
-  // Always get the latest session token instead of using cached variable
-  const { data: { session } } = await supabase.auth.getSession();
+  // Force a token refresh to ensure we have a valid session
+  const { data: { session }, error: sessionError } = await supabase.auth.refreshSession();
+  
+  // Fallback to getSession if refresh fails (e.g., no refresh token available)
+  const finalSession = session || (await supabase.auth.getSession()).data.session;
   
   console.log('=== fetchWithAuth Debug ===');
   console.log('URL:', url);
-  console.log('Full session:', session);
-  console.log('Session keys:', session ? Object.keys(session) : 'null');
-  console.log('Has access_token:', !!session?.access_token);
-  console.log('Using token:', session?.access_token?.substring(0, 30) + '...');
-  console.log('Has session:', !!session);
-  console.log('Using token type:', session?.access_token ? 'ACCESS_TOKEN' : 'NO_TOKEN');
-  console.log('Token (first 20 chars):', session?.access_token?.substring(0, 20) || 'N/A');
+  console.log('Session refresh error:', sessionError);
+  console.log('Has session after refresh:', !!finalSession);
+  console.log('Has access_token:', !!finalSession?.access_token);
+  console.log('Token expires at:', finalSession?.expires_at);
+  console.log('Token (first 20 chars):', finalSession?.access_token?.substring(0, 20) || 'N/A');
   
   // Don't use anon key as Bearer token - it's not a JWT!
-  if (!session?.access_token) {
-    console.error('❌ No access token available');
-    console.error('Session data:', JSON.stringify(session, null, 2));
-    throw new Error('Not authenticated - no access token');
+  if (!finalSession?.access_token) {
+    console.error('❌ No access token available after refresh');
+    console.error('Session error:', sessionError);
+    throw new Error('Not authenticated - please sign in again');
   }
   
   const headers = {
     'Content-Type': 'application/json',
-    'Authorization': `Bearer ${session.access_token}`,
+    'Authorization': `Bearer ${finalSession.access_token}`,
     ...options.headers,
   };
 
@@ -123,6 +124,14 @@ const fetchWithAuth = async (url: string, options: RequestInit = {}) => {
   if (!response.ok) {
     const error = await response.json().catch(() => ({ error: response.statusText }));
     console.error('❌ fetchWithAuth error:', error);
+    
+    // If we get a 401, the session might be invalid - force sign out
+    if (response.status === 401) {
+      console.error('❌ 401 Unauthorized - session invalid, signing out');
+      await supabase.auth.signOut();
+      throw new Error('Session expired - please sign in again');
+    }
+    
     throw new Error(error.error || `HTTP error! status: ${response.status}`);
   }
 

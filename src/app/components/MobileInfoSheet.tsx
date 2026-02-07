@@ -17,6 +17,7 @@ interface MobileInfoSheetProps {
   onFavoriteToggle?: (locationId: string, placeData?: { name?: string; lat?: number; lng?: number; formatted_address?: string; place_id?: string }) => void;
   onWantToGoToggle?: (locationId: string, placeData?: { name?: string; lat?: number; lng?: number; formatted_address?: string; place_id?: string }) => void;
   onRatingAdded?: () => void;
+  onRefresh?: () => void; // Callback to refresh locations after rating is saved
   favoriteIds?: Set<string>; 
   wantToGoIds?: Set<string>;
   lvLocation?: Location | null;
@@ -30,6 +31,7 @@ export function MobileInfoSheet({
   onFavoriteToggle,
   onWantToGoToggle,
   onRatingAdded,
+  onRefresh,
   favoriteIds,
   wantToGoIds,
   lvLocation
@@ -522,6 +524,9 @@ export function MobileInfoSheet({
               toast.success('Rating updated successfully!');
               if (onRatingAdded) {
                 onRatingAdded();
+              }
+              if (onRefresh) {
+                onRefresh();
               }
             }}
           />
