@@ -1205,7 +1205,7 @@ app.put('/make-server-48182530/locations/:id/rating', verifyAuth, verifyEditor, 
   console.log('📍 PUT /locations/:id/rating - Start');
   const userId = c.get('userId');
   const locationId = c.req.param('id');
-  const { lvEditorsScore, michelinScore, tags, placeData } = await c.req.json();
+  const { lvEditorsScore, michelinScore, tags, placeData, michelinId } = await c.req.json();
 
   if (lvEditorsScore !== undefined && (lvEditorsScore < 0 || lvEditorsScore > 11)) {
     return c.json({ error: 'lvEditorsScore must be between 0.0 and 11.0' }, 400);
@@ -1256,6 +1256,7 @@ app.put('/make-server-48182530/locations/:id/rating', verifyAuth, verifyEditor, 
         google_rating: placeData.rating || null,
         lv_editor_score: lvEditorsScore,
         tags: tags || [],
+        michelin_id: michelinId || null,
         created_by_user_id: userId,
         updated_by_user_id: userId,
       };
@@ -1284,6 +1285,7 @@ app.put('/make-server-48182530/locations/:id/rating', verifyAuth, verifyEditor, 
     
     if (lvEditorsScore !== undefined) dbUpdates.lv_editor_score = lvEditorsScore;
     if (tags !== undefined) dbUpdates.tags = tags;
+    if (michelinId !== undefined) dbUpdates.michelin_id = michelinId;
     
     const { data: updatedLocation, error } = await supabase
       .from('locations')

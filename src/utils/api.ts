@@ -53,7 +53,7 @@ export interface Location {
   image?: string | null;
   // External identifiers
   googlePlaceId?: string | null; // Google Place ID
-  michelinId?: string | null; // Michelin restaurant ID
+  michelinId?: string | number | null; // Michelin restaurant ID (can be string or number)
   // Backward compatibility
   placeId?: string; // Alias for googlePlaceId (camelCase to match backend)
   place_id?: string; // Also support snake_case for Map component
@@ -427,11 +427,12 @@ export const api = {
       lng: number;
       formatted_address?: string;
       rating?: number;
-    }
+    },
+    michelinId?: number
   ) => {
     return fetchWithAuth(`${API_BASE}/locations/${locationId}/rating`, {
       method: 'PUT',
-      body: JSON.stringify({ lvEditorsScore, michelinScore, tags, placeData }),
+      body: JSON.stringify({ lvEditorsScore, michelinScore, tags, placeData, michelinId }),
     });
   },
 

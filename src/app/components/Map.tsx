@@ -914,6 +914,8 @@ export function Map({
                       address: restaurant.address,
                       cuisine: restaurant.cuisine,
                       place_id: place.id,
+                      // Include Michelin restaurant ID so editor can create location with it
+                      michelinId: restaurant.id.toString(),
                     };
                     
                     console.log('📦 Final lvLocation object:', lvLocation);

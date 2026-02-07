@@ -659,6 +659,7 @@ export function GooglePlaceInfoWindow({
               currentRating={lvLocation?.lvEditorsScore}
               currentMichelinScore={lvLocation?.michelinScore}
               currentTags={lvLocation?.tags || []}
+              michelinId={lvLocation?.michelinId}
               placeData={{
                 name: place.name || 'Unknown Place',
                 lat,

@@ -25,6 +25,7 @@ interface EditorRatingModalProps {
   currentRating?: number;
   currentMichelinScore?: number;
   currentTags?: string[];
+  michelinId?: number;
   onClose: () => void;
   onSuccess: () => void;
   placeData?: {
@@ -42,6 +43,7 @@ export function EditorRatingModal({
   currentRating,
   currentMichelinScore,
   currentTags = [],
+  michelinId,
   onClose,
   onSuccess,
   placeData,
@@ -135,10 +137,10 @@ export function EditorRatingModal({
     }
 
     setIsSubmitting(true);
-    console.log('🎯 Submitting rating:', { locationId, ratingValue, michelinScoreValue, selectedTags, placeData });
+    console.log('🎯 Submitting rating:', { locationId, ratingValue, michelinScoreValue, selectedTags, placeData, michelinId });
 
     try {
-      const result = await api.updateLocationRating(locationId, ratingValue, michelinScoreValue, selectedTags, placeData);
+      const result = await api.updateLocationRating(locationId, ratingValue, michelinScoreValue, selectedTags, placeData, michelinId);
       console.log('✅ Rating updated successfully:', result);
       toast.success('Rating updated successfully!');
       onSuccess();
