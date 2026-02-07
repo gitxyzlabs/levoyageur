@@ -78,18 +78,21 @@ async function verifyAuth(c: any, next: any) {
     
     if (error) {
       console.log('❌ Supabase getUser error:', error.message);
-      throw error;
+      return c.json({ error: 'Unauthorized', details: error.message }, 401);
     }
     
     if (!user) {
-      throw new Error('No user returned from getUser()');
+      console.log('❌ No user returned from getUser()');
+      return c.json({ error: 'Unauthorized', details: 'No user found' }, 401);
     }
 
     console.log('✅ User verified successfully:', user.id);
     console.log('✅ User email:', user.email);
     c.set('userId', user.id);
     c.set('userEmail', user.email);
-    await next();
+    
+    // Continue to next middleware/handler
+    return await next();
   } catch (error: any) {
     console.log('❌ JWT verification failed:', error.message);
     return c.json({ error: 'Unauthorized', details: error.message }, 401);
@@ -121,7 +124,9 @@ async function verifyEditor(c: any, next: any) {
     }
     
     console.log('✅ Editor role verified from user_metadata table:', role);
-    await next();
+    
+    // Continue to next middleware/handler
+    return await next();
   } catch (error) {
     console.error('❌ Error in verifyEditor:', error);
     return c.json({ error: 'Failed to verify editor role' }, 500);
@@ -1206,6 +1211,8 @@ app.put('/make-server-48182530/locations/:id/rating', verifyAuth, verifyEditor, 
   const userId = c.get('userId');
   const locationId = c.req.param('id');
   const { lvEditorsScore, michelinScore, tags, placeData, michelinId } = await c.req.json();
+  
+  console.log('📍 Received michelinId:', michelinId, 'Type:', typeof michelinId);
 
   if (lvEditorsScore !== undefined && (lvEditorsScore < 0 || lvEditorsScore > 11)) {
     return c.json({ error: 'lvEditorsScore must be between 0.0 and 11.0' }, 400);
@@ -1214,6 +1221,10 @@ app.put('/make-server-48182530/locations/:id/rating', verifyAuth, verifyEditor, 
   if (michelinScore !== undefined && (michelinScore < 0 || michelinScore > 11)) {
     return c.json({ error: 'michelinScore must be between 0.0 and 11.0' }, 400);
   }
+  
+  // Convert michelinId to number if it's a string
+  const normalizedMichelinId = michelinId ? (typeof michelinId === 'string' ? parseInt(michelinId, 10) : michelinId) : null;
+  console.log('📍 Normalized michelinId:', normalizedMichelinId, 'Type:', typeof normalizedMichelinId);
 
   try {
     const supabase = getSupabaseAdmin();
@@ -1256,7 +1267,7 @@ app.put('/make-server-48182530/locations/:id/rating', verifyAuth, verifyEditor, 
         google_rating: placeData.rating || null,
         lv_editor_score: lvEditorsScore,
         tags: tags || [],
-        michelin_id: michelinId || null,
+        michelin_id: normalizedMichelinId,
         created_by_user_id: userId,
         updated_by_user_id: userId,
       };
@@ -1285,7 +1296,7 @@ app.put('/make-server-48182530/locations/:id/rating', verifyAuth, verifyEditor, 
     
     if (lvEditorsScore !== undefined) dbUpdates.lv_editor_score = lvEditorsScore;
     if (tags !== undefined) dbUpdates.tags = tags;
-    if (michelinId !== undefined) dbUpdates.michelin_id = michelinId;
+    if (michelinId !== undefined) dbUpdates.michelin_id = normalizedMichelinId;
     
     const { data: updatedLocation, error } = await supabase
       .from('locations')
