@@ -654,7 +654,7 @@ export function GooglePlaceInfoWindow({
           {/* Editor Rating Modal */}
           {showEditorModal && place.place_id && (
             <EditorRatingModal
-              locationId={place.place_id}
+              locationId={lvLocation?.id || place.place_id}
               locationName={place.name || 'Unknown Place'}
               currentRating={lvLocation?.lvEditorsScore}
               currentMichelinScore={lvLocation?.michelinScore}

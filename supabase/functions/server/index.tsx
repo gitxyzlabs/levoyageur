@@ -1243,10 +1243,16 @@ app.put('/make-server-48182530/locations/:id/rating', verifyAuth, verifyEditor, 
       query = query.eq('google_place_id', locationId);
     }
     
-    const { data: existingLocation, error: fetchError } = await query.single();
+    const { data: existingLocation, error: fetchError } = await query.maybeSingle();
     
-    // If location doesn't exist, create it automatically
+    // If location doesn't exist, create it automatically (only for Google Place IDs, not UUIDs)
     if (fetchError || !existingLocation) {
+      // If it's a UUID and we can't find it, that's an error
+      if (isUUID) {
+        console.error('❌ Location with UUID not found:', locationId);
+        return c.json({ error: 'Location not found' }, 404);
+      }
+      
       console.log('📍 Location not found, creating new location:', locationId);
       
       // Validate that we have the necessary place data to create the location
@@ -1284,6 +1290,61 @@ app.put('/make-server-48182530/locations/:id/rating', verifyAuth, verifyEditor, 
       if (createError) {
         console.error('❌ Error creating location:', createError);
         console.error('❌ Error details:', JSON.stringify(createError, null, 2));
+        
+        // If duplicate michelin_id, find and update the existing location instead
+        if (createError.code === '23505' && normalizedMichelinId) {
+          console.log('📍 Duplicate michelin_id detected, finding existing location...');
+          
+          const { data: existingByMichelinId, error: findError } = await supabase
+            .from('locations')
+            .select('*')
+            .eq('michelin_id', normalizedMichelinId)
+            .single();
+          
+          if (findError || !existingByMichelinId) {
+            console.error('❌ Could not find existing location with michelin_id:', normalizedMichelinId);
+            return c.json({ 
+              error: 'Failed to create location - duplicate michelin_id but could not find existing record', 
+              details: createError.message,
+              code: createError.code,
+            }, 500);
+          }
+          
+          console.log('📍 Found existing location:', existingByMichelinId.id, '- updating with new Google Place ID');
+          
+          // Update the existing location with the new Google Place ID and rating
+          const updateData: any = {
+            google_place_id: locationId,
+            name: placeData.name,
+            address: placeData.formatted_address || existingByMichelinId.address,
+            lat: placeData.lat,
+            lng: placeData.lng,
+            google_rating: placeData.rating || existingByMichelinId.google_rating,
+            lv_editor_score: lvEditorsScore,
+            tags: tags || existingByMichelinId.tags || [],
+            updated_by_user_id: userId,
+            updated_at: new Date().toISOString(),
+          };
+          
+          const { data: updatedLocation, error: updateError } = await supabase
+            .from('locations')
+            .update(updateData)
+            .eq('id', existingByMichelinId.id)
+            .select()
+            .single();
+          
+          if (updateError) {
+            console.error('❌ Error updating existing location:', updateError);
+            return c.json({ 
+              error: 'Failed to update existing location', 
+              details: updateError.message,
+            }, 500);
+          }
+          
+          console.log('✅ Updated existing location with new Google Place ID:', updatedLocation.id);
+          return c.json(formatLocationForAPI(updatedLocation as LocationRow));
+        }
+        
         return c.json({ 
           error: 'Failed to create location', 
           details: createError.message,
