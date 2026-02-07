@@ -506,7 +506,9 @@ export function MobileInfoSheet({
             locationId={place.place_id}
             locationName={place.name || 'Unknown Place'}
             currentRating={lvLocation?.lvEditorsScore}
+            currentMichelinScore={lvLocation?.michelinScore}
             currentTags={lvLocation?.tags || []}
+            michelinId={lvLocation?.michelinId}
             placeData={{
               name: place.name || 'Unknown Place',
               lat,
