@@ -282,6 +282,17 @@ export function Map({
     });
   }, [michelinRestaurants, displayLocations, showMichelinMarkers, showSearchResults]);
 
+  // Memoize Want-to-Go markers that should be displayed (locations without LV ratings)
+  const wantToGoMarkersToDisplay = useMemo(() => {
+    if (!isAuthenticated || showSearchResults || !wantToGoLocations) return [];
+    
+    // Only show want-to-go markers for locations WITHOUT LV ratings
+    return wantToGoLocations.filter((location) => {
+      const hasLVRating = !!(location.lvEditorsScore || location.lvCrowdsourceScore);
+      return !hasLVRating; // Only show if no LV rating
+    });
+  }, [wantToGoLocations, isAuthenticated, showSearchResults]);
+
   // Debug logging for marker filtering
   useEffect(() => {
     console.log('🗺️ Map Display Logic:', {
