@@ -89,24 +89,37 @@ export const setAccessToken = (token: string | null) => {
 export const getAccessToken = () => accessToken;
 
 const fetchWithAuth = async (url: string, options: RequestInit = {}) => {
-  // Force a token refresh to ensure we have a valid session
-  const { data: { session }, error: sessionError } = await supabase.auth.refreshSession();
+  let finalSession = null;
   
-  // Fallback to getSession if refresh fails (e.g., no refresh token available)
-  const finalSession = session || (await supabase.auth.getSession()).data.session;
+  try {
+    // Try to refresh the session
+    const { data: { session }, error: sessionError } = await supabase.auth.refreshSession();
+    
+    if (session) {
+      finalSession = session;
+      console.log('✅ Session refreshed successfully');
+    } else if (sessionError) {
+      console.warn('⚠️ Session refresh failed, falling back to getSession:', sessionError.message);
+      // Fallback to getSession if refresh fails
+      const { data: { session: existingSession } } = await supabase.auth.getSession();
+      finalSession = existingSession;
+    }
+  } catch (error) {
+    console.warn('⚠️ Session refresh error, falling back to getSession:', error);
+    // Fallback to getSession if refresh throws an error
+    const { data: { session: existingSession } } = await supabase.auth.getSession();
+    finalSession = existingSession;
+  }
   
   console.log('=== fetchWithAuth Debug ===');
   console.log('URL:', url);
-  console.log('Session refresh error:', sessionError);
-  console.log('Has session after refresh:', !!finalSession);
+  console.log('Has session:', !!finalSession);
   console.log('Has access_token:', !!finalSession?.access_token);
   console.log('Token expires at:', finalSession?.expires_at);
   console.log('Token (first 20 chars):', finalSession?.access_token?.substring(0, 20) || 'N/A');
   
-  // Don't use anon key as Bearer token - it's not a JWT!
   if (!finalSession?.access_token) {
-    console.error('❌ No access token available after refresh');
-    console.error('Session error:', sessionError);
+    console.error('❌ No access token available');
     throw new Error('Not authenticated - please sign in again');
   }
   

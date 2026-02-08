@@ -220,15 +220,28 @@ export default function App() {
           
           // Load saved location for logged-in user
           loadSavedLocation(session.user.id);
-        } catch (error) {
+        } catch (error: any) {
           console.error('Failed to fetch user profile on session restore:', error);
-          // Fallback to basic user data
+          
+          // Check if it's an AbortError or network issue
+          if (error.name === 'AbortError') {
+            console.warn('⚠️ Request was aborted, using basic session data');
+          }
+          
+          // Fallback to basic user data from session
           setUser({
             id: session.user.id,
             email: session.user.email || '',
             name: session.user.user_metadata?.name || session.user.email || 'User',
             role: 'user',
           });
+          
+          // Still try to load user lists with fallback
+          try {
+            await loadUserLists();
+          } catch (listError) {
+            console.error('Failed to load user lists on fallback:', listError);
+          }
         }
       } else {
         // No session - request location without saving
@@ -236,6 +249,8 @@ export default function App() {
       }
     } catch (error) {
       console.error('Error checking existing session:', error);
+      // Continue app initialization even if session check fails
+      requestGeolocation();
     }
   };
 
