@@ -559,26 +559,24 @@ export default function App() {
   };
 
   const handleLogin = async () => {
-    // Save current map state before OAuth redirect
-    if (mapCenter) {
-      try {
-        localStorage.setItem('lv_map_center', JSON.stringify(mapCenter));
-        localStorage.setItem('lv_map_zoom', mapZoom.toString());
-        console.log('💾 Saved map state before login:', mapCenter, mapZoom);
-      } catch (error) {
-        console.error('Failed to save map state:', error);
+    try {
+      // Save current map state before OAuth redirect
+      if (mapCenter) {
+        try {
+          localStorage.setItem('lv_map_center', JSON.stringify(mapCenter));
+          localStorage.setItem('lv_map_zoom', mapZoom.toString());
+          console.log('💾 Saved map state before login:', mapCenter, mapZoom);
+        } catch (error) {
+          console.error('Failed to save map state:', error);
+        }
       }
-    }
-    
-    const { data, error } = await supabase.auth.signInWithOAuth({
-      provider: 'google',
-    });
-    if (error) {
-      toast.error('Login failed');
-      console.error(error);
-    } else {
-      toast.success('Logged in successfully');
-      setUser(data.user);
+      
+      console.log('🔐 Starting Google OAuth login...');
+      await api.signInWithOAuth('google');
+      // Note: This will redirect the user, so code after this won't execute
+    } catch (error: any) {
+      console.error('❌ Login error:', error);
+      toast.error(error.message || 'Login failed');
     }
   };
 

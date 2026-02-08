@@ -89,43 +89,25 @@ export const setAccessToken = (token: string | null) => {
 export const getAccessToken = () => accessToken;
 
 const fetchWithAuth = async (url: string, options: RequestInit = {}) => {
-  let finalSession = null;
-  
-  try {
-    // Try to refresh the session
-    const { data: { session }, error: sessionError } = await supabase.auth.refreshSession();
-    
-    if (session) {
-      finalSession = session;
-      console.log('✅ Session refreshed successfully');
-    } else if (sessionError) {
-      console.warn('⚠️ Session refresh failed, falling back to getSession:', sessionError.message);
-      // Fallback to getSession if refresh fails
-      const { data: { session: existingSession } } = await supabase.auth.getSession();
-      finalSession = existingSession;
-    }
-  } catch (error) {
-    console.warn('⚠️ Session refresh error, falling back to getSession:', error);
-    // Fallback to getSession if refresh throws an error
-    const { data: { session: existingSession } } = await supabase.auth.getSession();
-    finalSession = existingSession;
-  }
+  // Just get the current session without refreshing
+  // Supabase will auto-refresh tokens when needed thanks to autoRefreshToken: true
+  const { data: { session } } = await supabase.auth.getSession();
   
   console.log('=== fetchWithAuth Debug ===');
   console.log('URL:', url);
-  console.log('Has session:', !!finalSession);
-  console.log('Has access_token:', !!finalSession?.access_token);
-  console.log('Token expires at:', finalSession?.expires_at);
-  console.log('Token (first 20 chars):', finalSession?.access_token?.substring(0, 20) || 'N/A');
+  console.log('Has session:', !!session);
+  console.log('Has access_token:', !!session?.access_token);
+  console.log('Token expires at:', session?.expires_at);
+  console.log('Token (first 20 chars):', session?.access_token?.substring(0, 20) || 'N/A');
   
-  if (!finalSession?.access_token) {
+  if (!session?.access_token) {
     console.error('❌ No access token available');
     throw new Error('Not authenticated - please sign in again');
   }
   
   const headers = {
     'Content-Type': 'application/json',
-    'Authorization': `Bearer ${finalSession.access_token}`,
+    'Authorization': `Bearer ${session.access_token}`,
     ...options.headers,
   };
 
