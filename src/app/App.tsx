@@ -639,13 +639,19 @@ export default function App() {
       setWantToGoLocations(wantToGo); // Store full location objects for map display
       
       // Build place_id Set for info window checks
+      console.log('🔍 Building wantToGoPlaceIds Set...');
+      console.log('wantToGo array:', wantToGo);
+      wantToGo.forEach((loc, index) => {
+        console.log(`  [${index}] id=${loc.id}, placeId=${loc.placeId}, googlePlaceId=${loc.googlePlaceId}`);
+      });
+      
       const placeIds = wantToGo
-        .filter(loc => loc.place_id)
-        .map(loc => loc.place_id);
+        .filter(loc => loc.placeId || loc.googlePlaceId)
+        .map(loc => loc.placeId || loc.googlePlaceId!);
       setWantToGoPlaceIds(new Set(placeIds));
       
       console.log('✅ User lists loaded:', favorites.length, 'favorites,', wantToGo.length, 'want to go');
-      console.log('✅ Want to Go Place IDs:', placeIds);
+      console.log('✅ Want to Go Place IDs Set:', Array.from(placeIds));
     } catch (error) {
       console.error('Failed to load user lists:', error);
     }
