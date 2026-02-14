@@ -173,9 +173,9 @@ export function WantToGo({ user, userLocation, onLocationClick }: WantToGoProps)
                         e.stopPropagation();
                         removeWantToGo(location.id, location.name);
                       }}
-                      className="opacity-0 group-hover:opacity-100 transition-opacity p-1 hover:bg-blue-50 rounded"
+                      className="opacity-0 group-hover:opacity-100 transition-opacity p-1 hover:bg-green-50 rounded"
                     >
-                      <Bookmark className="w-4 h-4 fill-blue-500 text-blue-500" />
+                      <Bookmark className="w-4 h-4 fill-green-500 text-green-500" />
                     </button>
                   </div>
 

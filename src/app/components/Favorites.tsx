@@ -1,9 +1,10 @@
-import { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Heart, MapPin, Star, Navigation } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
 import type { Location, User } from '../../utils/api';
 import { api } from '../../utils/api';
 import { toast } from 'sonner';
+import { MichelinStar, MichelinBib, MichelinPlate } from '@/app/components/MichelinIcons';
 
 interface FavoritesProps {
   user: User;
@@ -144,7 +145,22 @@ export function Favorites({ user, userLocation, onLocationClick }: FavoritesProp
                       <Star className="w-3 h-3 fill-amber-400 text-amber-400" />
                       <span className="font-semibold">{location.lvEditorsScore?.toFixed(1)}</span>
                     </div>
-                    {location.michelinScore > 0 && (
+                    {/* Michelin Rating */}
+                    {location.michelinStars && (
+                      <div className="flex items-center gap-0.5">
+                        {Array.from({ length: location.michelinStars }).map((_, i) => (
+                          <MichelinStar key={i} className="w-3 h-3" />
+                        ))}
+                      </div>
+                    )}
+                    {location.michelinDistinction === 'Bib Gourmand' && (
+                      <MichelinBib className="w-4 h-4" />
+                    )}
+                    {location.michelinDistinction && location.michelinDistinction !== 'Bib Gourmand' && (
+                      <MichelinPlate className="w-4 h-4" />
+                    )}
+                    {/* Legacy score - only show if no modern Michelin data */}
+                    {!location.michelinStars && !location.michelinDistinction && location.michelinScore && location.michelinScore > 0 && (
                       <div className="flex items-center gap-1">
                         <Star className="w-3 h-3 fill-red-400 text-red-400" />
                         <span className="font-semibold">{location.michelinScore}</span>

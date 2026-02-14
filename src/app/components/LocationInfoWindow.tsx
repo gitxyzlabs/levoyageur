@@ -5,8 +5,9 @@ import { InfoWindow } from '@vis.gl/react-google-maps';
 import { api, type Location, type User } from '../../utils/api';
 import { toast } from 'sonner';
 import { RatingSlider } from './RatingSlider';
-import { MichelinFlower, MichelinStar, MichelinBib, MichelinPlate } from '@/app/components/MichelinIcons';
+import { MichelinFlower, MichelinStar, MichelinBib, MichelinPlate, MichelinGreenStar } from '@/app/components/MichelinIcons';
 
+// LocationInfoWindow - Desktop info window component with Want to Go toggle
 interface LocationInfoWindowProps {
   location: Location;
   onClose: () => void;
@@ -29,6 +30,7 @@ export function LocationInfoWindow({
   onFavoriteToggle 
 }: LocationInfoWindowProps) {
   const [isFavorite, setIsFavorite] = useState(false);
+  const [isWantToGo, setIsWantToGo] = useState(false);
   const [photos, setPhotos] = useState<GooglePhoto[]>([]);
   const [currentPhotoIndex, setCurrentPhotoIndex] = useState(0);
   const [googleRating, setGoogleRating] = useState<{ rating: number | null; count: number | null }>({ 
@@ -45,6 +47,7 @@ export function LocationInfoWindow({
     }
     if (isAuthenticated && user) {
       checkIfFavorite();
+      checkIfWantToGo();
       loadUserRating();
     }
     loadCommunityRatingCount();
@@ -57,6 +60,17 @@ export function LocationInfoWindow({
       setIsFavorite(favorites.some((fav: Location) => fav.id === location.id));
     } catch (error) {
       console.error('Failed to check favorite status:', error);
+      // Silently fail - database may not be set up yet
+    }
+  };
+
+  const checkIfWantToGo = async () => {
+    if (!user) return;
+    try {
+      const { wantToGo } = await api.getWantToGo();
+      setIsWantToGo(wantToGo.some((wtg: Location) => wtg.id === location.id));
+    } catch (error) {
+      console.error('Failed to check want to go status:', error);
       // Silently fail - database may not be set up yet
     }
   };
@@ -141,6 +155,28 @@ export function LocationInfoWindow({
     } catch (error: any) {
       console.error('Failed to toggle favorite:', error);
       toast.error('Failed to update favorites');
+    }
+  };
+
+  const toggleWantToGo = async () => {
+    if (!isAuthenticated || !user) {
+      toast.error('Please sign in to add to Want to Go');
+      return;
+    }
+
+    try {
+      if (isWantToGo) {
+        await api.removeWantToGo(location.id);
+        setIsWantToGo(false);
+        toast.success('Removed from Want to Go');
+      } else {
+        await api.addWantToGo(location.id);
+        setIsWantToGo(true);
+        toast.success('Added to Want to Go! 🗺️');
+      }
+    } catch (error: any) {
+      console.error('Failed to toggle want to go:', error);
+      toast.error('Failed to update Want to Go list');
     }
   };
 
@@ -330,24 +366,43 @@ export function LocationInfoWindow({
               </div>
             </div>
 
-            {/* Michelin Score */}
-            {location.michelinScore && location.michelinScore > 0 && (
+            {/* Michelin Guide - Show when Michelin data is available */}
+            {(location.michelinStars || location.michelinDistinction || location.michelinGreenStar || (location.michelinScore && location.michelinScore > 0)) && (
               <div className="flex items-center justify-between text-sm pb-2 border-b border-gray-100">
                 <div className="flex items-center gap-2">
                   <MichelinFlower className="w-4 h-4" />
                   <span className="text-gray-600">Michelin Guide</span>
                 </div>
                 <div className="flex items-center gap-0.5">
-                  {/* Display visual Michelin logos */}
-                  {location.michelinScore <= 3 ? (
-                    // Show 1-3 Michelin stars
-                    Array.from({ length: location.michelinScore }).map((_, i) => (
-                      <MichelinStar key={i} className="w-5 h-5" />
-                    ))
-                  ) : location.michelinScore === 4 ? (
+                  {/* Stars (1-3) */}
+                  {location.michelinStars && (
+                    <div className="flex items-center gap-0.5">
+                      {Array.from({ length: location.michelinStars }).map((_, i) => (
+                        <MichelinStar key={i} className="w-5 h-5" />
+                      ))}
+                    </div>
+                  )}
+                  
+                  {/* Bib Gourmand */}
+                  {location.michelinDistinction === 'Bib Gourmand' && (
                     <MichelinBib className="w-6 h-6" />
-                  ) : (
+                  )}
+                  
+                  {/* Plate or other distinctions */}
+                  {location.michelinDistinction && location.michelinDistinction !== 'Bib Gourmand' && (
                     <MichelinPlate className="w-6 h-6" />
+                  )}
+                  
+                  {/* Green Star */}
+                  {location.michelinGreenStar && (
+                    <MichelinGreenStar className="w-5 h-5" />
+                  )}
+                  
+                  {/* Legacy Michelin Score - Only show if no stars/distinction but has score */}
+                  {!location.michelinStars && !location.michelinDistinction && location.michelinScore && location.michelinScore > 0 && (
+                    <div className="text-lg font-bold text-red-900">
+                      {location.michelinScore.toFixed(1)}★
+                    </div>
                   )}
                 </div>
               </div>
@@ -382,17 +437,15 @@ export function LocationInfoWindow({
             </button>
             
             <button
-              onClick={() => {
-                if (!isAuthenticated) {
-                  toast.error('Please sign in to add to Want to Go');
-                  return;
-                }
-                toast.success('Added to Want to Go!');
-              }}
-              className="flex items-center justify-center gap-1.5 px-3 py-2.5 bg-gray-50 hover:bg-gray-100 text-gray-700 border border-gray-200 rounded-lg text-xs font-medium transition-all"
+              onClick={toggleWantToGo}
+              className={`flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-lg text-xs font-medium transition-all ${
+                isWantToGo
+                  ? 'bg-green-50 text-green-700 border border-green-200'
+                  : 'bg-gray-50 text-gray-700 border border-gray-200 hover:bg-gray-100'
+              }`}
             >
-              <Bookmark className="w-3.5 h-3.5" />
-              Want to Go
+              <Bookmark className={`w-3.5 h-3.5 ${isWantToGo ? 'fill-green-500' : ''}`} />
+              {isWantToGo ? 'Saved' : 'Want to Go'}
             </button>
             
             <button
