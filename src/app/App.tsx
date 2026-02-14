@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { APIProvider } from '@vis.gl/react-google-maps';
 import { toast, Toaster } from 'sonner';
@@ -44,6 +44,7 @@ type Location = APILocation & {
 export default function App() {
   const [locations, setLocations] = useState<Location[]>([]);
   const [heatMapLocations, setHeatMapLocations] = useState<Location[]>([]);
+  const loadingRef = useRef(false); // 🛡️ Prevent duplicate API calls
   const [searchQuery, setSearchQuery] = useState("");
   const [showHeatMap, setShowHeatMap] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -71,14 +72,8 @@ export default function App() {
   const [showMichelinMarkers, setShowMichelinMarkers] = useState(true);
   const [filterMenuOpen, setFilterMenuOpen] = useState(false);
 
-  // Calculate city stats when a city is selected
-  useEffect(() => {
-    if (selectedCity && selectedCity.geometry?.location) {
-      calculateCityStats(selectedCity.geometry.location);
-    }
-  }, [selectedCity, locations]);
-
-  const calculateCityStats = async (cityCenter: google.maps.LatLng | google.maps.LatLngLiteral) => {
+  // Calculate city stats when a city is selected - memoized for performance
+  const calculateCityStats = useCallback(async (cityCenter: google.maps.LatLng | google.maps.LatLngLiteral) => {
     const lat = typeof cityCenter.lat === 'function' ? cityCenter.lat() : cityCenter.lat;
     const lng = typeof cityCenter.lng === 'function' ? cityCenter.lng() : cityCenter.lng;
     
@@ -117,7 +112,13 @@ export default function App() {
         totalFavorites: 0
       });
     }
-  };
+  }, [locations]);
+
+  useEffect(() => {
+    if (selectedCity && selectedCity.geometry?.location) {
+      calculateCityStats(selectedCity.geometry.location);
+    }
+  }, [selectedCity, calculateCityStats]);
 
   // Haversine formula to calculate distance between two coordinates
   const calculateDistance = (lat1: number, lng1: number, lat2: number, lng2: number): number => {
@@ -172,7 +173,7 @@ export default function App() {
           });
         }
         
-        // Load saved location for logged-in user
+        // Load saved location for logged-in user (this will check permission preference)
         loadSavedLocation(session.user.id);
         
         if (event === 'SIGNED_IN') {
@@ -187,8 +188,17 @@ export default function App() {
         setWantToGoIds(new Set());
         setLocationPermissionGranted(false);
         
-        // Request location when not logged in (won't be saved)
-        requestGeolocation();
+        // When logged out, check if browser has saved permission before requesting
+        // Only request location if user hasn't explicitly denied it
+        const hasExplicitlyDeniedLocation = localStorage.getItem('lv_location_denied') === 'true';
+        if (!hasExplicitlyDeniedLocation) {
+          requestGeolocation();
+        } else {
+          // Use fallback location if user previously denied
+          const fallbackLocation = { lat: 32.7157, lng: -117.1611 };
+          setMapCenter(fallbackLocation);
+          console.log('⚠️ Using fallback location (San Diego) - user previously denied');
+        }
       }
     });
     
@@ -218,7 +228,7 @@ export default function App() {
           // Load user's favorites and want-to-go lists
           await loadUserLists();
           
-          // Load saved location for logged-in user
+          // Load saved location for logged-in user (this will check permission preference)
           loadSavedLocation(session.user.id);
         } catch (error: any) {
           console.error('Failed to fetch user profile on session restore:', error);
@@ -244,13 +254,28 @@ export default function App() {
           }
         }
       } else {
-        // No session - request location without saving
-        requestGeolocation();
+        // No session - only request location if user hasn't explicitly denied it
+        const hasExplicitlyDeniedLocation = localStorage.getItem('lv_location_denied') === 'true';
+        if (!hasExplicitlyDeniedLocation) {
+          requestGeolocation();
+        } else {
+          // Use fallback location if user previously denied
+          const fallbackLocation = { lat: 32.7157, lng: -117.1611 };
+          setMapCenter(fallbackLocation);
+          console.log('⚠️ Using fallback location (San Diego) - user previously denied');
+        }
       }
     } catch (error) {
       console.error('Error checking existing session:', error);
       // Continue app initialization even if session check fails
-      requestGeolocation();
+      const hasExplicitlyDeniedLocation = localStorage.getItem('lv_location_denied') === 'true';
+      if (!hasExplicitlyDeniedLocation) {
+        requestGeolocation();
+      } else {
+        const fallbackLocation = { lat: 32.7157, lng: -117.1611 };
+        setMapCenter(fallbackLocation);
+        console.log('⚠️ Using fallback location (San Diego) - user previously denied');
+      }
     }
   };
 
@@ -296,6 +321,13 @@ export default function App() {
   };
 
   const loadLocations = useCallback(async () => {
+    // 🛡️ Prevent duplicate requests
+    if (loadingRef.current) {
+      console.log('🚫 Already loading locations, skipping duplicate request');
+      return;
+    }
+    
+    loadingRef.current = true;
     try {
       console.log('🔄 Loading locations...');
       const { locations: data } = await api.getLocations();
@@ -304,6 +336,8 @@ export default function App() {
     } catch (error: any) {
       console.error("❌ Failed to load locations:", error);
       toast.error('Failed to load locations');
+    } finally {
+      loadingRef.current = false;
     }
   }, []);
 
@@ -616,30 +650,65 @@ export default function App() {
     
     const isFavorite = favoriteIds.has(locationId);
     
+    // ✅ OPTIMISTIC UPDATE - Update UI immediately
+    setFavoriteIds(prev => {
+      const newSet = new Set(prev);
+      if (isFavorite) {
+        newSet.delete(locationId);
+      } else {
+        newSet.add(locationId);
+      }
+      return newSet;
+    });
+    
+    // ✅ Update favoritesCount in locations array
+    setLocations(prev => prev.map(loc => 
+      loc.id === locationId 
+        ? { 
+            ...loc, 
+            favoritesCount: (loc.favoritesCount || 0) + (isFavorite ? -1 : 1) 
+          }
+        : loc
+    ));
+    
     try {
       if (isFavorite) {
         // Remove from favorites
         await api.removeFavorite(locationId);
-        setFavoriteIds(prev => {
-          const newSet = new Set(prev);
-          newSet.delete(locationId);
-          return newSet;
-        });
         toast.success('Removed from favorites');
       } else {
         // Add to favorites
         console.log('💾 Saving favorite with place_id:', placeData?.place_id);
         await api.addFavorite(locationId, placeData);
-        setFavoriteIds(prev => new Set([...prev, locationId]));
         toast.success('Added to favorites!');
       }
-      // Refresh locations to update markers
-      await loadLocations();
+      // ✅ NO MORE loadLocations() - we updated state optimistically!
     } catch (error: any) {
       console.error('❌ Error toggling favorite:', error);
+      
+      // ❌ ROLLBACK optimistic update on error
+      setFavoriteIds(prev => {
+        const newSet = new Set(prev);
+        if (isFavorite) {
+          newSet.add(locationId);
+        } else {
+          newSet.delete(locationId);
+        }
+        return newSet;
+      });
+      
+      setLocations(prev => prev.map(loc => 
+        loc.id === locationId 
+          ? { 
+              ...loc, 
+              favoritesCount: (loc.favoritesCount || 0) + (isFavorite ? 1 : -1) 
+            }
+          : loc
+      ));
+      
       toast.error('Failed to update favorites');
     }
-  }, [user, favoriteIds, loadLocations]);
+  }, [user, favoriteIds]);
 
   const handleToggleWantToGo = useCallback(async (locationId: string, placeData?: { name?: string; lat?: number; lng?: number; formatted_address?: string; place_id?: string }) => {
     if (!user) {
@@ -649,31 +718,69 @@ export default function App() {
     
     const isWantToGo = wantToGoIds.has(locationId);
     
+    // ✅ OPTIMISTIC UPDATE - Update UI immediately
+    setWantToGoIds(prev => {
+      const newSet = new Set(prev);
+      if (isWantToGo) {
+        newSet.delete(locationId);
+      } else {
+        newSet.add(locationId);
+      }
+      return newSet;
+    });
+    
+    // ✅ Update wantToGoLocations array
+    if (isWantToGo) {
+      // Remove from list
+      setWantToGoLocations(prev => prev.filter(loc => loc.id !== locationId));
+    } else {
+      // Add to list - find the location data
+      const location = locations.find(loc => loc.id === locationId);
+      if (location) {
+        setWantToGoLocations(prev => [...prev, location]);
+      }
+    }
+    
     try {
       if (isWantToGo) {
         // Remove from Want to Go
         await api.removeWantToGo(locationId);
-        setWantToGoIds(prev => {
-          const newSet = new Set(prev);
-          newSet.delete(locationId);
-          return newSet;
-        });
         toast.success('Removed from Want to Go');
       } else {
         // Add to Want to Go
         console.log('💾 Saving want to go with place_id:', placeData?.place_id);
         await api.addWantToGo(locationId, placeData);
-        setWantToGoIds(prev => new Set([...prev, locationId]));
         toast.success('Added to Want to Go!');
       }
-      // Refresh locations and want-to-go list to update markers
-      await loadLocations();
-      await loadUserLists(); // Reload want-to-go list to get full location data
+      // ✅ NO MORE loadLocations() or loadUserLists() - we updated state optimistically!
     } catch (error) {
       console.error('❌ Error toggling Want to Go:', error);
+      
+      // ❌ ROLLBACK optimistic update on error
+      setWantToGoIds(prev => {
+        const newSet = new Set(prev);
+        if (isWantToGo) {
+          newSet.add(locationId);
+        } else {
+          newSet.delete(locationId);
+        }
+        return newSet;
+      });
+      
+      if (isWantToGo) {
+        // Re-add to list
+        const location = locations.find(loc => loc.id === locationId);
+        if (location) {
+          setWantToGoLocations(prev => [...prev, location]);
+        }
+      } else {
+        // Remove from list
+        setWantToGoLocations(prev => prev.filter(loc => loc.id !== locationId));
+      }
+      
       toast.error('Failed to update Want to Go');
     }
-  }, [user, wantToGoIds, loadLocations, loadUserLists]);
+  }, [user, wantToGoIds, locations]);
 
   const loadSavedLocation = async (userId: string) => {
     try {
@@ -724,6 +831,9 @@ export default function App() {
           setLocationPermissionGranted(true);
           console.log('✅ Centered map on user location:', userPos);
           
+          // Clear any previous denial flag
+          localStorage.removeItem('lv_location_denied');
+          
           // Save location for logged-in users
           if (userId) {
             try {
@@ -736,6 +846,13 @@ export default function App() {
         },
         (error) => {
           console.log('Geolocation error:', error);
+          
+          // Save denial preference so we don't keep asking
+          if (error.code === error.PERMISSION_DENIED) {
+            localStorage.setItem('lv_location_denied', 'true');
+            console.log('📍 User denied location access - saved preference');
+          }
+          
           // Fallback to San Diego if geolocation is denied
           const fallbackLocation = { lat: 32.7157, lng: -117.1611 };
           setMapCenter(fallbackLocation);
@@ -756,6 +873,9 @@ export default function App() {
       console.log('✅ Location permission preference saved:', enabled);
       
       if (enabled) {
+        // Clear any denial flag when user explicitly enables
+        localStorage.removeItem('lv_location_denied');
+        
         // Request location immediately when enabled
         toast.info('Requesting your location...');
         requestGeolocation(user.id);
@@ -1194,14 +1314,74 @@ export default function App() {
                 Sign in
               </Button>
             ) : (
-              <button
-                onClick={() => setMobileDrawerOpen(true)}
-                className="p-2 hover:bg-slate-100 rounded-lg transition-colors"
-              >
-                <Menu className="h-5 w-5 text-gray-700" />
-              </button>
+              <div className="flex items-center gap-2">
+                {/* Filter Button for Mobile */}
+                <button
+                  onClick={() => setFilterMenuOpen(!filterMenuOpen)}
+                  className="p-2 hover:bg-slate-100 rounded-lg transition-colors relative"
+                >
+                  <Filter className="h-5 w-5 text-gray-700" />
+                </button>
+                
+                {/* Menu Button */}
+                <button
+                  onClick={() => setMobileDrawerOpen(true)}
+                  className="p-2 hover:bg-slate-100 rounded-lg transition-colors"
+                >
+                  <Menu className="h-5 w-5 text-gray-700" />
+                </button>
+              </div>
             )}
           </div>
+          
+          {/* Mobile Filter Menu Dropdown */}
+          <AnimatePresence>
+            {filterMenuOpen && (
+              <motion.div
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: 'auto' }}
+                exit={{ opacity: 0, height: 0 }}
+                transition={{ duration: 0.2 }}
+                className="border-t border-slate-200 bg-white"
+              >
+                <div className="p-4 space-y-3">
+                  <div className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                    Show Markers
+                  </div>
+                  
+                  {/* LV Markers Toggle */}
+                  <button
+                    onClick={() => setShowLVMarkers(!showLVMarkers)}
+                    className="w-full flex items-center justify-between px-3 py-2.5 rounded-lg hover:bg-slate-50 transition-all"
+                  >
+                    <span className="text-sm font-medium text-gray-700">LV Markers</span>
+                    <div className={`w-10 h-6 rounded-full transition-all ${
+                      showLVMarkers ? 'bg-blue-500' : 'bg-gray-300'
+                    }`}>
+                      <div className={`w-4 h-4 bg-white rounded-full shadow-md transition-all transform ${
+                        showLVMarkers ? 'translate-x-5 translate-y-1' : 'translate-x-1 translate-y-1'
+                      }`} />
+                    </div>
+                  </button>
+
+                  {/* Michelin Markers Toggle */}
+                  <button
+                    onClick={() => setShowMichelinMarkers(!showMichelinMarkers)}
+                    className="w-full flex items-center justify-between px-3 py-2.5 rounded-lg hover:bg-slate-50 transition-all"
+                  >
+                    <span className="text-sm font-medium text-gray-700">Michelin Markers</span>
+                    <div className={`w-10 h-6 rounded-full transition-all ${
+                      showMichelinMarkers ? 'bg-red-500' : 'bg-gray-300'
+                    }`}>
+                      <div className={`w-4 h-4 bg-white rounded-full shadow-md transition-all transform ${
+                        showMichelinMarkers ? 'translate-x-5 translate-y-1' : 'translate-x-1 translate-y-1'
+                      }`} />
+                    </div>
+                  </button>
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
         </div>
 
         {/* Mobile Slide-Up Drawer */}

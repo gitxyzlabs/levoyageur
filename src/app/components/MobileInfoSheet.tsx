@@ -318,6 +318,12 @@ export function MobileInfoSheet({
                     toast.error('Unable to save this location');
                     return;
                   }
+                  
+                  console.log('🔍 Want to Go button clicked');
+                  console.log('Place ID:', place.place_id);
+                  console.log('Current wantToGoIds:', wantToGoIds);
+                  console.log('Is in Want to Go?', wantToGoIds?.has(place.place_id || ''));
+                  
                   if (onWantToGoToggle) {
                     // Extract lat/lng from place
                     const lat = place.geometry?.location?.lat ? 

@@ -1,5 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
 import { projectId, publicAnonKey } from '/utils/supabase/info.tsx';
+import { locationCache, placeDetailsCache, michelinCache } from './cache';
 
 const supabaseUrl = `https://${projectId}.supabase.co`;
 
@@ -88,49 +89,76 @@ export const setAccessToken = (token: string | null) => {
 
 export const getAccessToken = () => accessToken;
 
+// Store active AbortControllers to cancel stale requests
+const activeControllers = new Map<string, AbortController>();
+
 const fetchWithAuth = async (url: string, options: RequestInit = {}) => {
-  // Just get the current session without refreshing
-  // Supabase will auto-refresh tokens when needed thanks to autoRefreshToken: true
-  const { data: { session } } = await supabase.auth.getSession();
-  
-  console.log('=== fetchWithAuth Debug ===');
-  console.log('URL:', url);
-  console.log('Has session:', !!session);
-  console.log('Has access_token:', !!session?.access_token);
-  console.log('Token expires at:', session?.expires_at);
-  console.log('Token (first 20 chars):', session?.access_token?.substring(0, 20) || 'N/A');
-  
-  if (!session?.access_token) {
-    console.error('❌ No access token available');
-    throw new Error('Not authenticated - please sign in again');
+  // 🛡️ Cancel any pending request to the same URL
+  const existingController = activeControllers.get(url);
+  if (existingController) {
+    console.log('🚫 Aborting previous request to:', url);
+    existingController.abort();
   }
-  
-  const headers = {
-    'Content-Type': 'application/json',
-    'Authorization': `Bearer ${session.access_token}`,
-    ...options.headers,
-  };
 
-  const response = await fetch(url, {
-    ...options,
-    headers,
-  });
+  // Create new AbortController for this request
+  const controller = new AbortController();
+  activeControllers.set(url, controller);
 
-  if (!response.ok) {
-    const error = await response.json().catch(() => ({ error: response.statusText }));
-    console.error('❌ fetchWithAuth error:', error);
+  try {
+    // Just get the current session without refreshing
+    // Supabase will auto-refresh tokens when needed thanks to autoRefreshToken: true
+    const { data: { session } } = await supabase.auth.getSession();
     
-    // If we get a 401, the session might be invalid - force sign out
-    if (response.status === 401) {
-      console.error('❌ 401 Unauthorized - session invalid, signing out');
-      await supabase.auth.signOut();
-      throw new Error('Session expired - please sign in again');
+    console.log('=== fetchWithAuth Debug ===');
+    console.log('URL:', url);
+    console.log('Has session:', !!session);
+    console.log('Has access_token:', !!session?.access_token);
+    console.log('Token expires at:', session?.expires_at);
+    console.log('Token (first 20 chars):', session?.access_token?.substring(0, 20) || 'N/A');
+    
+    if (!session?.access_token) {
+      console.error('❌ No access token available');
+      throw new Error('Not authenticated - please sign in again');
     }
     
-    throw new Error(error.error || `HTTP error! status: ${response.status}`);
-  }
+    const headers = {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${session.access_token}`,
+      ...options.headers,
+    };
 
-  return response.json();
+    const response = await fetch(url, {
+      ...options,
+      headers,
+      signal: controller.signal, // ✅ Add abort signal
+    });
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ error: response.statusText }));
+      console.error('❌ fetchWithAuth error:', error);
+      
+      // If we get a 401, the session might be invalid - force sign out
+      if (response.status === 401) {
+        console.error('❌ 401 Unauthorized - session invalid, signing out');
+        await supabase.auth.signOut();
+        throw new Error('Session expired - please sign in again');
+      }
+      
+      throw new Error(error.error || `HTTP error! status: ${response.status}`);
+    }
+
+    return response.json();
+  } catch (error: any) {
+    // Don't log abort errors - they're expected
+    if (error.name !== 'AbortError') {
+      throw error;
+    }
+    console.log('⏸️ Request aborted:', url);
+    throw error;
+  } finally {
+    // Clean up the controller
+    activeControllers.delete(url);
+  }
 };
 
 export const api = {
@@ -254,6 +282,12 @@ export const api = {
 
   // Locations
   getLocations: async (): Promise<{ locations: Location[] }> => {
+    // ✅ Check cache first
+    const cached = locationCache.get('all-locations');
+    if (cached) {
+      return { locations: cached };
+    }
+
     // Public endpoint - doesn't require auth
     // Try without auth first, then fallback to anon key if JWT verification is enabled
     let response = await fetch(`${API_BASE}/locations`, {
@@ -280,7 +314,12 @@ export const api = {
       throw new Error(error.error || `HTTP error! status: ${response.status}`);
     }
 
-    return response.json();
+    const data = await response.json();
+    
+    // ✅ Cache the result
+    locationCache.set('all-locations', data.locations);
+    
+    return data;
   },
 
   getLocationsByTag: async (tag: string): Promise<{ locations: Location[] }> => {
@@ -344,16 +383,26 @@ export const api = {
   },
 
   addFavorite: async (locationId: string, placeData?: { name?: string; lat?: number; lng?: number; formatted_address?: string; place_id?: string }) => {
-    return fetchWithAuth(`${API_BASE}/favorites/${locationId}`, {
+    const result = await fetchWithAuth(`${API_BASE}/favorites/${locationId}`, {
       method: 'POST',
       body: JSON.stringify(placeData || {}),
     });
+    
+    // ✅ Invalidate relevant caches
+    locationCache.invalidate('all-locations');
+    
+    return result;
   },
 
   removeFavorite: async (locationId: string) => {
-    return fetchWithAuth(`${API_BASE}/favorites/${locationId}`, {
+    const result = await fetchWithAuth(`${API_BASE}/favorites/${locationId}`, {
       method: 'DELETE',
     });
+    
+    // ✅ Invalidate relevant caches
+    locationCache.invalidate('all-locations');
+    
+    return result;
   },
 
   // Get total favorites count for locations in a city
@@ -389,16 +438,26 @@ export const api = {
   },
 
   addWantToGo: async (locationId: string, placeData?: { name?: string; lat?: number; lng?: number; formatted_address?: string; place_id?: string }) => {
-    return fetchWithAuth(`${API_BASE}/want-to-go/${locationId}`, {
+    const result = await fetchWithAuth(`${API_BASE}/want-to-go/${locationId}`, {
       method: 'POST',
       body: JSON.stringify(placeData || {}),
     });
+    
+    // ✅ Invalidate relevant caches
+    locationCache.invalidate('all-locations');
+    
+    return result;
   },
 
   removeWantToGo: async (locationId: string) => {
-    return fetchWithAuth(`${API_BASE}/want-to-go/${locationId}`, {
+    const result = await fetchWithAuth(`${API_BASE}/want-to-go/${locationId}`, {
       method: 'DELETE',
     });
+    
+    // ✅ Invalidate relevant caches
+    locationCache.invalidate('all-locations');
+    
+    return result;
   },
 
   // Tags
@@ -458,7 +517,19 @@ export const api = {
 
   // Google Places
   getGooglePlaceDetails: async (placeId: string) => {
-    return fetchWithAuth(`${API_BASE}/google/place/${encodeURIComponent(placeId)}`);
+    // ✅ Check cache first
+    const cacheKey = `place-details-${placeId}`;
+    const cached = placeDetailsCache.get(cacheKey);
+    if (cached) {
+      return cached;
+    }
+
+    const data = await fetchWithAuth(`${API_BASE}/google/place/${encodeURIComponent(placeId)}`);
+    
+    // ✅ Cache the result
+    placeDetailsCache.set(cacheKey, data);
+    
+    return data;
   },
 
   // Michelin Data
