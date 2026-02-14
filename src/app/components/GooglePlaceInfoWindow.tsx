@@ -22,6 +22,7 @@ interface GooglePlaceInfoWindowProps {
   onRatingAdded?: () => void;
   favoriteIds?: Set<string>;
   wantToGoIds?: Set<string>;
+  wantToGoPlaceIds?: Set<string>; // Google Place IDs for checking if place is in want to go
   lvLocation?: Location | null;
   onRefresh?: () => void;
 }
@@ -36,6 +37,7 @@ export function GooglePlaceInfoWindow({
   onRatingAdded,
   favoriteIds,
   wantToGoIds,
+  wantToGoPlaceIds,
   lvLocation,
   onRefresh
 }: GooglePlaceInfoWindowProps) {
@@ -282,8 +284,8 @@ export function GooglePlaceInfoWindow({
 
                 console.log('🔍 Want to Go button clicked (desktop)');
                 console.log('Place ID:', place.place_id);
-                console.log('Current wantToGoIds:', wantToGoIds);
-                console.log('Is in Want to Go?', wantToGoIds?.has(place.place_id || ''));
+                console.log('Current wantToGoPlaceIds:', wantToGoPlaceIds);
+                console.log('Is in Want to Go?', wantToGoPlaceIds?.has(place.place_id || ''));
 
                 if (onWantToGoToggle) {
                   // Extract lat/lng from place
@@ -302,14 +304,14 @@ export function GooglePlaceInfoWindow({
                 }
               }}
               className={`p-2 rounded-full transition-all hover:scale-110 ${
-                wantToGoIds?.has(place.place_id || '')
+                wantToGoPlaceIds?.has(place.place_id || '')
                   ? 'bg-green-500 hover:bg-green-600'
                   : 'bg-gray-100 hover:bg-gray-200'
               }`}
-              title={wantToGoIds?.has(place.place_id || '') ? 'Remove from Want to Go' : 'Add to Want to Go'}
+              title={wantToGoPlaceIds?.has(place.place_id || '') ? 'Remove from Want to Go' : 'Add to Want to Go'}
             >
               <Bookmark className={`w-4 h-4 ${
-                wantToGoIds?.has(place.place_id || '') 
+                wantToGoPlaceIds?.has(place.place_id || '') 
                   ? 'fill-white stroke-white' 
                   : 'stroke-gray-600'
               }`} />
@@ -610,12 +612,12 @@ export function GooglePlaceInfoWindow({
                 }
               }}
               className={`flex items-center justify-center gap-1.5 px-3 py-2.5 border rounded-lg text-xs font-medium transition-all ${
-                wantToGoIds?.has(place.place_id || '')
+                wantToGoPlaceIds?.has(place.place_id || '')
                   ? 'bg-green-50 hover:bg-green-100 text-green-700 border-green-200'
                   : 'bg-gray-50 hover:bg-gray-100 text-gray-700 border-gray-200'
               }`}
             >
-              <Bookmark className={`w-3.5 h-3.5 ${wantToGoIds?.has(place.place_id || '') ? 'fill-green-500 stroke-green-500' : ''}`} />
+              <Bookmark className={`w-3.5 h-3.5 ${wantToGoPlaceIds?.has(place.place_id || '') ? 'fill-green-500 stroke-green-500' : ''}`} />
               Want to Go
             </button>
             

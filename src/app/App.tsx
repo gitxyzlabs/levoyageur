@@ -187,6 +187,7 @@ export default function App() {
         setUser(null);
         setFavoriteIds(new Set());
         setWantToGoIds(new Set());
+        setWantToGoPlaceIds(new Set());
         setLocationPermissionGranted(false);
         
         // When logged out, check if browser has saved permission before requesting
@@ -637,7 +638,14 @@ export default function App() {
       setWantToGoIds(new Set(wantToGo.map(loc => loc.id)));
       setWantToGoLocations(wantToGo); // Store full location objects for map display
       
+      // Build place_id Set for info window checks
+      const placeIds = wantToGo
+        .filter(loc => loc.place_id)
+        .map(loc => loc.place_id);
+      setWantToGoPlaceIds(new Set(placeIds));
+      
       console.log('✅ User lists loaded:', favorites.length, 'favorites,', wantToGo.length, 'want to go');
+      console.log('✅ Want to Go Place IDs:', placeIds);
     } catch (error) {
       console.error('Failed to load user lists:', error);
     }
@@ -717,28 +725,61 @@ export default function App() {
       return;
     }
     
-    const isWantToGo = wantToGoIds.has(locationId);
+    // Check if this is a place_id (Google place) or a location id (LV location)
+    const isPlaceId = placeData?.place_id === locationId;
+    const isWantToGo = isPlaceId ? wantToGoPlaceIds.has(locationId) : wantToGoIds.has(locationId);
+    
+    console.log('🔍 Toggle Want to Go:', { locationId, isPlaceId, isWantToGo, placeData });
     
     // ✅ OPTIMISTIC UPDATE - Update UI immediately
-    setWantToGoIds(prev => {
-      const newSet = new Set(prev);
-      if (isWantToGo) {
-        newSet.delete(locationId);
-      } else {
-        newSet.add(locationId);
-      }
-      return newSet;
-    });
+    if (isPlaceId && placeData?.place_id) {
+      // Update place_id set for Google places
+      setWantToGoPlaceIds(prev => {
+        const newSet = new Set(prev);
+        if (isWantToGo) {
+          newSet.delete(placeData.place_id!);
+        } else {
+          newSet.add(placeData.place_id!);
+        }
+        return newSet;
+      });
+    } else {
+      // Update location id set for LV locations
+      setWantToGoIds(prev => {
+        const newSet = new Set(prev);
+        if (isWantToGo) {
+          newSet.delete(locationId);
+        } else {
+          newSet.add(locationId);
+        }
+        return newSet;
+      });
+    }
     
     // ✅ Update wantToGoLocations array
     if (isWantToGo) {
       // Remove from list
-      setWantToGoLocations(prev => prev.filter(loc => loc.id !== locationId));
+      setWantToGoLocations(prev => prev.filter(loc => 
+        isPlaceId ? loc.place_id !== locationId : loc.id !== locationId
+      ));
     } else {
       // Add to list - find the location data
-      const location = locations.find(loc => loc.id === locationId);
+      const location = locations.find(loc => 
+        isPlaceId ? loc.place_id === locationId : loc.id === locationId
+      );
       if (location) {
         setWantToGoLocations(prev => [...prev, location]);
+      } else if (placeData) {
+        // Create a temporary location object for Google places not yet in LV database
+        const tempLocation: Location = {
+          id: locationId, // Use place_id as temporary id
+          name: placeData.name || 'Unknown',
+          lat: placeData.lat || 0,
+          lng: placeData.lng || 0,
+          description: placeData.formatted_address,
+          place_id: placeData.place_id,
+        };
+        setWantToGoLocations(prev => [...prev, tempLocation]);
       }
     }
     
@@ -753,35 +794,52 @@ export default function App() {
         await api.addWantToGo(locationId, placeData);
         toast.success('Added to Want to Go!');
       }
-      // ✅ NO MORE loadLocations() or loadUserLists() - we updated state optimistically!
+      // ✅ Reload user lists to get the actual location data from the server
+      await loadUserLists();
     } catch (error) {
       console.error('❌ Error toggling Want to Go:', error);
       
       // ❌ ROLLBACK optimistic update on error
-      setWantToGoIds(prev => {
-        const newSet = new Set(prev);
-        if (isWantToGo) {
-          newSet.add(locationId);
-        } else {
-          newSet.delete(locationId);
-        }
-        return newSet;
-      });
+      if (isPlaceId && placeData?.place_id) {
+        setWantToGoPlaceIds(prev => {
+          const newSet = new Set(prev);
+          if (isWantToGo) {
+            newSet.add(placeData.place_id!);
+          } else {
+            newSet.delete(placeData.place_id!);
+          }
+          return newSet;
+        });
+      } else {
+        setWantToGoIds(prev => {
+          const newSet = new Set(prev);
+          if (isWantToGo) {
+            newSet.add(locationId);
+          } else {
+            newSet.delete(locationId);
+          }
+          return newSet;
+        });
+      }
       
       if (isWantToGo) {
         // Re-add to list
-        const location = locations.find(loc => loc.id === locationId);
+        const location = locations.find(loc => 
+          isPlaceId ? loc.place_id === locationId : loc.id === locationId
+        );
         if (location) {
           setWantToGoLocations(prev => [...prev, location]);
         }
       } else {
         // Remove from list
-        setWantToGoLocations(prev => prev.filter(loc => loc.id !== locationId));
+        setWantToGoLocations(prev => prev.filter(loc => 
+          isPlaceId ? loc.place_id !== locationId : loc.id !== locationId
+        ));
       }
       
       toast.error('Failed to update Want to Go');
     }
-  }, [user, wantToGoIds, locations]);
+  }, [user, wantToGoIds, wantToGoPlaceIds, locations, loadUserLists]);
 
   const loadSavedLocation = async (userId: string) => {
     try {
@@ -1277,6 +1335,7 @@ export default function App() {
               onRefresh={loadLocations}
               favoriteIds={favoriteIds}
               wantToGoIds={wantToGoIds}
+              wantToGoPlaceIds={wantToGoPlaceIds}
               wantToGoLocations={filteredWantToGoLocations}
               mapCenter={mapCenter}
               mapZoom={mapZoom}

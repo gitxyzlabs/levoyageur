@@ -27,6 +27,7 @@ interface MapProps {
   onRefresh?: () => void; // Callback to refresh locations after rating is saved
   favoriteIds?: Set<string>;
   wantToGoIds?: Set<string>;
+  wantToGoPlaceIds?: Set<string>; // Google Place IDs for info window checks
   wantToGoLocations?: Location[]; // Full want-to-go locations for rendering markers
   mapCenter?: { lat: number; lng: number } | null;
   mapZoom?: number;
@@ -157,6 +158,7 @@ export function Map({
   onRefresh,
   favoriteIds,
   wantToGoIds,
+  wantToGoPlaceIds,
   wantToGoLocations,
   mapCenter,
   mapZoom,
@@ -1098,7 +1100,7 @@ export function Map({
         <div className="hidden md:block">
           {selectedGooglePlace && (
             <GooglePlaceInfoWindow
-              key={`${selectedGooglePlace.place_id}-${favoriteIds?.size}-${wantToGoIds?.size}`} // Force re-render when IDs change
+              key={`${selectedGooglePlace.place_id}-${favoriteIds?.size}-${wantToGoIds?.size}-${wantToGoPlaceIds?.size}`} // Force re-render when IDs change
               place={selectedGooglePlace}
               onClose={() => {
                 if (onGooglePlaceClose) {
@@ -1113,6 +1115,7 @@ export function Map({
               onRefresh={onRefresh}
               favoriteIds={favoriteIds}
               wantToGoIds={wantToGoIds}
+              wantToGoPlaceIds={wantToGoPlaceIds}
               lvLocation={selectedLVLocation} // We'll need to pass this from App.tsx
             />
           )}
@@ -1139,7 +1142,7 @@ export function Map({
       <div className="md:hidden">
         {selectedGooglePlace && (
           <MobileInfoSheet
-            key={`${selectedGooglePlace.place_id}-${favoriteIds?.size}-${wantToGoIds?.size}`} // Force re-render when IDs change
+            key={`${selectedGooglePlace.place_id}-${favoriteIds?.size}-${wantToGoIds?.size}-${wantToGoPlaceIds?.size}`} // Force re-render when IDs change
             place={selectedGooglePlace}
             onClose={() => {
               if (onGooglePlaceClose) {
@@ -1154,6 +1157,7 @@ export function Map({
             onRefresh={onRefresh}
             favoriteIds={favoriteIds}
             wantToGoIds={wantToGoIds}
+            wantToGoPlaceIds={wantToGoPlaceIds}
             lvLocation={selectedLVLocation}
           />
         )}

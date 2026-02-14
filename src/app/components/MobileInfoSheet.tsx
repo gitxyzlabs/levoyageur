@@ -20,6 +20,7 @@ interface MobileInfoSheetProps {
   onRefresh?: () => void; // Callback to refresh locations after rating is saved
   favoriteIds?: Set<string>; 
   wantToGoIds?: Set<string>;
+  wantToGoPlaceIds?: Set<string>; // Google Place IDs for checking if place is in want to go
   lvLocation?: Location | null;
 }
 
@@ -34,6 +35,7 @@ export function MobileInfoSheet({
   onRefresh,
   favoriteIds,
   wantToGoIds,
+  wantToGoPlaceIds,
   lvLocation
 }: MobileInfoSheetProps) {
   const [currentPhotoIndex, setCurrentPhotoIndex] = useState(0);
@@ -321,8 +323,8 @@ export function MobileInfoSheet({
                   
                   console.log('🔍 Want to Go button clicked');
                   console.log('Place ID:', place.place_id);
-                  console.log('Current wantToGoIds:', wantToGoIds);
-                  console.log('Is in Want to Go?', wantToGoIds?.has(place.place_id || ''));
+                  console.log('Current wantToGoPlaceIds:', wantToGoPlaceIds);
+                  console.log('Is in Want to Go?', wantToGoPlaceIds?.has(place.place_id || ''));
                   
                   if (onWantToGoToggle) {
                     // Extract lat/lng from place
@@ -341,15 +343,15 @@ export function MobileInfoSheet({
                   }
                 }}
                 className={`flex items-center justify-center gap-2 py-3 px-4 rounded-xl font-medium transition-all ${
-                  wantToGoIds?.has(place.place_id || '')
+                  wantToGoPlaceIds?.has(place.place_id || '')
                     ? 'bg-green-500 text-white hover:bg-green-600'
                     : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                 }`}
               >
                 <Bookmark className={`w-5 h-5 ${
-                  wantToGoIds?.has(place.place_id || '') ? 'fill-white stroke-white' : ''
+                  wantToGoPlaceIds?.has(place.place_id || '') ? 'fill-white stroke-white' : ''
                 }`} />
-                {wantToGoIds?.has(place.place_id || '') ? 'Added to List' : 'Want to Go'}
+                {wantToGoPlaceIds?.has(place.place_id || '') ? 'Added to List' : 'Want to Go'}
               </button>
             </div>
 
