@@ -59,6 +59,7 @@ export default function App() {
   const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
   const [favoriteIds, setFavoriteIds] = useState<Set<string>>(new Set());
   const [wantToGoIds, setWantToGoIds] = useState<Set<string>>(new Set());
+  const [wantToGoPlaceIds, setWantToGoPlaceIds] = useState<Set<string>>(new Set()); // Google Place IDs for info windows
   const [wantToGoLocations, setWantToGoLocations] = useState<Location[]>([]); // Full location objects for map display
   const [locationPermissionGranted, setLocationPermissionGranted] = useState(false);
   const [locationPermissionEnabled, setLocationPermissionEnabled] = useState(false);

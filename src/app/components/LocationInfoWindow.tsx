@@ -14,6 +14,7 @@ interface LocationInfoWindowProps {
   user: User | null;
   isAuthenticated: boolean;
   onFavoriteToggle?: () => void;
+  onWantToGoToggle?: () => void;
 }
 
 interface GooglePhoto {
@@ -27,7 +28,8 @@ export function LocationInfoWindow({
   onClose, 
   user, 
   isAuthenticated,
-  onFavoriteToggle 
+  onFavoriteToggle,
+  onWantToGoToggle
 }: LocationInfoWindowProps) {
   const [isFavorite, setIsFavorite] = useState(false);
   const [isWantToGo, setIsWantToGo] = useState(false);
@@ -174,6 +176,7 @@ export function LocationInfoWindow({
         setIsWantToGo(true);
         toast.success('Added to Want to Go! 🗺️');
       }
+      onWantToGoToggle?.();
     } catch (error: any) {
       console.error('Failed to toggle want to go:', error);
       toast.error('Failed to update Want to Go list');
