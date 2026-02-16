@@ -766,12 +766,16 @@ export default function App() {
     if (isWantToGo) {
       // Remove from list
       setWantToGoLocations(prev => prev.filter(loc => 
-        isPlaceId ? loc.place_id !== locationId : loc.id !== locationId
+        isPlaceId 
+          ? (loc.placeId !== locationId && loc.googlePlaceId !== locationId)
+          : loc.id !== locationId
       ));
     } else {
       // Add to list - find the location data
       const location = locations.find(loc => 
-        isPlaceId ? loc.place_id === locationId : loc.id === locationId
+        isPlaceId 
+          ? (loc.placeId === locationId || loc.googlePlaceId === locationId)
+          : loc.id === locationId
       );
       if (location) {
         setWantToGoLocations(prev => [...prev, location]);
@@ -783,7 +787,9 @@ export default function App() {
           lat: placeData.lat || 0,
           lng: placeData.lng || 0,
           description: placeData.formatted_address,
-          place_id: placeData.place_id,
+          placeId: placeData.place_id,
+          googlePlaceId: placeData.place_id,
+          tags: [],
         };
         setWantToGoLocations(prev => [...prev, tempLocation]);
       }
@@ -792,6 +798,8 @@ export default function App() {
     try {
       if (isWantToGo) {
         // Remove from Want to Go
+        // ✅ Server now handles both UUIDs and place_ids, so we can pass locationId directly
+        console.log('🗑️ Removing from Want to Go:', locationId);
         await api.removeWantToGo(locationId);
         toast.success('Removed from Want to Go');
       } else {

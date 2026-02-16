@@ -5,12 +5,16 @@ import { locationCache, placeDetailsCache, michelinCache } from './cache';
 const supabaseUrl = `https://${projectId}.supabase.co`;
 
 // Create a singleton Supabase client with a unique storage key to avoid conflicts
-// Use a global variable to ensure only one instance exists even with hot reloading
-let supabaseInstance: ReturnType<typeof createClient> | null = null;
+// Store on window to ensure only one instance exists even with hot reloading
+declare global {
+  interface Window {
+    _lvSupabaseClient?: ReturnType<typeof createClient>;
+  }
+}
 
 const getSupabaseClient = () => {
-  if (!supabaseInstance) {
-    supabaseInstance = createClient(supabaseUrl, publicAnonKey, {
+  if (!window._lvSupabaseClient) {
+    window._lvSupabaseClient = createClient(supabaseUrl, publicAnonKey, {
       auth: {
         storageKey: 'lv-auth-token', // Unique key for this app
         autoRefreshToken: true,
@@ -19,7 +23,7 @@ const getSupabaseClient = () => {
       },
     });
   }
-  return supabaseInstance;
+  return window._lvSupabaseClient;
 };
 
 export const supabase = getSupabaseClient();

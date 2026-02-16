@@ -1079,18 +1079,41 @@ app.delete('/make-server-48182530/want-to-go/:locationId', verifyAuth, async (c)
   try {
     const supabase = getSupabaseAdmin();
     
+    // Check if locationId is a UUID or a place_id
+    const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(locationId);
+    
+    let dbLocationId = locationId;
+    
+    if (!isUUID) {
+      // It's a place_id - look up the location
+      console.log('🔍 Looking up location by place_id:', locationId);
+      const { data: location, error: lookupError } = await supabase
+        .from('locations')
+        .select('id')
+        .eq('google_place_id', locationId)
+        .single();
+      
+      if (lookupError || !location) {
+        console.error('❌ Location not found for place_id:', locationId, lookupError);
+        return c.json({ error: 'Location not found' }, 404);
+      }
+      
+      dbLocationId = location.id;
+      console.log('✅ Found location_id:', dbLocationId);
+    }
+    
     const { error } = await supabase
       .from('want_to_go')
       .delete()
       .eq('user_id', userId)
-      .eq('location_id', locationId);
+      .eq('location_id', dbLocationId);
 
     if (error) {
       console.error('❌ Error removing from want to go:', error);
       return c.json({ error: 'Failed to remove from want to go list' }, 500);
     }
 
-    console.log('✅ Want to go removed:', locationId);
+    console.log('✅ Want to go removed:', dbLocationId);
     return c.json({ success: true });
   } catch (error) {
     console.error('❌ Error in DELETE /want-to-go:', error);
