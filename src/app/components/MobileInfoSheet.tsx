@@ -410,8 +410,8 @@ export function MobileInfoSheet({
                     </div>
                   </div>
                   <div className="flex items-center gap-1.5">
-                    {/* Stars */}
-                    {lvLocation.michelinStars && (
+                    {/* 1-3 Michelin Stars */}
+                    {lvLocation.michelinStars && lvLocation.michelinStars >= 1 && lvLocation.michelinStars <= 3 && (
                       <div className="flex items-center gap-0.5">
                         {Array.from({ length: lvLocation.michelinStars }).map((_, i) => (
                           <MichelinStar key={i} className="w-5 h-5" />
@@ -419,19 +419,21 @@ export function MobileInfoSheet({
                       </div>
                     )}
                     
-                    {/* Bib Gourmand - just icon */}
-                    {lvLocation.michelinDistinction === 'Bib Gourmand' && (
-                      <MichelinBib className="w-6 h-6" />
+                    {/* Bib Gourmand - show "Bib Gourmand" text */}
+                    {lvLocation.michelinDistinction === 'Bib Gourmand' && !lvLocation.michelinStars && (
+                      <div className="text-sm font-semibold text-red-900">Bib Gourmand</div>
                     )}
                     
-                    {/* Other distinctions */}
-                    {lvLocation.michelinDistinction && lvLocation.michelinDistinction !== 'Bib Gourmand' && (
+                    {/* Plate - show plate icon */}
+                    {lvLocation.michelinDistinction && 
+                     lvLocation.michelinDistinction !== 'Bib Gourmand' && 
+                     !lvLocation.michelinStars && (
                       <MichelinPlate className="w-6 h-6" />
                     )}
                     
-                    {/* Green Star */}
+                    {/* Green Star - always show alongside main distinction */}
                     {lvLocation.michelinGreenStar && (
-                      <MichelinGreenStar className="w-5 h-5" />
+                      <MichelinGreenStar className="w-5 h-5 ml-1" />
                     )}
                     
                     {/* Legacy Michelin Score - Show if no stars/distinction but has score */}
