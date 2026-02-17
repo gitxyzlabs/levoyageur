@@ -557,6 +557,15 @@ export const api = {
     });
   },
 
+  backfillMichelinLocations: async (): Promise<{ success: boolean; updated: number; created: number; errors: number; total: number }> => {
+    return fetchWithAuth(`${API_BASE}/michelin/backfill-locations`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
+  },
+
   getMichelinRating: async (lat: number, lng: number, name?: string): Promise<{ michelinScore: number | null; hasMichelinRating: boolean }> => {
     // Public endpoint - doesn't require auth
     const params = new URLSearchParams({

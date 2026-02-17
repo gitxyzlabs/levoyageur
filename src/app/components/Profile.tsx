@@ -37,6 +37,8 @@ export function Profile({
     discovered: number;
   } | null>(null);
 
+  const [isBackfilling, setIsBackfilling] = React.useState(false);
+
   const handleMichelinSyncBatch = async () => {
     setIsSyncing(true);
     setSyncProgress(null);
@@ -188,6 +190,41 @@ export function Profile({
     } finally {
       setIsDiscovering(false);
       setDiscoveryProgress(null);
+    }
+  };
+
+  const handleBackfillMichelinData = async () => {
+    setIsBackfilling(true);
+    
+    try {
+      toast.info('Starting Michelin data backfill to locations...', {
+        description: 'This will sync validated Michelin restaurants to the locations table'
+      });
+
+      const result = await api.backfillMichelinLocations();
+      
+      console.log('✅ Backfill result:', result);
+      
+      if (!result.success) {
+        toast.error('Backfill failed');
+        return;
+      }
+
+      toast.success('Michelin data backfill complete!', {
+        description: `Updated ${result.updated} locations, created ${result.created} new locations`
+      });
+
+      // Refresh locations on the map
+      if (onMichelinSyncComplete) {
+        onMichelinSyncComplete();
+      }
+    } catch (error: any) {
+      console.error('Failed to backfill Michelin data:', error);
+      toast.error('Failed to backfill Michelin data', {
+        description: error.message || 'Please check the console for details'
+      });
+    } finally {
+      setIsBackfilling(false);
     }
   };
 
@@ -430,6 +467,40 @@ export function Profile({
               <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
                 <p className="text-xs text-blue-800">
                   <strong>Tip:</strong> Run this after syncing Michelin data to link restaurants with Google Places for richer information and accurate InfoWindows.
+                </p>
+              </div>
+              
+              {/* Divider */}
+              <div className="border-t border-gray-200 my-4" />
+              
+              {/* Backfill Michelin Data */}
+              <div className="flex items-start gap-3">
+                <div className="flex-1">
+                  <p className="text-sm font-medium text-gray-700 mb-1">Backfill Michelin Locations</p>
+                  <p className="text-xs text-muted-foreground mb-3">
+                    Syncs validated Michelin restaurants to the locations table. This creates or updates locations 
+                    with Michelin stars, Bib Gourmand, and other distinctions for display on the map.
+                  </p>
+                  <button
+                    onClick={handleBackfillMichelinData}
+                    disabled={isBackfilling || isDiscovering || isSyncing}
+                    className={`inline-flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium transition-all ${
+                      isBackfilling || isDiscovering || isSyncing
+                        ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                        : 'bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 text-white shadow-md hover:shadow-lg'
+                    }`}
+                  >
+                    <Loader2 className={`h-4 w-4 ${isBackfilling ? 'animate-spin' : ''}`} />
+                    {isBackfilling ? 'Backfilling Locations...' : 'Backfill to Locations'}
+                  </button>
+                </div>
+              </div>
+              
+              {/* Info Box for Backfill */}
+              <div className="bg-purple-50 border border-purple-200 rounded-lg p-3">
+                <p className="text-xs text-purple-800">
+                  <strong>Important:</strong> Run this after discovering Place IDs to sync all validated Michelin data 
+                  to the locations table. This is the final step to make Michelin restaurants visible on the map.
                 </p>
               </div>
             </div>

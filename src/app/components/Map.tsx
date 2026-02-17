@@ -7,7 +7,7 @@ import { MobileInfoSheet } from './MobileInfoSheet';
 import { CityInfoWindow } from './CityInfoWindow';
 import { LuxuryMarker } from './LuxuryMarker';
 import { PlaceIdValidationPopup } from './PlaceIdValidationPopup';
-import { Locate, Plus, Minus } from 'lucide-react';
+import { Locate, Plus, Minus, Filter } from 'lucide-react';
 import { toast } from 'sonner';
 import { AnimatePresence, motion } from 'motion/react';
 
@@ -863,6 +863,19 @@ export function Map({
           title="My Location"
         >
           <Locate className={`w-5 h-5 ${userLocation ? 'text-blue-500' : 'text-slate-700'}`} strokeWidth={2.5} />
+        </button>
+
+        {/* Filter Menu Toggle */}
+        <button
+          onClick={() => {
+            if (onFilterMenuToggle) {
+              onFilterMenuToggle(!filterMenuOpen);
+            }
+          }}
+          className="p-2.5 bg-white/95 backdrop-blur-sm hover:bg-slate-50 rounded-lg shadow-lg border border-slate-200/50 transition-all hover:scale-105 hover:shadow-xl"
+          title="Filter Menu"
+        >
+          <Filter className="w-5 h-5 text-slate-700" strokeWidth={2.5} />
         </button>
       </div>
       

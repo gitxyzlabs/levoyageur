@@ -1209,6 +1209,67 @@ export default function App() {
         {/* Map */}
         <div className="flex-1 relative">
           <APIProvider apiKey={googleMapsApiKey}>
+            {/* Mobile Filter Menu Overlay - Positioned above map controls */}
+            <AnimatePresence>
+              {filterMenuOpen && (
+                <>
+                  {/* Backdrop */}
+                  <motion.div
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    onClick={() => setFilterMenuOpen(false)}
+                    className="md:hidden fixed inset-0 bg-black/20 z-40"
+                  />
+                  
+                  {/* Filter Menu */}
+                  <motion.div
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: 20 }}
+                    transition={{ duration: 0.2 }}
+                    className="md:hidden absolute bottom-40 right-4 z-50 bg-white rounded-2xl shadow-2xl border border-slate-200/50 overflow-hidden"
+                  >
+                    <div className="p-4 space-y-3 min-w-[260px]">
+                      <div className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                        Show Markers
+                      </div>
+                      
+                      {/* LV Markers Toggle */}
+                      <button
+                        onClick={() => setShowLVMarkers(!showLVMarkers)}
+                        className="w-full flex items-center justify-between px-3 py-2.5 rounded-lg hover:bg-slate-50 transition-all"
+                      >
+                        <span className="text-sm font-medium text-gray-700">LV Markers</span>
+                        <div className={`w-10 h-6 rounded-full transition-all ${
+                          showLVMarkers ? 'bg-blue-500' : 'bg-gray-300'
+                        }`}>
+                          <div className={`w-4 h-4 bg-white rounded-full shadow-md transition-all transform ${
+                            showLVMarkers ? 'translate-x-5 translate-y-1' : 'translate-x-1 translate-y-1'
+                          }`} />
+                        </div>
+                      </button>
+
+                      {/* Michelin Markers Toggle */}
+                      <button
+                        onClick={() => setShowMichelinMarkers(!showMichelinMarkers)}
+                        className="w-full flex items-center justify-between px-3 py-2.5 rounded-lg hover:bg-slate-50 transition-all"
+                      >
+                        <span className="text-sm font-medium text-gray-700">Michelin Markers</span>
+                        <div className={`w-10 h-6 rounded-full transition-all ${
+                          showMichelinMarkers ? 'bg-red-500' : 'bg-gray-300'
+                        }`}>
+                          <div className={`w-4 h-4 bg-white rounded-full shadow-md transition-all transform ${
+                            showMichelinMarkers ? 'translate-x-5 translate-y-1' : 'translate-x-1 translate-y-1'
+                          }`} />
+                        </div>
+                      </button>
+                    </div>
+                  </motion.div>
+                </>
+              )}
+            </AnimatePresence>
+            
             {/* Floating Search Bar */}
             <motion.div
               initial={{ opacity: 0, y: -20 }}
@@ -1389,14 +1450,6 @@ export default function App() {
               </Button>
             ) : (
               <div className="flex items-center gap-2">
-                {/* Filter Button for Mobile */}
-                <button
-                  onClick={() => setFilterMenuOpen(!filterMenuOpen)}
-                  className="p-2 hover:bg-slate-100 rounded-lg transition-colors relative"
-                >
-                  <Filter className="h-5 w-5 text-gray-700" />
-                </button>
-                
                 {/* Menu Button */}
                 <button
                   onClick={() => setMobileDrawerOpen(true)}
@@ -1408,54 +1461,6 @@ export default function App() {
             )}
           </div>
           
-          {/* Mobile Filter Menu Dropdown */}
-          <AnimatePresence>
-            {filterMenuOpen && (
-              <motion.div
-                initial={{ opacity: 0, height: 0 }}
-                animate={{ opacity: 1, height: 'auto' }}
-                exit={{ opacity: 0, height: 0 }}
-                transition={{ duration: 0.2 }}
-                className="border-t border-slate-200 bg-white"
-              >
-                <div className="p-4 space-y-3">
-                  <div className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                    Show Markers
-                  </div>
-                  
-                  {/* LV Markers Toggle */}
-                  <button
-                    onClick={() => setShowLVMarkers(!showLVMarkers)}
-                    className="w-full flex items-center justify-between px-3 py-2.5 rounded-lg hover:bg-slate-50 transition-all"
-                  >
-                    <span className="text-sm font-medium text-gray-700">LV Markers</span>
-                    <div className={`w-10 h-6 rounded-full transition-all ${
-                      showLVMarkers ? 'bg-blue-500' : 'bg-gray-300'
-                    }`}>
-                      <div className={`w-4 h-4 bg-white rounded-full shadow-md transition-all transform ${
-                        showLVMarkers ? 'translate-x-5 translate-y-1' : 'translate-x-1 translate-y-1'
-                      }`} />
-                    </div>
-                  </button>
-
-                  {/* Michelin Markers Toggle */}
-                  <button
-                    onClick={() => setShowMichelinMarkers(!showMichelinMarkers)}
-                    className="w-full flex items-center justify-between px-3 py-2.5 rounded-lg hover:bg-slate-50 transition-all"
-                  >
-                    <span className="text-sm font-medium text-gray-700">Michelin Markers</span>
-                    <div className={`w-10 h-6 rounded-full transition-all ${
-                      showMichelinMarkers ? 'bg-red-500' : 'bg-gray-300'
-                    }`}>
-                      <div className={`w-4 h-4 bg-white rounded-full shadow-md transition-all transform ${
-                        showMichelinMarkers ? 'translate-x-5 translate-y-1' : 'translate-x-1 translate-y-1'
-                      }`} />
-                    </div>
-                  </button>
-                </div>
-              </motion.div>
-            )}
-          </AnimatePresence>
         </div>
 
         {/* Mobile Slide-Up Drawer */}
