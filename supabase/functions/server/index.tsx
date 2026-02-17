@@ -1985,6 +1985,19 @@ app.post('/make-server-48182530/michelin/:michelinId/validate-place', verifyAuth
     if (confirmedWeight >= 1 && confirmedWeight > rejectedWeight) {
       console.log(`🎯 Auto-updating google_place_id for Michelin restaurant ${michelinId} (${confirmedWeight} weighted confirmations)`);
       
+      // First, get the Michelin restaurant details
+      const { data: michelinRestaurant, error: michelinFetchError } = await supabase
+        .from('michelin_restaurants')
+        .select('*')
+        .eq('id', michelinId)
+        .single();
+      
+      if (michelinFetchError) {
+        console.error('❌ Error fetching Michelin restaurant:', michelinFetchError);
+        return c.json({ error: 'Failed to fetch Michelin restaurant' }, 500);
+      }
+      
+      // Update michelin_restaurants table with google_place_id
       const { error: updateError } = await supabase
         .from('michelin_restaurants')
         .update({ 
@@ -1998,6 +2011,95 @@ app.post('/make-server-48182530/michelin/:michelinId/validate-place', verifyAuth
       } else {
         console.log(`✅ Successfully auto-updated google_place_id for Michelin restaurant ${michelinId}`);
         autoUpdated = true;
+        
+        // Now check if a location already exists with this Google Place ID
+        const { data: existingLocation, error: locationFetchError } = await supabase
+          .from('locations')
+          .select('*')
+          .eq('google_place_id', placeId)
+          .single();
+        
+        if (locationFetchError && locationFetchError.code !== 'PGRST116') {
+          console.error('❌ Error checking for existing location:', locationFetchError);
+        }
+        
+        // Parse Michelin Award to get stars, distinction, and green star
+        const award = michelinRestaurant.Award || '';
+        let michelin_stars: number | null = null;
+        let michelin_distinction: string | null = null;
+        
+        if (award.includes('3 Star')) {
+          michelin_stars = 3;
+        } else if (award.includes('2 Star')) {
+          michelin_stars = 2;
+        } else if (award.includes('1 Star')) {
+          michelin_stars = 1;
+        } else if (award.includes('Bib Gourmand')) {
+          michelin_distinction = 'Bib Gourmand';
+        } else if (award.includes('Selected') || award.includes('Plate')) {
+          michelin_distinction = 'Michelin Plate';
+        }
+        
+        const michelin_green_star = michelinRestaurant.GreenStar === 1 || michelinRestaurant.GreenStar === true;
+        
+        if (existingLocation) {
+          // Update existing location with Michelin data
+          console.log(`📝 Updating existing location ${existingLocation.id} with Michelin data`);
+          const { error: locationUpdateError } = await supabase
+            .from('locations')
+            .update({
+              michelin_id: michelinId,
+              michelin_stars,
+              michelin_distinction,
+              michelin_green_star,
+              michelin_cuisine: michelinRestaurant.Cuisine,
+              michelin_price: michelinRestaurant.Price,
+              michelin_description: michelinRestaurant.Description,
+              michelin_url: michelinRestaurant.Url,
+              michelin_website_url: michelinRestaurant.WebsiteUrl,
+              michelin_phone_number: michelinRestaurant.PhoneNumber,
+              michelin_facilities: michelinRestaurant.FacilitiesAndServices,
+              updated_at: new Date().toISOString(),
+            })
+            .eq('id', existingLocation.id);
+          
+          if (locationUpdateError) {
+            console.error('❌ Error updating location with Michelin data:', locationUpdateError);
+          } else {
+            console.log(`✅ Successfully updated location with Michelin data`);
+          }
+        } else {
+          // Create a new location with Michelin data
+          console.log(`📝 Creating new location for Michelin restaurant ${michelinId}`);
+          const { error: locationInsertError } = await supabase
+            .from('locations')
+            .insert({
+              google_place_id: placeId,
+              michelin_id: michelinId,
+              name: michelinRestaurant.Name,
+              address: michelinRestaurant.Address,
+              lat: michelinRestaurant.Latitude,
+              lng: michelinRestaurant.Longitude,
+              michelin_stars,
+              michelin_distinction,
+              michelin_green_star,
+              michelin_cuisine: michelinRestaurant.Cuisine,
+              michelin_price: michelinRestaurant.Price,
+              michelin_description: michelinRestaurant.Description,
+              michelin_url: michelinRestaurant.Url,
+              michelin_website_url: michelinRestaurant.WebsiteUrl,
+              michelin_phone_number: michelinRestaurant.PhoneNumber,
+              michelin_facilities: michelinRestaurant.FacilitiesAndServices,
+              created_at: new Date().toISOString(),
+              updated_at: new Date().toISOString(),
+            });
+          
+          if (locationInsertError) {
+            console.error('❌ Error creating location with Michelin data:', locationInsertError);
+          } else {
+            console.log(`✅ Successfully created location with Michelin data`);
+          }
+        }
       }
     }
 
@@ -2013,6 +2115,160 @@ app.post('/make-server-48182530/michelin/:michelinId/validate-place', verifyAuth
   } catch (error) {
     console.error('❌ Error in POST /michelin/:michelinId/validate-place:', error);
     return c.json({ error: 'Failed to validate place' }, 500);
+  }
+});
+
+// Backfill Michelin data to existing locations (one-time migration endpoint)
+app.post('/make-server-48182530/michelin/backfill-locations', verifyAuth, async (c) => {
+  console.log('📍 POST /michelin/backfill-locations - Start');
+  const userId = c.get('userId');
+  
+  try {
+    const supabase = getSupabaseAdmin();
+    
+    // Check if user is an editor
+    const { data: userData } = await supabase
+      .from('user_metadata')
+      .select('role')
+      .eq('user_id', userId)
+      .single();
+    
+    if (userData?.role !== 'editor') {
+      return c.json({ error: 'Only editors can run this migration' }, 403);
+    }
+    
+    console.log('🔄 Starting Michelin data backfill...');
+    
+    // Get all Michelin restaurants that have a google_place_id
+    const { data: michelinRestaurants, error: michelinError } = await supabase
+      .from('michelin_restaurants')
+      .select('*')
+      .not('google_place_id', 'is', null);
+    
+    if (michelinError) {
+      console.error('❌ Error fetching Michelin restaurants:', michelinError);
+      return c.json({ error: 'Failed to fetch Michelin restaurants' }, 500);
+    }
+    
+    console.log(`📊 Found ${michelinRestaurants?.length || 0} Michelin restaurants with Google Place IDs`);
+    
+    let updatedCount = 0;
+    let createdCount = 0;
+    let errorCount = 0;
+    
+    // Process each Michelin restaurant
+    for (const restaurant of michelinRestaurants || []) {
+      try {
+        // Check if location exists with this Google Place ID
+        const { data: existingLocation, error: locationFetchError } = await supabase
+          .from('locations')
+          .select('*')
+          .eq('google_place_id', restaurant.google_place_id)
+          .single();
+        
+        if (locationFetchError && locationFetchError.code !== 'PGRST116') {
+          console.error(`❌ Error checking location for ${restaurant.Name}:`, locationFetchError);
+          errorCount++;
+          continue;
+        }
+        
+        // Parse Michelin Award
+        const award = restaurant.Award || '';
+        let michelin_stars: number | null = null;
+        let michelin_distinction: string | null = null;
+        
+        if (award.includes('3 Star')) {
+          michelin_stars = 3;
+        } else if (award.includes('2 Star')) {
+          michelin_stars = 2;
+        } else if (award.includes('1 Star')) {
+          michelin_stars = 1;
+        } else if (award.includes('Bib Gourmand')) {
+          michelin_distinction = 'Bib Gourmand';
+        } else if (award.includes('Selected') || award.includes('Plate')) {
+          michelin_distinction = 'Michelin Plate';
+        }
+        
+        const michelin_green_star = restaurant.GreenStar === 1 || restaurant.GreenStar === true;
+        
+        if (existingLocation) {
+          // Update existing location
+          const { error: updateError } = await supabase
+            .from('locations')
+            .update({
+              michelin_id: restaurant.id,
+              michelin_stars,
+              michelin_distinction,
+              michelin_green_star,
+              michelin_cuisine: restaurant.Cuisine,
+              michelin_price: restaurant.Price,
+              michelin_description: restaurant.Description,
+              michelin_url: restaurant.Url,
+              michelin_website_url: restaurant.WebsiteUrl,
+              michelin_phone_number: restaurant.PhoneNumber,
+              michelin_facilities: restaurant.FacilitiesAndServices,
+              updated_at: new Date().toISOString(),
+            })
+            .eq('id', existingLocation.id);
+          
+          if (updateError) {
+            console.error(`❌ Error updating location ${restaurant.Name}:`, updateError);
+            errorCount++;
+          } else {
+            console.log(`✅ Updated location: ${restaurant.Name}`);
+            updatedCount++;
+          }
+        } else {
+          // Create new location
+          const { error: insertError } = await supabase
+            .from('locations')
+            .insert({
+              google_place_id: restaurant.google_place_id,
+              michelin_id: restaurant.id,
+              name: restaurant.Name,
+              address: restaurant.Address,
+              lat: restaurant.Latitude,
+              lng: restaurant.Longitude,
+              michelin_stars,
+              michelin_distinction,
+              michelin_green_star,
+              michelin_cuisine: restaurant.Cuisine,
+              michelin_price: restaurant.Price,
+              michelin_description: restaurant.Description,
+              michelin_url: restaurant.Url,
+              michelin_website_url: restaurant.WebsiteUrl,
+              michelin_phone_number: restaurant.PhoneNumber,
+              michelin_facilities: restaurant.FacilitiesAndServices,
+              created_at: new Date().toISOString(),
+              updated_at: new Date().toISOString(),
+            });
+          
+          if (insertError) {
+            console.error(`❌ Error creating location ${restaurant.Name}:`, insertError);
+            errorCount++;
+          } else {
+            console.log(`✅ Created location: ${restaurant.Name}`);
+            createdCount++;
+          }
+        }
+      } catch (err) {
+        console.error(`❌ Error processing ${restaurant.Name}:`, err);
+        errorCount++;
+      }
+    }
+    
+    console.log(`✅ Backfill complete: ${updatedCount} updated, ${createdCount} created, ${errorCount} errors`);
+    
+    return c.json({
+      success: true,
+      updated: updatedCount,
+      created: createdCount,
+      errors: errorCount,
+      total: michelinRestaurants?.length || 0,
+    });
+  } catch (error) {
+    console.error('❌ Error in POST /michelin/backfill-locations:', error);
+    return c.json({ error: 'Failed to backfill Michelin data' }, 500);
   }
 });
 

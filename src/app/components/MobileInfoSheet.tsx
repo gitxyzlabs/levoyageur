@@ -396,7 +396,7 @@ export function MobileInfoSheet({
               )}
 
               {/* Michelin Guide - Show when Michelin data is available */}
-              {(lvLocation?.michelinStars || lvLocation?.michelinDistinction || lvLocation?.michelinGreenStar || (lvLocation?.michelinScore && lvLocation.michelinScore > 0)) && (
+              {(lvLocation?.michelinStars || lvLocation?.michelinDistinction || lvLocation?.michelinGreenStar) && (
                 <div className="flex items-center justify-between p-4 bg-gradient-to-r from-red-50 to-rose-50 rounded-xl border border-red-200">
                   <div className="flex items-center gap-3">
                     <div className="p-2 bg-red-100 rounded-lg">
@@ -434,13 +434,6 @@ export function MobileInfoSheet({
                     {/* Green Star - always show alongside main distinction */}
                     {lvLocation.michelinGreenStar && (
                       <MichelinGreenStar className="w-5 h-5 ml-1" />
-                    )}
-                    
-                    {/* Legacy Michelin Score - Show if no stars/distinction but has score */}
-                    {!lvLocation.michelinStars && !lvLocation.michelinDistinction && lvLocation.michelinScore && lvLocation.michelinScore > 0 && (
-                      <div className="text-2xl font-bold text-red-900">
-                        {lvLocation.michelinScore.toFixed(1)}★
-                      </div>
                     )}
                   </div>
                 </div>

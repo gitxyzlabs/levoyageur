@@ -5,6 +5,8 @@ import { Button } from './ui/button';
 import { Badge } from './ui/badge';
 import { toast } from 'sonner';
 import { api, type User } from '../../utils/api';
+import { projectId, publicAnonKey } from '/utils/supabase/info';
+import { createClient } from '@supabase/supabase-js';
 
 interface AdminPanelProps {
   currentUser: User;
@@ -13,6 +15,7 @@ interface AdminPanelProps {
 export function AdminPanel({ currentUser }: AdminPanelProps) {
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
+  const [migrating, setMigrating] = useState(false);
 
   useEffect(() => {
     loadUsers();
@@ -50,6 +53,52 @@ export function AdminPanel({ currentUser }: AdminPanelProps) {
     } catch (error: any) {
       console.error('Failed to demote user:', error);
       toast.error('Failed to demote user');
+    }
+  };
+  
+  const handleMichelinBackfill = async () => {
+    if (!confirm('This will backfill Michelin data to all existing locations. Continue?')) {
+      return;
+    }
+    
+    setMigrating(true);
+    toast.info('Starting Michelin data backfill...');
+    
+    try {
+      const supabase = createClient(
+        `https://${projectId}.supabase.co`,
+        publicAnonKey
+      );
+      
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.access_token) {
+        toast.error('Not authenticated');
+        return;
+      }
+      
+      const response = await fetch(
+        `https://${projectId}.supabase.co/functions/v1/make-server-48182530/michelin/backfill-locations`,
+        {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${session.access_token}`,
+            'Content-Type': 'application/json',
+          },
+        }
+      );
+      
+      if (!response.ok) {
+        throw new Error('Failed to run backfill');
+      }
+      
+      const result = await response.json();
+      toast.success(`Backfill complete! Updated: ${result.updated}, Created: ${result.created}, Errors: ${result.errors}`);
+      console.log('Michelin backfill result:', result);
+    } catch (error: any) {
+      console.error('Failed to run Michelin backfill:', error);
+      toast.error('Failed to run backfill');
+    } finally {
+      setMigrating(false);
     }
   };
 
@@ -173,6 +222,19 @@ export function AdminPanel({ currentUser }: AdminPanelProps) {
               ))}
             </div>
           )}
+        </div>
+        
+        {/* Michelin Backfill Button */}
+        <div className="mt-6">
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={handleMichelinBackfill}
+            className="text-xs"
+            disabled={migrating}
+          >
+            {migrating ? 'Backfilling...' : 'Backfill Michelin Data'}
+          </Button>
         </div>
       </CardContent>
     </Card>
