@@ -201,17 +201,22 @@ export function Profile({
         description: 'This will sync validated Michelin restaurants to the locations table'
       });
 
+      console.log('🔄 Calling backfillMichelinLocations API...');
       const result = await api.backfillMichelinLocations();
       
       console.log('✅ Backfill result:', result);
       
       if (!result.success) {
-        toast.error('Backfill failed');
+        const errorMsg = result.error || result.details || 'Unknown error';
+        console.error('❌ Backfill failed:', errorMsg);
+        toast.error('Backfill failed', {
+          description: errorMsg
+        });
         return;
       }
 
       toast.success('Michelin data backfill complete!', {
-        description: `Updated ${result.updated} locations, created ${result.created} new locations`
+        description: `Updated ${result.updated} locations, created ${result.created} new locations${result.errors > 0 ? ` (${result.errors} errors)` : ''}`
       });
 
       // Refresh locations on the map
@@ -220,8 +225,9 @@ export function Profile({
       }
     } catch (error: any) {
       console.error('Failed to backfill Michelin data:', error);
+      const errorMsg = error?.message || error?.error || error?.details || 'Please check the console for details';
       toast.error('Failed to backfill Michelin data', {
-        description: error.message || 'Please check the console for details'
+        description: errorMsg
       });
     } finally {
       setIsBackfilling(false);

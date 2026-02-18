@@ -332,6 +332,13 @@ export default function App() {
     loadingRef.current = true;
     try {
       console.log('🔄 Loading locations...');
+      
+      // 🗑️ TEMPORARY: Clear cache to force fresh data from server
+      // This ensures we get the latest data with increased limit
+      const { locationCache } = await import('../utils/cache');
+      locationCache.invalidate('all-locations');
+      console.log('🗑️ Cache cleared - fetching fresh data');
+      
       const { locations: data } = await api.getLocations();
       console.log('✅ Loaded locations:', data.length);
       

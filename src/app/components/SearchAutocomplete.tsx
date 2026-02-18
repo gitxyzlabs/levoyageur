@@ -55,8 +55,27 @@ export function SearchAutocomplete({ onPlaceSelect, onTagSelect, onClear, mapBou
             // This allows searches like "Austin, TX" to work alongside "tacos"
           };
           
-          // Optional: Add region code for better results in specific countries
-          request.region = 'us'; // Can be made dynamic based on map location
+          // Bias results to the current map viewport if available
+          if (mapBounds) {
+            const ne = mapBounds.getNorthEast();
+            const sw = mapBounds.getSouthWest();
+            
+            // Use locationBias to prefer results in the viewport, but still allow others
+            request.locationBias = {
+              rectangle: {
+                low: { latitude: sw.lat(), longitude: sw.lng() },
+                high: { latitude: ne.lat(), longitude: ne.lng() },
+              }
+            };
+            
+            console.log('🗺️ Biasing autocomplete to map bounds:', {
+              sw: { lat: sw.lat(), lng: sw.lng() },
+              ne: { lat: ne.lat(), lng: ne.lng() }
+            });
+          } else {
+            // Fallback: Use region code for better results in specific countries
+            request.region = 'us';
+          }
           
           console.log('🔍 Fetching autocomplete suggestions for:', searchValue);
           

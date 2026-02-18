@@ -411,12 +411,13 @@ export const api = {
 
   // Get total favorites count for locations in a city
   getCityFavorites: async (locationIds: string[]): Promise<{ totalFavorites: number }> => {
-    // Public endpoint - no auth required
+    // Public endpoint - uses anon key for platform JWT verification
     try {
       const response = await fetch(`${API_BASE}/favorites/city-stats`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'Authorization': `Bearer ${publicAnonKey}`, // Add anon key to pass platform JWT verification
         },
         body: JSON.stringify({ locationIds }),
       });

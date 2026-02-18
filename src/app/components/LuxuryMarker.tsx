@@ -81,82 +81,97 @@ const getMarkerStyle = (rating: number) => {
 };
 
 export function LuxuryMarker({ 
-  rating = 5, 
+  rating, // Remove default value - let it be undefined if not provided
   scale = 1, 
   showHeatMap = false,
   isFavorite = false,
   isWantToGo = false,
   type = 'lv-location',
-  hasLVRating = true,
+  hasLVRating = false, // Changed default to false - must explicitly pass true
   locationName,
   currentZoom,
   michelinScore,
   favoritesCount,
   wantToGoCount
 }: LuxuryMarkerProps) {
-  // Michelin red color from the logo
-  const michelinRed = '#9b2743';
+  // Determine marker appearance based on three cases:
+  // 1. LV + Michelin: Michelin center, LV color ring, both badges
+  // 2. LV only: LV center, LV color ring, LV badge only
+  // 3. Michelin only: Michelin center, gray ring, Michelin badge only
   
-  // Determine marker appearance based on state
   let markerColor: string;
   let innerGradientColor: string;
   let markerGlow: string;
   let IconComponent: any = null;
   let iconColor: string;
-
-  // Special handling for Michelin locations
-  if (michelinScore && michelinScore > 0 && type === 'lv-location') {
-    if (!hasLVRating) {
-      // Michelin rating but NO LV rating
-      // If it's in Want to Go list, use green outer ring, otherwise use Michelin red
-      if (isWantToGo) {
-        markerColor = '#10b981'; // Green for Want to Go
-        innerGradientColor = '#ffffff';
-        markerGlow = 'rgba(16, 185, 129, 0.4)';
-        iconColor = '#ffffff';
-      } else {
-        // Standard Michelin red
-        markerColor = michelinRed;
-        innerGradientColor = '#ffffff';
-        markerGlow = 'rgba(155, 39, 67, 0.4)';
-        iconColor = '#ffffff';
-      }
-    } else {
-      // Michelin rating AND LV rating: LV color outer, white inner gradient
-      const style = getMarkerStyle(rating);
-      markerColor = style.primary;
-      innerGradientColor = '#ffffff';
-      markerGlow = style.glow;
-      iconColor = '#ffffff';
-    }
-  } else if (!hasLVRating && isFavorite) {
-    // Red circle with heart for favorited non-LV locations
+  let showLVBadge = false;
+  let showMichelinBadge = false;
+  let showCenterIcon: 'michelin' | 'lv' | 'heart' | 'bookmark' | 'google' = 'lv';
+  
+  const hasMichelin = (michelinScore ?? 0) > 0;
+  
+  // Case 1: LV + Michelin - Michelin logo, LV color ring, both badges
+  if (hasLVRating && hasMichelin && type === 'lv-location') {
+    const style = getMarkerStyle(rating ?? 5);
+    markerColor = style.primary; // LV color ring
+    innerGradientColor = '#ffffff'; // White inner for Michelin logo
+    markerGlow = style.glow;
+    iconColor = '#9b2743'; // Michelin red for the logo
+    showCenterIcon = 'michelin';
+    showLVBadge = true;
+    showMichelinBadge = true;
+  }
+  // Case 2: LV only - LV logo, LV color ring, LV badge only
+  else if (hasLVRating && !hasMichelin && type === 'lv-location') {
+    const style = getMarkerStyle(rating ?? 5);
+    markerColor = style.primary; // LV color ring
+    innerGradientColor = `${style.primary}dd`; // LV color inner
+    markerGlow = style.glow;
+    iconColor = '#ffffff';
+    showCenterIcon = 'lv';
+    showLVBadge = true;
+    showMichelinBadge = false;
+  }
+  // Case 3: Michelin only - Michelin logo, gray ring, Michelin badge only
+  else if (!hasLVRating && hasMichelin && type === 'lv-location') {
+    markerColor = '#8a9a9d'; // Natural gray for contrast
+    innerGradientColor = '#ffffff'; // White inner for Michelin logo
+    markerGlow = 'rgba(138, 154, 157, 0.3)';
+    iconColor = '#9b2743'; // Michelin red for the logo
+    showCenterIcon = 'michelin';
+    showLVBadge = false;
+    showMichelinBadge = true;
+  }
+  // Fallback: Favorite/Want-to-go markers (no ratings)
+  else if (!hasLVRating && !hasMichelin && isFavorite) {
     markerColor = '#ef4444';
     innerGradientColor = '#ef4444dd';
     markerGlow = 'rgba(239, 68, 68, 0.4)';
     IconComponent = Heart;
     iconColor = '#ffffff';
-  } else if (!hasLVRating && isWantToGo) {
-    // Green circle with bookmark for want-to-go non-LV locations
+    showCenterIcon = 'heart';
+  } else if (!hasLVRating && !hasMichelin && isWantToGo) {
     markerColor = '#10b981';
     innerGradientColor = '#10b981dd';
     markerGlow = 'rgba(16, 185, 129, 0.4)';
     IconComponent = Bookmark;
     iconColor = '#ffffff';
+    showCenterIcon = 'bookmark';
   } else if (type === 'search-result') {
-    // Use 0-score color for Google search results
     const style = getMarkerStyle(0);
     markerColor = style.primary;
     innerGradientColor = `${style.primary}dd`;
     markerGlow = style.glow;
-    iconColor = '#1a73e8'; // Google blue for the logo
+    iconColor = '#1a73e8';
+    showCenterIcon = 'google';
   } else {
-    // Use rating-based colors for LV locations
-    const style = getMarkerStyle(rating);
+    // Default fallback
+    const style = getMarkerStyle(rating ?? 5);
     markerColor = style.primary;
     innerGradientColor = `${style.primary}dd`;
     markerGlow = style.glow;
     iconColor = '#ffffff';
+    showCenterIcon = 'lv';
   }
 
   const size = 36;
@@ -165,9 +180,6 @@ export function LuxuryMarker({
   // Show labels when zoomed in beyond level 15
   const showLabel = currentZoom !== undefined && currentZoom >= 15 && locationName;
   
-  // Always show Michelin badge when there's a Michelin score (not zoom-dependent)
-  const showMichelinBadge = michelinScore && michelinScore > 0;
-
   return (
     <div
       className="relative cursor-pointer transition-all duration-300 hover:scale-110"
@@ -193,7 +205,7 @@ export function LuxuryMarker({
         }}
       >
         {/* Inner white circle - for Michelin locations */}
-        {michelinScore && michelinScore > 0 && type === 'lv-location' && (
+        {showCenterIcon === 'michelin' && (
           <div
             className="absolute rounded-full"
             style={{
@@ -204,9 +216,9 @@ export function LuxuryMarker({
           />
         )}
 
-        {/* Center icon */}
-        {IconComponent ? (
-          <IconComponent 
+        {/* Center icon based on marker type */}
+        {showCenterIcon === 'heart' && (
+          <Heart 
             className="fill-current relative z-10" 
             style={{ 
               width: `${scaledSize * 0.5}px`, 
@@ -214,8 +226,18 @@ export function LuxuryMarker({
               color: iconColor 
             }} 
           />
-        ) : type === 'search-result' ? (
-          // Google "G" logo for search results
+        )}
+        {showCenterIcon === 'bookmark' && (
+          <Bookmark 
+            className="fill-current relative z-10" 
+            style={{ 
+              width: `${scaledSize * 0.5}px`, 
+              height: `${scaledSize * 0.5}px`,
+              color: iconColor 
+            }} 
+          />
+        )}
+        {showCenterIcon === 'google' && (
           <svg 
             viewBox="0 0 24 24" 
             className="relative z-10"
@@ -241,53 +263,50 @@ export function LuxuryMarker({
               fill="#EA4335"
             />
           </svg>
-        ) : (
-          // LV monogram for rated locations (or Michelin clover if has Michelin score)
-          michelinScore && michelinScore > 0 ? (
-            // Show Michelin clover logo
-            <MichelinFlower 
-              className="relative z-10" 
-              style={{ 
-                width: `${scaledSize * 0.50}px`, 
-                height: `${scaledSize * 0.50}px`
-              }} 
-            />
-          ) : (
-            // Show LV monogram
-            <svg 
-              viewBox="0 0 24 24" 
-              className="relative z-10"
-              style={{ 
-                width: `${scaledSize * 0.6}px`, 
-                height: `${scaledSize * 0.6}px` 
+        )}
+        {showCenterIcon === 'michelin' && (
+          <MichelinFlower 
+            className="relative z-10" 
+            style={{ 
+              width: `${scaledSize * 0.50}px`, 
+              height: `${scaledSize * 0.50}px`
+            }} 
+          />
+        )}
+        {showCenterIcon === 'lv' && (
+          <svg 
+            viewBox="0 0 24 24" 
+            className="relative z-10"
+            style={{ 
+              width: `${scaledSize * 0.6}px`, 
+              height: `${scaledSize * 0.6}px` 
+            }}
+          >
+            <text
+              x="12"
+              y="12"
+              textAnchor="middle"
+              dominantBaseline="central"
+              style={{
+                fontSize: '14px',
+                fontWeight: '700',
+                fontFamily: 'Georgia, serif',
+                fill: iconColor,
+                letterSpacing: '-0.5px'
               }}
             >
-              <text
-                x="12"
-                y="12"
-                textAnchor="middle"
-                dominantBaseline="central"
-                style={{
-                  fontSize: '14px',
-                  fontWeight: '700',
-                  fontFamily: 'Georgia, serif',
-                  fill: iconColor,
-                  letterSpacing: '-0.5px'
-                }}
-              >
-                LV
-              </text>
-            </svg>
-          )
+              LV
+            </text>
+          </svg>
         )}
       </div>
 
-      {/* Rating badge - only for LV locations with ratings */}
-      {hasLVRating && type === 'lv-location' && (
+      {/* LV Rating badge - shows on top */}
+      {showLVBadge && rating !== undefined && rating > 0 && (
         <div
           className="absolute left-1/2 -translate-x-1/2 px-2 py-0.5 rounded-full shadow-lg backdrop-blur-sm border border-white/30 flex items-center gap-1"
           style={{
-            top: `${-12 * scale}px`, // Position higher above the marker
+            top: `${-12 * scale}px`,
             background: 'linear-gradient(135deg, rgba(255,255,255,0.95) 0%, rgba(248,250,252,0.9) 100%)',
             fontSize: `${9 * scale}px`,
             fontWeight: '700',
@@ -303,14 +322,14 @@ export function LuxuryMarker({
       )}
 
       {/* Google rating badge for search results */}
-      {type === 'search-result' && (
+      {type === 'search-result' && rating && rating > 0 && (
         <div
           className="absolute -top-1 left-1/2 -translate-x-1/2 px-2 py-0.5 rounded-full shadow-lg backdrop-blur-sm border border-indigo-300"
           style={{
             background: 'linear-gradient(135deg, rgba(255,255,255,0.95) 0%, rgba(238,242,255,0.9) 100%)',
             fontSize: `${9 * scale}px`,
             fontWeight: '700',
-            color: '#1a73e8', // Google blue for the rating text
+            color: '#1a73e8',
             minWidth: `${22 * scale}px`,
             textAlign: 'center',
             fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
@@ -322,7 +341,7 @@ export function LuxuryMarker({
       )}
 
       {/* Michelin Score Badge - shows on the right side */}
-      {michelinScore && michelinScore > 0 && type === 'lv-location' && showMichelinBadge && (
+      {showMichelinBadge && (
         <div
           className="absolute top-1/2 -translate-y-1/2 px-3 py-1.5 rounded-lg shadow-xl backdrop-blur-md border border-white/40 flex items-center justify-center"
           style={{
@@ -333,7 +352,7 @@ export function LuxuryMarker({
             boxShadow: '0 8px 24px rgba(0, 0, 0, 0.12), 0 2px 8px rgba(0, 0, 0, 0.08)',
           }}
         >
-          {michelinScore <= 3 ? (
+          {michelinScore && michelinScore <= 3 ? (
             // Show 1-3 Michelin stars
             <div className="flex items-center justify-center gap-0.5">
               {Array.from({ length: michelinScore }).map((_, i) => (
