@@ -351,6 +351,21 @@ app.get('/make-server-48182530/locations', async (c) => {
       formatLocationForAPI(loc as LocationRow, favCountMap.get(loc.id), wtgCountMap.get(loc.id))
     ) || [];
     
+    // 🐛 DEBUG: Check if Elcielo is in the response
+    const elcieloFormatted = formattedLocations.find(loc => loc.name?.toLowerCase().includes('elcielo'));
+    if (elcieloFormatted) {
+      console.log('🐛 DEBUG: Elcielo formatted for API response:', {
+        id: elcieloFormatted.id,
+        name: elcieloFormatted.name,
+        lvEditorScore: elcieloFormatted.lvEditorScore,
+        lvEditorsScore: elcieloFormatted.lvEditorsScore,
+        michelinStars: elcieloFormatted.michelinStars,
+        googlePlaceId: elcieloFormatted.googlePlaceId,
+      });
+    } else {
+      console.log('🐛 DEBUG: Elcielo NOT FOUND in formatted locations');
+    }
+    
     return c.json({ locations: formattedLocations });
   } catch (error) {
     console.error('❌ Error in GET /locations:', error);

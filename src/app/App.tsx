@@ -334,6 +334,22 @@ export default function App() {
       console.log('🔄 Loading locations...');
       const { locations: data } = await api.getLocations();
       console.log('✅ Loaded locations:', data.length);
+      
+      // 🐛 DEBUG: Check if Elcielo is in the data
+      const elcielo = data.find(loc => loc.name?.toLowerCase().includes('elcielo'));
+      console.log('🐛 DEBUG: Elcielo in loaded locations:', elcielo ? {
+        id: elcielo.id,
+        name: elcielo.name,
+        lvEditorScore: elcielo.lvEditorScore,
+        lvEditorsScore: elcielo.lvEditorsScore,
+        michelinStars: elcielo.michelinStars,
+        michelinScore: elcielo.michelinScore,
+        googlePlaceId: elcielo.googlePlaceId,
+        place_id: elcielo.place_id,
+        lat: elcielo.lat,
+        lng: elcielo.lng,
+      } : 'NOT FOUND');
+      
       setLocations(data);
     } catch (error: any) {
       console.error("❌ Failed to load locations:", error);
