@@ -1431,6 +1431,8 @@ export default function App() {
               showMichelinMarkers={showMichelinMarkers}
               filterMenuOpen={filterMenuOpen}
               onFilterMenuToggle={setFilterMenuOpen}
+              onLVMarkersToggle={() => setShowLVMarkers(!showLVMarkers)}
+              onMichelinMarkersToggle={() => setShowMichelinMarkers(!showMichelinMarkers)}
             />
           </APIProvider>
         </div>

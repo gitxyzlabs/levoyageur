@@ -2139,18 +2139,18 @@ app.post('/make-server-48182530/michelin/backfill-locations', verifyAuth, async 
     
     console.log('🔄 Starting Michelin data backfill...');
     
-    // Get all Michelin restaurants that have a google_place_id
+    // Get ALL Michelin restaurants (not just those with google_place_id)
+    // The locations table will be the single source of truth with place_id as optional metadata
     const { data: michelinRestaurants, error: michelinError } = await supabase
       .from('michelin_restaurants')
-      .select('*')
-      .not('google_place_id', 'is', null);
+      .select('*');
     
     if (michelinError) {
       console.error('❌ Error fetching Michelin restaurants:', michelinError);
       return c.json({ error: 'Failed to fetch Michelin restaurants' }, 500);
     }
     
-    console.log(`📊 Found ${michelinRestaurants?.length || 0} Michelin restaurants with Google Place IDs`);
+    console.log(`📊 Found ${michelinRestaurants?.length || 0} total Michelin restaurants to migrate (Place ID optional)`);
     
     let updatedCount = 0;
     let createdCount = 0;
@@ -2159,17 +2159,55 @@ app.post('/make-server-48182530/michelin/backfill-locations', verifyAuth, async 
     // Process each Michelin restaurant
     for (const restaurant of michelinRestaurants || []) {
       try {
-        // Check if location exists with this Google Place ID
-        const { data: existingLocation, error: locationFetchError } = await supabase
-          .from('locations')
-          .select('*')
-          .eq('google_place_id', restaurant.google_place_id)
-          .single();
+        // Check if location already exists by:
+        // 1. michelin_id (most reliable - direct link)
+        // 2. google_place_id (if available)
+        // 3. coordinates (lat/lng match within ~100m)
+        let existingLocation = null;
         
-        if (locationFetchError && locationFetchError.code !== 'PGRST116') {
-          console.error(`❌ Error checking location for ${restaurant.Name}:`, locationFetchError);
-          errorCount++;
-          continue;
+        // First, check by michelin_id
+        if (restaurant.id) {
+          const { data, error } = await supabase
+            .from('locations')
+            .select('*')
+            .eq('michelin_id', restaurant.id)
+            .maybeSingle();
+          
+          if (!error && data) {
+            existingLocation = data;
+          }
+        }
+        
+        // If not found and has google_place_id, check by that
+        if (!existingLocation && restaurant.google_place_id) {
+          const { data, error } = await supabase
+            .from('locations')
+            .select('*')
+            .eq('google_place_id', restaurant.google_place_id)
+            .maybeSingle();
+          
+          if (!error && data) {
+            existingLocation = data;
+          }
+        }
+        
+        // If still not found, check by coordinates (within ~100m)
+        if (!existingLocation && restaurant.Latitude && restaurant.Longitude) {
+          const latRange = 0.001; // ~100m
+          const lngRange = 0.001;
+          
+          const { data, error } = await supabase
+            .from('locations')
+            .select('*')
+            .gte('lat', restaurant.Latitude - latRange)
+            .lte('lat', restaurant.Latitude + latRange)
+            .gte('lng', restaurant.Longitude - lngRange)
+            .lte('lng', restaurant.Longitude + lngRange)
+            .maybeSingle();
+          
+          if (!error && data) {
+            existingLocation = data;
+          }
         }
         
         // Parse Michelin Award
@@ -2192,38 +2230,49 @@ app.post('/make-server-48182530/michelin/backfill-locations', verifyAuth, async 
         const michelin_green_star = restaurant.GreenStar === 1 || restaurant.GreenStar === true;
         
         if (existingLocation) {
-          // Update existing location
+          // Update existing location with Michelin data
+          // Also update google_place_id if it became available
+          const updateData: any = {
+            michelin_id: restaurant.id,
+            michelin_stars,
+            michelin_distinction,
+            michelin_green_star,
+            michelin_cuisine: restaurant.Cuisine,
+            michelin_price: restaurant.Price,
+            michelin_description: restaurant.Description,
+            michelin_url: restaurant.Url,
+            michelin_website_url: restaurant.WebsiteUrl,
+            michelin_phone_number: restaurant.PhoneNumber,
+            michelin_facilities: restaurant.FacilitiesAndServices,
+            updated_at: new Date().toISOString(),
+          };
+          
+          // Update google_place_id if it's now available and wasn't before
+          if (restaurant.google_place_id && !existingLocation.google_place_id) {
+            updateData.google_place_id = restaurant.google_place_id;
+          }
+          
           const { error: updateError } = await supabase
             .from('locations')
-            .update({
-              michelin_id: restaurant.id,
-              michelin_stars,
-              michelin_distinction,
-              michelin_green_star,
-              michelin_cuisine: restaurant.Cuisine,
-              michelin_price: restaurant.Price,
-              michelin_description: restaurant.Description,
-              michelin_url: restaurant.Url,
-              michelin_website_url: restaurant.WebsiteUrl,
-              michelin_phone_number: restaurant.PhoneNumber,
-              michelin_facilities: restaurant.FacilitiesAndServices,
-              updated_at: new Date().toISOString(),
-            })
+            .update(updateData)
             .eq('id', existingLocation.id);
           
           if (updateError) {
             console.error(`❌ Error updating location ${restaurant.Name}:`, updateError);
             errorCount++;
           } else {
-            console.log(`✅ Updated location: ${restaurant.Name}`);
+            const placeIdUpdate = restaurant.google_place_id && !existingLocation.google_place_id 
+              ? ' [Added Place ID]' 
+              : '';
+            console.log(`✅ Updated location: ${restaurant.Name}${placeIdUpdate}`);
             updatedCount++;
           }
         } else {
-          // Create new location
+          // Create new location (google_place_id can be null)
           const { error: insertError } = await supabase
             .from('locations')
             .insert({
-              google_place_id: restaurant.google_place_id,
+              google_place_id: restaurant.google_place_id || null,
               michelin_id: restaurant.id,
               name: restaurant.Name,
               address: restaurant.Address,
@@ -2247,7 +2296,8 @@ app.post('/make-server-48182530/michelin/backfill-locations', verifyAuth, async 
             console.error(`❌ Error creating location ${restaurant.Name}:`, insertError);
             errorCount++;
           } else {
-            console.log(`✅ Created location: ${restaurant.Name}`);
+            const placeIdStatus = restaurant.google_place_id ? '✓ Place ID' : '⚠️ No Place ID';
+            console.log(`✅ Created location: ${restaurant.Name} [${placeIdStatus}]`);
             createdCount++;
           }
         }

@@ -602,20 +602,35 @@ export const api = {
       west: west.toString(),
     });
     
-    const response = await fetch(`${API_BASE}/michelin/restaurants?${params.toString()}`, {
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${publicAnonKey}`, // Add public key for Supabase
-      },
-    });
+    console.log('🌟 Fetching Michelin restaurants:', { north, south, east, west });
+    
+    try {
+      const response = await fetch(`${API_BASE}/michelin/restaurants?${params.toString()}`, {
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${publicAnonKey}`, // Add public key for Supabase
+        },
+      });
 
-    if (!response.ok) {
-      const error = await response.json().catch(() => ({ error: response.statusText }));
-      console.error('❌ getMichelinRestaurants error:', error);
-      throw new Error(error.error || `HTTP error! status: ${response.status}`);
+      console.log('🌟 Michelin API response status:', response.status);
+
+      if (!response.ok) {
+        const error = await response.json().catch(() => ({ error: response.statusText }));
+        console.error('❌ getMichelinRestaurants error:', error);
+        throw new Error(error.error || `HTTP error! status: ${response.status}`);
+      }
+
+      const data = await response.json();
+      console.log('✅ Michelin restaurants loaded:', data.restaurants?.length || 0);
+      return data;
+    } catch (error: any) {
+      console.error('❌ getMichelinRestaurants fetch failed:', {
+        message: error.message,
+        name: error.name,
+        cause: error.cause,
+      });
+      throw error;
     }
-
-    return response.json();
   },
 
   // Suggest Google Place ID for a Michelin restaurant

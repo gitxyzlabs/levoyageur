@@ -44,6 +44,8 @@ interface MapProps {
   showMichelinMarkers?: boolean;
   filterMenuOpen?: boolean;
   onFilterMenuToggle?: (open: boolean) => void;
+  onLVMarkersToggle?: () => void;
+  onMichelinMarkersToggle?: () => void;
 }
 
 // Helper functions for marker styling
@@ -174,7 +176,9 @@ export function Map({
   showLVMarkers,
   showMichelinMarkers,
   filterMenuOpen,
-  onFilterMenuToggle
+  onFilterMenuToggle,
+  onLVMarkersToggle,
+  onMichelinMarkersToggle
 }: MapProps) {
   const map = useMap();
   const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
@@ -224,7 +228,10 @@ export function Map({
       console.log(`🌟 Loaded ${restaurants.length} Michelin restaurants in viewport`);
       setMichelinRestaurants(restaurants);
     } catch (error) {
-      console.error('Error loading Michelin restaurants:', error);
+      console.error('❌ Error loading Michelin restaurants:', error);
+      // Set empty array to prevent crashes, but don't throw
+      setMichelinRestaurants([]);
+      // Don't show toast error - this is a background load
     }
   }, [map]);
 
@@ -307,12 +314,36 @@ export function Map({
 
     // Step 1: Add all LV locations
     displayLocations.forEach(location => {
-      const hasLVRating = !!(location.lvEditorsScore || location.lvCrowdsourceScore);
+      // Check for LV ratings (support both new and deprecated field names)
+      const hasLVRating = !!(
+        location.lvEditorScore || 
+        location.lvAvgUserScore || 
+        location.lvEditorsScore || 
+        location.lvCrowdsourceScore
+      );
       const hasMichelinScore = !!(location.michelinScore && location.michelinScore > 0);
       const isFavorite = favoriteIds?.has(location.id) || favoriteIds?.has(location.place_id || '') || false;
       const isWantToGo = wantToGoIds?.has(location.id) || wantToGoIds?.has(location.place_id || '') || false;
 
       const markerType = getBestMarkerType(hasLVRating, hasMichelinScore, isFavorite, isWantToGo);
+      
+      // 🐛 DEBUG: Log Elcielo data
+      if (location.name?.toLowerCase().includes('elcielo')) {
+        console.log('🐛 DEBUG: Elcielo Location Data:', {
+          name: location.name,
+          id: location.id,
+          lvEditorScore: location.lvEditorScore,
+          lvAvgUserScore: location.lvAvgUserScore,
+          lvEditorsScore: location.lvEditorsScore,
+          lvCrowdsourceScore: location.lvCrowdsourceScore,
+          michelinScore: location.michelinScore,
+          michelinStars: location.michelinStars,
+          hasLVRating,
+          hasMichelinScore,
+          markerType,
+          googlePlaceId: location.googlePlaceId || location.placeId || location.place_id,
+        });
+      }
       
       if (markerType) {
         markers.push({
@@ -321,7 +352,7 @@ export function Map({
           lng: location.lng,
           type: markerType,
           location,
-          rating: location.lvEditorsScore || location.lvCrowdsourceScore || 5,
+          rating: location.lvEditorScore || location.lvAvgUserScore || location.lvEditorsScore || location.lvCrowdsourceScore || 5,
           isFavorite,
           isWantToGo,
           hasLVRating,
@@ -337,15 +368,57 @@ export function Map({
       const michelinScore = michelinAwardToScore(restaurant.award);
       if (!michelinScore || michelinScore <= 0) return;
 
-      // Check if this restaurant already exists in markers
-      const alreadyExists = markers.some(marker => 
-        locationsMatch(marker, { 
-          lat: restaurant.lat, 
+      // 🐛 DEBUG: Log Elcielo from Michelin table
+      if (restaurant.name?.toLowerCase().includes('elcielo')) {
+        console.log('🐛 DEBUG: Elcielo from Michelin Table:', {
+          name: restaurant.name,
+          id: restaurant.id,
+          award: restaurant.award,
+          michelinScore,
+          googlePlaceId: restaurant.googlePlaceId,
+          lat: restaurant.lat,
           lng: restaurant.lng,
-          place_id: restaurant.googlePlaceId,
-          placeId: restaurant.googlePlaceId 
-        })
-      );
+        });
+      }
+
+      // Check if this restaurant already exists in markers
+      const alreadyExists = markers.some(marker => {
+        // The issue: locationsMatch compares marker.place_id, but marker is an object with nested location
+        // We need to compare marker.lat/lng directly with restaurant.lat/lng
+        // And compare marker.location.place_id with restaurant.googlePlaceId
+        
+        const markerLocation = marker.location || marker.restaurant;
+        const markerPlaceId = markerLocation?.place_id || markerLocation?.placeId || markerLocation?.googlePlaceId;
+        const restaurantPlaceId = restaurant.googlePlaceId;
+        
+        // Match by Google Place ID
+        if (markerPlaceId && restaurantPlaceId && markerPlaceId === restaurantPlaceId) {
+          return true;
+        }
+        
+        // Match by coordinates (within ~100m = 0.001 degrees)
+        const latDiff = Math.abs(marker.lat - restaurant.lat);
+        const lngDiff = Math.abs(marker.lng - restaurant.lng);
+        const coordsMatch = latDiff < 0.001 && lngDiff < 0.001;
+        
+        // 🐛 DEBUG: Log matching attempts for Elcielo
+        if (restaurant.name?.toLowerCase().includes('elcielo')) {
+          console.log('🐛 DEBUG: Checking if Elcielo already exists:', {
+            markerName: marker.location?.name || marker.restaurant?.name,
+            markerLat: marker.lat,
+            markerLng: marker.lng,
+            markerPlaceId,
+            restaurantLat: restaurant.lat,
+            restaurantLng: restaurant.lng,
+            restaurantPlaceId,
+            latDiff,
+            lngDiff,
+            coordsMatch,
+          });
+        }
+        
+        return coordsMatch;
+      });
 
       if (!alreadyExists) {
         const michelinId = `michelin-${restaurant.id}`;
@@ -353,6 +426,14 @@ export function Map({
         const isWantToGo = wantToGoIds?.has(michelinId) || false;
 
         const markerType = getBestMarkerType(false, true, isFavorite, isWantToGo);
+        
+        // 🐛 DEBUG: Log when adding Elcielo as Michelin marker
+        if (restaurant.name?.toLowerCase().includes('elcielo')) {
+          console.log('🐛 DEBUG: Adding Elcielo as Michelin marker (NOT FOUND IN LOCATIONS)', {
+            michelinId,
+            markerType,
+          });
+        }
         
         if (markerType) {
           markers.push({
@@ -825,6 +906,81 @@ export function Map({
     <div className="size-full relative">
       {/* Custom Map Controls - Luxury Design */}
       <div className="absolute bottom-24 md:bottom-6 right-4 z-50 flex flex-col gap-2">
+        {/* Filter Menu Toggle - Mobile Only (above zoom controls) */}
+        <div className="md:hidden relative">
+          <button
+            onClick={() => {
+              if (onFilterMenuToggle) {
+                onFilterMenuToggle(!filterMenuOpen);
+              }
+            }}
+            className="p-2.5 bg-white/95 backdrop-blur-sm hover:bg-slate-50 rounded-lg shadow-lg border border-slate-200/50 transition-all hover:scale-105 hover:shadow-xl"
+            title="Filter Menu"
+          >
+            <Filter className="w-5 h-5 text-slate-700" strokeWidth={2.5} />
+          </button>
+
+          {/* Filter Dropdown Menu - Mobile */}
+          <AnimatePresence>
+            {filterMenuOpen && (
+              <motion.div
+                initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                exit={{ opacity: 0, y: 10, scale: 0.95 }}
+                transition={{ duration: 0.2 }}
+                className="absolute bottom-full right-0 mb-2 w-56 bg-white/95 backdrop-blur-2xl rounded-xl shadow-xl border border-slate-200 overflow-hidden"
+              >
+                <div className="p-3 space-y-2">
+                  <div className="text-xs font-semibold text-gray-500 uppercase tracking-wider px-2 py-1">
+                    Show Markers
+                  </div>
+                  
+                  {/* LV Markers Toggle */}
+                  <button
+                    onClick={() => {
+                      if (onLVMarkersToggle) {
+                        onLVMarkersToggle();
+                      }
+                    }}
+                    className="w-full flex items-center justify-between px-3 py-2.5 rounded-lg hover:bg-slate-100 transition-all"
+                  >
+                    <span className="text-sm font-medium text-gray-700">LV Markers</span>
+                    <div className={`w-10 h-6 rounded-full transition-all ${
+                      showLVMarkers ? 'bg-blue-500' : 'bg-gray-300'
+                    }`}>
+                      <div className={`w-4 h-4 bg-white rounded-full shadow-md transition-all transform ${
+                        showLVMarkers ? 'translate-x-5 translate-y-1' : 'translate-x-1 translate-y-1'
+                      }`} />
+                    </div>
+                  </button>
+
+                  {/* Michelin Markers Toggle */}
+                  <button
+                    onClick={() => {
+                      if (onMichelinMarkersToggle) {
+                        onMichelinMarkersToggle();
+                      }
+                    }}
+                    className="w-full flex items-center justify-between px-3 py-2.5 rounded-lg hover:bg-slate-100 transition-all"
+                  >
+                    <span className="text-sm font-medium text-gray-700">Michelin Markers</span>
+                    <div className={`w-10 h-6 rounded-full transition-all ${
+                      showMichelinMarkers ? 'bg-red-500' : 'bg-gray-300'
+                    }`}>
+                      <div className={`w-4 h-4 bg-white rounded-full shadow-md transition-all transform ${
+                        showMichelinMarkers ? 'translate-x-5 translate-y-1' : 'translate-x-1 translate-y-1'
+                      }`} />
+                    </div>
+                  </button>
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
+
+        {/* Divider - Mobile Only */}
+        <div className="md:hidden h-px bg-slate-200 mx-1" />
+
         {/* Zoom In */}
         <button
           onClick={() => {
@@ -863,19 +1019,6 @@ export function Map({
           title="My Location"
         >
           <Locate className={`w-5 h-5 ${userLocation ? 'text-blue-500' : 'text-slate-700'}`} strokeWidth={2.5} />
-        </button>
-
-        {/* Filter Menu Toggle */}
-        <button
-          onClick={() => {
-            if (onFilterMenuToggle) {
-              onFilterMenuToggle(!filterMenuOpen);
-            }
-          }}
-          className="p-2.5 bg-white/95 backdrop-blur-sm hover:bg-slate-50 rounded-lg shadow-lg border border-slate-200/50 transition-all hover:scale-105 hover:shadow-xl"
-          title="Filter Menu"
-        >
-          <Filter className="w-5 h-5 text-slate-700" strokeWidth={2.5} />
         </button>
       </div>
       
