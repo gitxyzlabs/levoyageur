@@ -421,9 +421,10 @@ export function Map({
           setUserLocation(location);
           setLocationPermissionDenied(false);
           
-          // Pan map to user's location
+          // Pan map to user's location and zoom in
           if (map) {
             map.panTo(location);
+            map.setZoom(14); // Zoom in to street level
           }
         },
         (error) => {
@@ -1033,83 +1034,6 @@ export function Map({
                 
                 // Show success message
                 toast.success('Location verified! You can now add LV ratings.');
-                
-                // Optionally fetch and show the updated place details
-                try {
-                  const { Place } = await google.maps.importLibrary("places") as google.maps.PlacesLibrary;
-                  const place = new Place({ id: validationPopup.suggestedPlace.id });
-                  
-                  console.log('🔍 Fetching place details for verified location...');
-                  await place.fetchFields({
-                    fields: ['displayName', 'formattedAddress', 'location', 'photos', 'rating', 'userRatingCount', 'types', 'websiteURI', 'nationalPhoneNumber']
-                  });
-                  
-                  console.log('✅ Place details fetched');
-                  
-                  // Find the full Michelin restaurant data from the loaded restaurants
-                  const fullMichelinData = michelinRestaurants.find(r => r.id === validationPopup.michelinData.id);
-                  
-                  // Parse Michelin Award to get stars, distinction, and green star
-                  const award = fullMichelinData?.award || validationPopup.michelinData.award || '';
-                  let michelinStars: number | null = null;
-                  let michelinDistinction: string | null = null;
-                  let michelinGreenStar = false;
-                  
-                  if (award.includes('3 Stars')) {
-                    michelinStars = 3;
-                  } else if (award.includes('2 Stars')) {
-                    michelinStars = 2;
-                  } else if (award.includes('1 Star')) {
-                    michelinStars = 1;
-                  } else if (award.includes('Bib Gourmand')) {
-                    michelinDistinction = 'Bib Gourmand';
-                  }
-                  
-                  if (fullMichelinData?.GreenStar) {
-                    michelinGreenStar = true;
-                  }
-                  
-                  const placeResult: google.maps.places.PlaceResult = {
-                    place_id: place.id,
-                    name: place.displayName || validationPopup.michelinData.name,
-                    formatted_address: place.formattedAddress,
-                    geometry: {
-                      location: place.location || new google.maps.LatLng(validationPopup.michelinData.lat, validationPopup.michelinData.lng)
-                    },
-                    rating: place.rating,
-                    user_ratings_total: place.userRatingCount,
-                    website: place.websiteURI,
-                    formatted_phone_number: place.nationalPhoneNumber,
-                    photos: place.photos,
-                    types: place.types,
-                  };
-                  
-                  const lvLocation: Location = {
-                    id: `michelin-${validationPopup.michelinData.id}`,
-                    name: validationPopup.michelinData.name,
-                    lat: validationPopup.michelinData.lat,
-                    lng: validationPopup.michelinData.lng,
-                    lvEditorsScore: undefined,
-                    lvCrowdsourceScore: undefined,
-                    googleRating: place.rating || 0,
-                    michelinStars: michelinStars,
-                    michelinDistinction: michelinDistinction,
-                    michelinGreenStar: michelinGreenStar,
-                    tags: [],
-                    description: validationPopup.michelinData.location,
-                    address: validationPopup.michelinData.address,
-                    cuisine: fullMichelinData?.Cuisine,
-                    place_id: place.id,
-                  };
-                  
-                  console.log('📍 Opening info window for verified location');
-                  if (onPOIClick) {
-                    onPOIClick(placeResult, lvLocation);
-                  }
-                } catch (error) {
-                  console.error('❌ Error fetching place details after validation:', error);
-                  toast.error('Verification saved, but failed to load place details. Please click the marker again.');
-                }
               }
             } catch (error) {
               console.error('❌ Error submitting validation:', error);

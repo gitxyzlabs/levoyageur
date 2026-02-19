@@ -68,6 +68,7 @@ export interface Location {
   updatedBy?: string;
   updatedAt?: string;
   favoritesCount?: number; // Number of users who have favorited this location
+  wantToGoCount?: number; // Number of users who have marked this as want to go
   
   // Deprecated fields (for backward compatibility during migration)
   /** @deprecated Use lvEditorScore instead */
