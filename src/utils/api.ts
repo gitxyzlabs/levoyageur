@@ -667,4 +667,27 @@ export const api = {
     // fetchWithAuth already returns parsed JSON, not a Response object
     return response;
   },
+
+  // Monitoring & Metrics
+  getMetrics: async (): Promise<any> => {
+    return fetchWithAuth(`${API_BASE}/metrics`);
+  },
+
+  getHealth: async (): Promise<{ status: string; timestamp: string; uptime: number }> => {
+    // Public endpoint - doesn't require auth
+    const response = await fetch(`${API_BASE}/health`, {
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${publicAnonKey}`,
+      },
+    });
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ error: response.statusText }));
+      console.error('❌ getHealth error:', error);
+      throw new Error(error.error || `HTTP error! status: ${response.status}`);
+    }
+
+    return response.json();
+  },
 };

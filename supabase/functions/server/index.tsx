@@ -4,6 +4,13 @@ import { logger } from "npm:hono/logger";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { getMichelinRating } from "./michelin.tsx";
 import { formatLocationForAPI, formatLocationForDB, type LocationRow } from "./helpers.tsx";
+import {
+  performanceMiddleware,
+  errorHandlerMiddleware,
+  trackDatabaseOperation,
+  getMetricsSummary,
+  logError,
+} from "./monitoring.tsx";
 
 /**
  * IMPORTANT: Platform-level JWT verification is DISABLED
@@ -21,6 +28,12 @@ import { formatLocationForAPI, formatLocationForDB, type LocationRow } from "./h
  */
 
 const app = new Hono();
+
+// Enable error handler (must be first)
+app.use('*', errorHandlerMiddleware());
+
+// Enable performance monitoring
+app.use('*', performanceMiddleware());
 
 // Enable logger
 app.use('*', logger(console.log));
@@ -237,10 +250,14 @@ app.get('/make-server-48182530/locations', async (c) => {
     
     // ✅ Fetch ALL locations from the unified locations table
     // All Michelin data is already in the locations table after backfill
-    const { data: locations, error } = await supabase
-      .from('locations')
-      .select('*')
-      .limit(50000); // Very high limit to ensure we get all locations
+    const { data: locations, error } = await trackDatabaseOperation(
+      'SELECT',
+      'locations',
+      () => supabase
+        .from('locations')
+        .select('*')
+        .limit(50000) // Very high limit to ensure we get all locations
+    );
 
     if (error) {
       console.error('❌ Error fetching locations:', error);
@@ -250,9 +267,13 @@ app.get('/make-server-48182530/locations', async (c) => {
     console.log('📍 GET /locations - Found locations:', locations?.length || 0);
     
     // Get favorites count for each location
-    const { data: favoriteCounts, error: favCountError } = await supabase
-      .from('favorites')
-      .select('location_id');
+    const { data: favoriteCounts, error: favCountError } = await trackDatabaseOperation(
+      'SELECT',
+      'favorites',
+      () => supabase
+        .from('favorites')
+        .select('location_id')
+    );
     
     if (favCountError) {
       console.error('❌ Error fetching favorite counts:', favCountError);
@@ -2558,6 +2579,50 @@ app.post('/make-server-48182530/seed', async (c) => {
     return c.json({ error: 'Failed to seed database' }, 500);
   }
 });
+
+// ============================================
+// MONITORING & METRICS ENDPOINTS
+// ============================================
+
+// Get performance metrics and crash logs (admin/editor only)
+app.get('/make-server-48182530/metrics', verifyAuth, verifyEditor, async (c) => {
+  console.log('📍 GET /metrics - Start');
+  
+  try {
+    const summary = getMetricsSummary();
+    
+    return c.json({
+      success: true,
+      metrics: summary,
+      timestamp: new Date().toISOString(),
+    });
+  } catch (error: any) {
+    console.error('❌ Error getting metrics:', error);
+    logError({
+      timestamp: Date.now(),
+      endpoint: '/metrics',
+      method: 'GET',
+      error: error.message,
+      stack: error.stack,
+      statusCode: 500,
+      userId: c.get('userId'),
+    });
+    return c.json({ error: 'Failed to get metrics', details: error.message }, 500);
+  }
+});
+
+// Health check endpoint (public)
+app.get('/make-server-48182530/health', (c) => {
+  return c.json({
+    status: 'healthy',
+    timestamp: new Date().toISOString(),
+    uptime: performance.now(),
+  });
+});
+
+// ============================================
+// ERROR HANDLING
+// ============================================
 
 // Catch-all for unmatched routes
 app.all('*', (c) => {

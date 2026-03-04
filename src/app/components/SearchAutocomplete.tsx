@@ -58,7 +58,8 @@ interface SearchAutocompleteProps {
 export function SearchAutocomplete({ onPlaceSelect, onTagSelect, onClear, mapBounds, onGenericSearch, searchResults = [], showSearchResults = false }: SearchAutocompleteProps) {
   const [searchValue, setSearchValue] = useState('');
   const [showDropdown, setShowDropdown] = useState(false);
-  const [googlePredictions, setGooglePredictions] = useState<any[]>([]);
+  const [googlePredictions, setGooglePredictions] = useState<any[]>([]); // Results within map bounds
+  const [googlePredictionsGlobal, setGooglePredictionsGlobal] = useState<any[]>([]); // Global results (anywhere)
   const [googleTextSearchResults, setGoogleTextSearchResults] = useState<any[]>([]);
   const [supabaseTags, setSupabaseTags] = useState<string[]>([]);
   const [michelinLocations, setMichelinLocations] = useState<Location[]>([]);
@@ -79,6 +80,7 @@ export function SearchAutocomplete({ onPlaceSelect, onTagSelect, onClear, mapBou
     
     if (!searchValue.trim()) {
       setGooglePredictions([]);
+      setGooglePredictionsGlobal([]);
       setGoogleTextSearchResults([]);
       setSupabaseTags([]);
       setMichelinLocations([]);
@@ -119,7 +121,11 @@ export function SearchAutocomplete({ onPlaceSelect, onTagSelect, onClear, mapBou
               };
             });
             
-            // Filter by map bounds if available
+            // Always set global predictions (unbounded - search everywhere)
+            console.log('✅ Setting global predictions:', predictions.length);
+            setGooglePredictionsGlobal(predictions.slice(0, 5));
+            
+            // Additionally filter by map bounds if available to show "On Your Map" section
             if (mapBounds && predictions.length > 0) {
               console.log('🗺️ Filtering Google Places by map bounds...');
               
@@ -162,24 +168,26 @@ export function SearchAutocomplete({ onPlaceSelect, onTagSelect, onClear, mapBou
                 
                 console.log('✅ Google predictions in map bounds:', filteredPredictions.length);
                 
-                // Only show predictions if we found results in bounds
+                // Set bounded predictions for "On Your Map" section
                 setGooglePredictions(filteredPredictions);
               } catch (error) {
                 console.error('❌ Error filtering Google Places:', error);
-                // Don't show unfiltered results - better to show nothing than wrong location
+                // Even if filtering fails, we still have global results
                 setGooglePredictions([]);
               }
             } else {
-              console.log('✅ Converted predictions:', predictions.length);
-              setGooglePredictions(predictions.slice(0, 5));
+              // No bounds available, clear bounded predictions
+              setGooglePredictions([]);
             }
           } else {
             console.log('⚠️ No Google predictions returned');
             setGooglePredictions([]);
+            setGooglePredictionsGlobal([]);
           }
         } catch (error) {
           console.error('❌ Error fetching autocomplete suggestions:', error);
           setGooglePredictions([]);
+          setGooglePredictionsGlobal([]);
         }
       }
 
@@ -995,7 +1003,7 @@ export function SearchAutocomplete({ onPlaceSelect, onTagSelect, onClear, mapBou
               <div className="border-b border-slate-100">
                 <div className="px-4 py-2 bg-slate-50 border-b border-slate-100">
                   <div className="text-xs font-semibold text-slate-600 uppercase tracking-wide">
-                    Google Places
+                    On Your Map
                   </div>
                 </div>
                 {googlePredictions.map((prediction, index) => (
@@ -1008,6 +1016,38 @@ export function SearchAutocomplete({ onPlaceSelect, onTagSelect, onClear, mapBou
                   >
                     <div className="flex items-center justify-center w-8 h-8 rounded-full bg-slate-100 flex-shrink-0">
                       <MapPin className="w-4 h-4 text-slate-600" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="font-medium text-gray-900 truncate">
+                        {prediction.structured_formatting.main_text}
+                      </div>
+                      <div className="text-xs text-gray-500 truncate">
+                        {prediction.structured_formatting.secondary_text}
+                      </div>
+                    </div>
+                  </button>
+                ))}
+              </div>
+            )}
+
+            {/* Global Google Places Section - Search Everywhere */}
+            {googlePredictionsGlobal.length > 0 && (
+              <div>
+                <div className="px-4 py-2 bg-gradient-to-r from-green-50 to-emerald-50 border-b border-slate-100">
+                  <div className="text-xs font-semibold text-slate-600 uppercase tracking-wide">
+                    Search Results
+                  </div>
+                </div>
+                {googlePredictionsGlobal.map((prediction, index) => (
+                  <button
+                    key={prediction.place_id}
+                    onClick={() => handleGooglePlaceSelect(prediction)}
+                    className={`w-full px-4 py-3 flex items-center gap-3 hover:bg-green-50 transition-colors text-left ${
+                      focusedIndex === index + michelinLocations.length + lvLocations.length + supabaseTags.length + googleTextSearchResults.length + googlePredictions.length + 1 ? 'bg-green-50' : ''
+                    }`}
+                  >
+                    <div className="flex items-center justify-center w-8 h-8 rounded-full bg-gradient-to-br from-green-100 to-emerald-100 flex-shrink-0">
+                      <MapPin className="w-4 h-4 text-green-700" />
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="font-medium text-gray-900 truncate">
