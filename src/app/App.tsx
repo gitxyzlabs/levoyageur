@@ -25,6 +25,7 @@ import { SearchAutocomplete } from './components/SearchAutocomplete';
 import { Profile } from './components/Profile';
 import { Favorites } from './components/Favorites';
 import { WantToGo } from './components/WantToGo';
+import { MonitoringDashboard } from './components/MonitoringDashboard';
 
 import { Button } from './components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from './components/ui/card';
@@ -32,6 +33,8 @@ import { Card, CardContent, CardHeader, CardTitle } from './components/ui/card';
 import { api, supabase } from '../utils/api';
 import type { Location as APILocation, User as APIUser } from '../utils/api';
 import { projectId, publicAnonKey } from '/utils/supabase/info.tsx';
+import { monitor, trackApiCall, trackAction, logError, trackInteraction } from '../utils/monitoring';
+import { usePerformanceMonitor, useErrorHandler } from './hooks/usePerformanceMonitor';
 
 // Use types from API
 type Location = APILocation & {
@@ -72,6 +75,11 @@ export default function App() {
   const [showLVMarkers, setShowLVMarkers] = useState(true);
   const [showMichelinMarkers, setShowMichelinMarkers] = useState(true);
   const [filterMenuOpen, setFilterMenuOpen] = useState(false);
+  const [monitoringDashboardOpen, setMonitoringDashboardOpen] = useState(false);
+
+  // 📊 Performance monitoring
+  usePerformanceMonitor('App');
+  const { catchError } = useErrorHandler('App');
 
   // Calculate city stats when a city is selected - memoized for performance
   const calculateCityStats = useCallback(async (cityCenter: google.maps.LatLng | google.maps.LatLngLiteral) => {
@@ -135,11 +143,24 @@ export default function App() {
   };
 
   useEffect(() => {
+    // 📊 Track app initialization
+    trackAction('app_initialized');
+    
     initializeApp();
     checkExistingSession(); // Check for existing session on mount
     
     // Restore map state after OAuth redirect
     restoreMapStateAfterLogin();
+    
+    // 🎹 Keyboard shortcut for monitoring dashboard (Ctrl+Shift+M)
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.ctrlKey && e.shiftKey && e.key === 'M') {
+        e.preventDefault();
+        setMonitoringDashboardOpen(prev => !prev);
+        trackAction('monitoring_dashboard_toggled');
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
     
     // Listen for auth state changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
@@ -156,8 +177,12 @@ export default function App() {
       
       if (session?.user) {
         // User is logged in - fetch full user profile from backend
+        // Update monitoring with user ID
+        monitor.setUserId(session.user.id);
+        trackAction('user_logged_in', 'App', { userId: session.user.id });
+        
         try {
-          const { user: userProfile } = await api.getCurrentUser();
+          const { user: userProfile } = await trackApiCall('getCurrentUser', () => api.getCurrentUser());
           setUser(userProfile);
           console.log('✅ User profile loaded:', userProfile);
           
@@ -165,6 +190,7 @@ export default function App() {
           await loadUserLists();
         } catch (error) {
           console.error('Failed to fetch user profile:', error);
+          catchError(error, { context: 'user_profile_load' });
           // Fallback to basic user data
           setUser({
             id: session.user.id,
@@ -184,6 +210,9 @@ export default function App() {
         }
       } else {
         // User is logged out
+        monitor.setUserId(undefined);
+        trackAction('user_logged_out');
+        
         setUser(null);
         setFavoriteIds(new Set());
         setWantToGoIds(new Set());
@@ -204,8 +233,9 @@ export default function App() {
       }
     });
     
-    // Cleanup subscription
+    // Cleanup subscription and keyboard listener
     return () => {
+      window.removeEventListener('keydown', handleKeyDown);
       subscription.unsubscribe();
     };
   }, []);
@@ -282,6 +312,8 @@ export default function App() {
   };
 
   const initializeApp = async () => {
+    const endTracking = trackInteraction('app_initialization');
+    
     try {
       // First try to load API key from .env.local (Vite environment variable)
       const envApiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
@@ -294,13 +326,15 @@ export default function App() {
         // Fallback: Fetch from server
         console.log("No API key in .env.local, fetching from server...");
         
-        const response = await fetch(
-          `https://${projectId}.supabase.co/functions/v1/make-server-48182530/config/google-maps-key`,
-          {
-            headers: {
-              'Authorization': `Bearer ${publicAnonKey}`,
-            },
-          }
+        const response = await trackApiCall('getGoogleMapsApiKey', () => 
+          fetch(
+            `https://${projectId}.supabase.co/functions/v1/make-server-48182530/config/google-maps-key`,
+            {
+              headers: {
+                'Authorization': `Bearer ${publicAnonKey}`,
+              },
+            }
+          )
         );
         
         if (response.ok) {
@@ -310,6 +344,7 @@ export default function App() {
           console.log("API Key loaded from server");
         } else {
           console.error("Failed to load Google Maps API key");
+          logError('Failed to load Google Maps API key', 'App', { status: response.status });
         }
       }
       
@@ -317,8 +352,10 @@ export default function App() {
       await loadLocations();
     } catch (error) {
       console.error("Error during initialization:", error);
+      catchError(error, { context: 'app_initialization' });
     } finally {
       setLoading(false);
+      endTracking();
     }
   };
 
@@ -330,6 +367,7 @@ export default function App() {
     }
     
     loadingRef.current = true;
+    
     try {
       console.log('🔄 Loading locations...');
       
@@ -339,7 +377,7 @@ export default function App() {
       locationCache.invalidate('all-locations');
       console.log('🗑️ Cache cleared - fetching fresh data');
       
-      const { locations: data } = await api.getLocations();
+      const { locations: data } = await trackApiCall('getLocations', () => api.getLocations());
       console.log('✅ Loaded locations:', data.length);
       
       // 🐛 DEBUG: Check if Elcielo is in the data
@@ -683,10 +721,17 @@ export default function App() {
   const handleToggleFavorite = useCallback(async (locationId: string, placeData?: { name?: string; lat?: number; lng?: number; formatted_address?: string; place_id?: string }) => {
     if (!user) {
       toast.error('Please sign in to save favorites');
+      trackAction('favorite_toggle_failed_no_auth', 'App', { locationId });
       return;
     }
     
     const isFavorite = favoriteIds.has(locationId);
+    
+    // 📊 Track favorite toggle
+    trackAction(isFavorite ? 'favorite_removed' : 'favorite_added', 'App', { 
+      locationId, 
+      placeName: placeData?.name 
+    });
     
     // ✅ OPTIMISTIC UPDATE - Update UI immediately
     setFavoriteIds(prev => {
@@ -712,17 +757,18 @@ export default function App() {
     try {
       if (isFavorite) {
         // Remove from favorites
-        await api.removeFavorite(locationId);
+        await trackApiCall('removeFavorite', () => api.removeFavorite(locationId));
         toast.success('Removed from favorites');
       } else {
         // Add to favorites
         console.log('💾 Saving favorite with place_id:', placeData?.place_id);
-        await api.addFavorite(locationId, placeData);
+        await trackApiCall('addFavorite', () => api.addFavorite(locationId, placeData));
         toast.success('Added to favorites!');
       }
       // ✅ NO MORE loadLocations() - we updated state optimistically!
     } catch (error: any) {
       console.error('❌ Error toggling favorite:', error);
+      catchError(error, { context: 'favorite_toggle', locationId });
       
       // ❌ ROLLBACK optimistic update on error
       setFavoriteIds(prev => {
@@ -751,12 +797,20 @@ export default function App() {
   const handleToggleWantToGo = useCallback(async (locationId: string, placeData?: { name?: string; lat?: number; lng?: number; formatted_address?: string; place_id?: string }) => {
     if (!user) {
       toast.error('Please sign in to save to Want to Go');
+      trackAction('want_to_go_toggle_failed_no_auth', 'App', { locationId });
       return;
     }
     
     // Check if this is a place_id (Google place) or a location id (LV location)
     const isPlaceId = placeData?.place_id === locationId;
     const isWantToGo = isPlaceId ? wantToGoPlaceIds.has(locationId) : wantToGoIds.has(locationId);
+    
+    // 📊 Track want to go toggle
+    trackAction(isWantToGo ? 'want_to_go_removed' : 'want_to_go_added', 'App', { 
+      locationId, 
+      placeName: placeData?.name,
+      isPlaceId 
+    });
     
     console.log('🔍 Toggle Want to Go:', { locationId, isPlaceId, isWantToGo, placeData });
     
@@ -1032,6 +1086,12 @@ export default function App() {
   return (
     <div className="size-full flex flex-col bg-white">
       <Toaster position="top-center" richColors />
+      
+      {/* Monitoring Dashboard (Ctrl+Shift+M to toggle) */}
+      <MonitoringDashboard 
+        isOpen={monitoringDashboardOpen} 
+        onClose={() => setMonitoringDashboardOpen(false)} 
+      />
 
       {/* Header - Hidden on mobile, visible on desktop */}
       <header className="hidden md:block bg-white border-b border-slate-200 shadow-sm">
@@ -1042,10 +1102,13 @@ export default function App() {
           <div className="flex items-center gap-3">
             {user ? (
               <>
-                <div className="flex items-center gap-2 px-3 py-2 bg-slate-50 rounded-lg">
+                <button
+                  onClick={() => setSidebarView('profile')}
+                  className="flex items-center gap-2 px-3 py-2 bg-slate-50 rounded-lg hover:bg-slate-100 transition-colors cursor-pointer"
+                >
                   <User className="h-4 w-4 text-gray-500" />
                   <span className="text-sm font-medium text-gray-700">{user.name}</span>
-                </div>
+                </button>
                 <Button
                   onClick={handleLogout}
                   variant="outline"

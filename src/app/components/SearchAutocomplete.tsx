@@ -5,6 +5,8 @@ import { motion, AnimatePresence } from 'motion/react';
 import { LVIcon } from './LVIcon';
 import { api, Location } from '../../utils/api';
 import { MichelinFlower, MichelinStar, MichelinKey } from '@/app/components/MichelinIcons';
+import { trackAction, trackApiCall, logError, trackInteraction } from '../../utils/monitoring';
+import { usePerformanceMonitor, useErrorHandler } from '../hooks/usePerformanceMonitor';
 
 // Color palette for different LV rating tiers (matches marker colors)
 const getLVScoreColor = (rating: number) => {
@@ -71,6 +73,10 @@ export function SearchAutocomplete({ onPlaceSelect, onTagSelect, onClear, mapBou
   const dropdownRef = useRef<HTMLDivElement>(null);
   const places = useMapsLibrary('places');
 
+  // 📊 Performance monitoring
+  usePerformanceMonitor('SearchAutocomplete');
+  const { catchError } = useErrorHandler('SearchAutocomplete');
+
   // Fetch suggestions when search value changes
   useEffect(() => {
     // Don't fetch suggestions if user just made a selection
@@ -90,6 +96,10 @@ export function SearchAutocomplete({ onPlaceSelect, onTagSelect, onClear, mapBou
     }
 
     const fetchSuggestions = async () => {
+      // 📊 Track search action
+      trackAction('search_query_changed', 'SearchAutocomplete', { query: searchValue });
+      const endTracking = trackInteraction('search_suggestions_fetch');
+      
       // Fetch Google Places predictions using new AutocompleteSuggestion API
       if (places) {
         try {
@@ -106,20 +116,22 @@ export function SearchAutocomplete({ onPlaceSelect, onTagSelect, onClear, mapBou
           const { AutocompleteSuggestion } = await google.maps.importLibrary("places") as any;
           const { suggestions } = await AutocompleteSuggestion.fetchAutocompleteSuggestions(request);
           
+          endTracking();
+          
           if (suggestions && suggestions.length > 0) {
             console.log('✅ Google predictions received:', suggestions.length);
             // Convert new format to old format for compatibility
             const predictions = suggestions.slice(0, 20).map((s: any) => {
               const placePrediction = s.placePrediction;
               return {
-                place_id: placePrediction?.placeId || placePrediction?.place,
+                place_id: placePrediction?.placeId || placePrediction?.place || '',
                 description: placePrediction?.text?.text || placePrediction?.text || '',
                 structured_formatting: {
                   main_text: placePrediction?.structuredFormat?.mainText?.text || placePrediction?.mainText?.text || placePrediction?.text?.text || 'Unknown',
                   secondary_text: placePrediction?.structuredFormat?.secondaryText?.text || placePrediction?.secondaryText?.text || '',
                 }
               };
-            });
+            }).filter(p => p.place_id && p.description); // Filter out invalid predictions
             
             // Always set global predictions (unbounded - search everywhere)
             console.log('✅ Setting global predictions:', predictions.length);
@@ -186,6 +198,7 @@ export function SearchAutocomplete({ onPlaceSelect, onTagSelect, onClear, mapBou
           }
         } catch (error) {
           console.error('❌ Error fetching autocomplete suggestions:', error);
+          catchError(error, { context: 'google_autocomplete', query: searchValue });
           setGooglePredictions([]);
           setGooglePredictionsGlobal([]);
         }
@@ -193,7 +206,7 @@ export function SearchAutocomplete({ onPlaceSelect, onTagSelect, onClear, mapBou
 
       // Fetch Supabase tags
       try {
-        const { locations } = await api.getLocations();
+        const { locations } = await trackApiCall('getLocations_tags', () => api.getLocations());
         const allTags = locations.flatMap(loc => loc.tags || []);
         const uniqueTags = Array.from(new Set(allTags));
         const matchingTags = uniqueTags.filter(tag => 
@@ -203,12 +216,13 @@ export function SearchAutocomplete({ onPlaceSelect, onTagSelect, onClear, mapBou
         setSupabaseTags(matchingTags);
       } catch (error) {
         console.error('❌ Error fetching tags:', error);
+        catchError(error, { context: 'fetch_tags', query: searchValue });
         setSupabaseTags([]);
       }
 
       // Fetch Michelin locations
       try {
-        const { locations } = await api.getLocations();
+        const { locations } = await trackApiCall('getLocations_michelin', () => api.getLocations());
         let matchingLocations = locations
           .filter(loc => 
             loc.michelinScore > 0 && // Only Michelin-rated locations
@@ -369,7 +383,7 @@ export function SearchAutocomplete({ onPlaceSelect, onTagSelect, onClear, mapBou
       setShowDropdown(true);
     }, 300);
     return () => clearTimeout(timeoutId);
-  }, [searchValue, places, mapBounds]);
+  }, [searchValue, places, mapBounds, justSelected]);
 
   // Handle click outside to close dropdown
   useEffect(() => {
@@ -431,6 +445,13 @@ export function SearchAutocomplete({ onPlaceSelect, onTagSelect, onClear, mapBou
         types: place.types,
       };
 
+      // 📊 Track place selection
+      trackAction('place_selected', 'SearchAutocomplete', { 
+        placeId: placeResult.place_id, 
+        placeName: placeResult.name,
+        source: 'google_autocomplete'
+      });
+      
       onPlaceSelect(placeResult);
       setSearchValue(prediction.description);
       // Blur the input to prevent dropdown from reopening
@@ -438,6 +459,7 @@ export function SearchAutocomplete({ onPlaceSelect, onTagSelect, onClear, mapBou
       setJustSelected(true);
     } catch (error) {
       console.error('Error fetching place details:', error);
+      catchError(error, { context: 'place_details_fetch', placeId: prediction.place_id });
       
       // Fallback: create a basic place result from prediction
       const fallbackResult: google.maps.places.PlaceResult = {
@@ -445,6 +467,11 @@ export function SearchAutocomplete({ onPlaceSelect, onTagSelect, onClear, mapBou
         place_id: prediction.place_id,
         formatted_address: prediction.description,
       };
+      
+      trackAction('place_selected_fallback', 'SearchAutocomplete', { 
+        placeId: fallbackResult.place_id, 
+        placeName: fallbackResult.name 
+      });
       
       onPlaceSelect(fallbackResult);
       setSearchValue(prediction.description);
@@ -455,6 +482,9 @@ export function SearchAutocomplete({ onPlaceSelect, onTagSelect, onClear, mapBou
   };
 
   const handleTagSelect = (tag: string) => {
+    // 📊 Track tag selection
+    trackAction('tag_selected', 'SearchAutocomplete', { tag });
+    
     onTagSelect(tag);
     setSearchValue(tag);
     setShowDropdown(false);
@@ -964,7 +994,7 @@ export function SearchAutocomplete({ onPlaceSelect, onTagSelect, onClear, mapBou
                     key={prediction.place_id}
                     onClick={() => handleGooglePlaceSelect(prediction)}
                     className={`w-full px-4 py-3 flex items-center gap-3 hover:bg-slate-50 transition-colors text-left ${
-                      focusedIndex === index + michelinLocations.length + lvLocations.length + 1 ? 'bg-slate-50' : ''
+                      focusedIndex === index + michelinLocations.length + lvLocations.length + supabaseTags.length + 1 ? 'bg-slate-50' : ''
                     }`}
                   >
                     <div className="flex items-center justify-center w-8 h-8 rounded-full bg-slate-100 flex-shrink-0">
@@ -972,10 +1002,10 @@ export function SearchAutocomplete({ onPlaceSelect, onTagSelect, onClear, mapBou
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="font-medium text-gray-900 truncate">
-                        {prediction.structured_formatting.main_text}
+                        {prediction.structured_formatting?.main_text || 'Unknown location'}
                       </div>
                       <div className="text-xs text-gray-500 truncate">
-                        {prediction.structured_formatting.secondary_text}
+                        {prediction.structured_formatting?.secondary_text || ''}
                       </div>
                     </div>
                     <div className="flex items-center gap-2 flex-shrink-0">
@@ -1019,10 +1049,10 @@ export function SearchAutocomplete({ onPlaceSelect, onTagSelect, onClear, mapBou
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="font-medium text-gray-900 truncate">
-                        {prediction.structured_formatting.main_text}
+                        {prediction.structured_formatting?.main_text || 'Unknown location'}
                       </div>
                       <div className="text-xs text-gray-500 truncate">
-                        {prediction.structured_formatting.secondary_text}
+                        {prediction.structured_formatting?.secondary_text || ''}
                       </div>
                     </div>
                   </button>
@@ -1051,10 +1081,10 @@ export function SearchAutocomplete({ onPlaceSelect, onTagSelect, onClear, mapBou
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="font-medium text-gray-900 truncate">
-                        {prediction.structured_formatting.main_text}
+                        {prediction.structured_formatting?.main_text || 'Unknown location'}
                       </div>
                       <div className="text-xs text-gray-500 truncate">
-                        {prediction.structured_formatting.secondary_text}
+                        {prediction.structured_formatting?.secondary_text || ''}
                       </div>
                     </div>
                   </button>
