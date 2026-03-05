@@ -1,4 +1,4 @@
-import { useRef, useState, useEffect } from 'react';
+import { useRef, useState, useEffect, useMemo } from 'react';
 import { useMapsLibrary } from '@vis.gl/react-google-maps';
 import { Search, X, MapPin, Tag, Star, Heart, Bookmark } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
@@ -72,10 +72,45 @@ export function SearchAutocomplete({ onPlaceSelect, onTagSelect, onClear, mapBou
   const inputRef = useRef<HTMLInputElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const places = useMapsLibrary('places');
+  
+  // 🚀 Cache all locations to avoid fetching 3x per search
+  const [allLocationsCache, setAllLocationsCache] = useState<Location[]>([]);
+  const locationsLoadedRef = useRef(false);
+  
+  // 🚀 Create a stable reference for mapBounds to prevent unnecessary re-renders
+  // Only update if bounds actually changed significantly
+  const boundsRef = useRef<string>('');
+  const stableMapBounds = mapBounds;
+  const boundsKey = mapBounds 
+    ? `${mapBounds.getNorthEast().lat().toFixed(3)},${mapBounds.getNorthEast().lng().toFixed(3)},${mapBounds.getSouthWest().lat().toFixed(3)},${mapBounds.getSouthWest().lng().toFixed(3)}`
+    : '';
+  
+  // Only update if bounds changed by a reasonable amount (3 decimal places = ~100m)
+  if (boundsKey !== boundsRef.current) {
+    boundsRef.current = boundsKey;
+  }
 
   // 📊 Performance monitoring
   usePerformanceMonitor('SearchAutocomplete');
   const { catchError } = useErrorHandler('SearchAutocomplete');
+
+  // 🚀 Load locations cache once on mount
+  useEffect(() => {
+    if (!locationsLoadedRef.current) {
+      locationsLoadedRef.current = true;
+      const loadLocations = async () => {
+        try {
+          const { locations } = await api.getLocations();
+          setAllLocationsCache(locations);
+          console.log('✅ Loaded locations cache for search:', locations.length);
+        } catch (error) {
+          console.error('❌ Error loading locations cache:', error);
+          catchError(error, { context: 'load_locations_cache' });
+        }
+      };
+      loadLocations();
+    }
+  }, []);
 
   // Fetch suggestions when search value changes
   useEffect(() => {
@@ -204,86 +239,76 @@ export function SearchAutocomplete({ onPlaceSelect, onTagSelect, onClear, mapBou
         }
       }
 
-      // Fetch Supabase tags
-      try {
-        const { locations } = await trackApiCall('getLocations_tags', () => api.getLocations());
-        const allTags = locations.flatMap(loc => loc.tags || []);
-        const uniqueTags = Array.from(new Set(allTags));
-        const matchingTags = uniqueTags.filter(tag => 
-          tag.toLowerCase().includes(searchValue.toLowerCase())
-        ).slice(0, 5);
-        console.log('✅ Matching tags found:', matchingTags.length);
-        setSupabaseTags(matchingTags);
-      } catch (error) {
-        console.error('❌ Error fetching tags:', error);
-        catchError(error, { context: 'fetch_tags', query: searchValue });
-        setSupabaseTags([]);
-      }
+      // 🚀 Use cached locations instead of fetching 3 times
+      if (allLocationsCache.length > 0) {
+        try {
+          // Extract and filter tags from cache
+          const allTags = allLocationsCache.flatMap(loc => loc.tags || []);
+          const uniqueTags = Array.from(new Set(allTags));
+          const matchingTags = uniqueTags.filter(tag => 
+            tag.toLowerCase().includes(searchValue.toLowerCase())
+          ).slice(0, 5);
+          console.log('✅ Matching tags found:', matchingTags.length);
+          setSupabaseTags(matchingTags);
 
-      // Fetch Michelin locations
-      try {
-        const { locations } = await trackApiCall('getLocations_michelin', () => api.getLocations());
-        let matchingLocations = locations
-          .filter(loc => 
-            loc.michelinScore > 0 && // Only Michelin-rated locations
-            loc.name.toLowerCase().includes(searchValue.toLowerCase())
-          );
-        
-        // Filter by map bounds if available
-        if (mapBounds) {
-          const ne = mapBounds.getNorthEast();
-          const sw = mapBounds.getSouthWest();
+          // Filter Michelin locations from cache
+          let matchingMichelinLocations = allLocationsCache
+            .filter(loc => 
+              loc.michelinScore > 0 && // Only Michelin-rated locations
+              loc.name.toLowerCase().includes(searchValue.toLowerCase())
+            );
           
-          matchingLocations = matchingLocations.filter(loc => {
-            return loc.lat >= sw.lat() && loc.lat <= ne.lat() &&
-                   loc.lng >= sw.lng() && loc.lng <= ne.lng();
+          // Filter by map bounds if available
+          if (mapBounds) {
+            const ne = mapBounds.getNorthEast();
+            const sw = mapBounds.getSouthWest();
+            
+            matchingMichelinLocations = matchingMichelinLocations.filter(loc => {
+              return loc.lat >= sw.lat() && loc.lat <= ne.lat() &&
+                     loc.lng >= sw.lng() && loc.lng <= ne.lng();
+            });
+            
+            console.log('✅ Matching Michelin locations in map bounds:', matchingMichelinLocations.length);
+          }
+          
+          setMichelinLocations(matchingMichelinLocations.slice(0, 5));
+
+          // Filter Le Voyageur locations from cache
+          let matchingLvLocations = allLocationsCache
+            .filter(loc => 
+              loc.tags?.some(tag => 
+                tag.toLowerCase().includes(searchValue.toLowerCase())
+              )
+            );
+          
+          // Filter by map bounds if available
+          if (mapBounds) {
+            const ne = mapBounds.getNorthEast();
+            const sw = mapBounds.getSouthWest();
+            
+            matchingLvLocations = matchingLvLocations.filter(loc => {
+              return loc.lat >= sw.lat() && loc.lat <= ne.lat() &&
+                     loc.lng >= sw.lng() && loc.lng <= ne.lng();
+            });
+            
+            console.log('✅ Matching Le Voyageur locations in map bounds:', matchingLvLocations.length);
+          }
+          
+          // Sort by LV Editor Score in descending order (highest score first)
+          matchingLvLocations.sort((a, b) => {
+            const scoreA = a.lvEditorScore || 0;
+            const scoreB = b.lvEditorScore || 0;
+            return scoreB - scoreA;
           });
           
-          console.log('✅ Matching Michelin locations in map bounds:', matchingLocations.length);
+          setLvLocations(matchingLvLocations.slice(0, 5));
+        } catch (error) {
+          console.error('❌ Error filtering locations from cache:', error);
+          catchError(error, { context: 'filter_cached_locations', query: searchValue });
+          setSupabaseTags([]);
+          setMichelinLocations([]);
+          setLvLocations([]);
         }
-        
-        setMichelinLocations(matchingLocations.slice(0, 5));
-        console.log('✅ Matching Michelin locations found:', matchingLocations.length);
-      } catch (error) {
-        console.error('❌ Error fetching Michelin locations:', error);
-        setMichelinLocations([]);
-      }
-
-      // Fetch Le Voyageur locations
-      try {
-        const { locations } = await api.getLocations();
-        let matchingLocations = locations
-          .filter(loc => 
-            loc.tags?.some(tag => 
-              tag.toLowerCase().includes(searchValue.toLowerCase())
-            )
-          );
-        
-        // Filter by map bounds if available
-        if (mapBounds) {
-          const ne = mapBounds.getNorthEast();
-          const sw = mapBounds.getSouthWest();
-          
-          matchingLocations = matchingLocations.filter(loc => {
-            return loc.lat >= sw.lat() && loc.lat <= ne.lat() &&
-                   loc.lng >= sw.lng() && loc.lng <= ne.lng();
-          });
-          
-          console.log('✅ Matching Le Voyageur locations in map bounds:', matchingLocations.length);
-        }
-        
-        // Sort by LV Editor Score in descending order (highest score first)
-        matchingLocations.sort((a, b) => {
-          const scoreA = a.lvEditorScore || 0;
-          const scoreB = b.lvEditorScore || 0;
-          return scoreB - scoreA;
-        });
-        
-        setLvLocations(matchingLocations.slice(0, 5));
-        console.log('✅ Matching Le Voyageur locations found:', matchingLocations.length);
-      } catch (error) {
-        console.error('❌ Error fetching Le Voyageur locations:', error);
-        setLvLocations([]);
       }
 
       // Fetch Google Places using Text Search (for queries like "tacos")
@@ -383,7 +408,7 @@ export function SearchAutocomplete({ onPlaceSelect, onTagSelect, onClear, mapBou
       setShowDropdown(true);
     }, 300);
     return () => clearTimeout(timeoutId);
-  }, [searchValue, places, mapBounds, justSelected]);
+  }, [searchValue, places, boundsRef.current, justSelected, allLocationsCache.length]);
 
   // Handle click outside to close dropdown
   useEffect(() => {

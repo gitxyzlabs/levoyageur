@@ -56,6 +56,9 @@ class MonitoringStore {
   private readonly MAX_ERRORS = 100;
   private readonly MAX_ACTIONS = 200;
   private readonly STORAGE_KEY_PREFIX = 'lv_monitor_';
+  
+  // 🛡️ Recursion guard to prevent infinite loops
+  private isLoggingError = false;
 
   constructor() {
     // Only initialize if we're in a browser environment
@@ -159,18 +162,33 @@ class MonitoringStore {
       });
     });
 
-    // Catch console errors
+    // Catch console errors (but not from monitoring system itself)
     const originalConsoleError = console.error;
     console.error = (...args: any[]) => {
-      this.logError({
-        timestamp: Date.now(),
-        type: 'error',
-        message: args.map(arg => 
-          typeof arg === 'object' ? JSON.stringify(arg) : String(arg)
-        ).join(' '),
-        url: window.location.href,
-        userAgent: navigator.userAgent,
-      });
+      // 🛡️ Don't intercept errors from the monitoring system itself
+      if (!this.isLoggingError) {
+        try {
+          // Safely stringify arguments
+          const message = args.map(arg => {
+            try {
+              return typeof arg === 'object' ? JSON.stringify(arg) : String(arg);
+            } catch {
+              return '[Object with circular reference]';
+            }
+          }).join(' ');
+          
+          this.logError({
+            timestamp: Date.now(),
+            type: 'error',
+            message,
+            url: window.location.href,
+            userAgent: navigator.userAgent,
+          });
+        } catch (err) {
+          // If logging fails, just call original console.error
+          originalConsoleError.call(console, '⚠️ Failed to log error to monitoring system:', err);
+        }
+      }
       originalConsoleError.apply(console, args);
     };
   }
@@ -264,29 +282,45 @@ class MonitoringStore {
   public logError(error: ErrorLog) {
     if (typeof window === 'undefined') return;
     
-    this.errorLogs.push(error);
-
-    // Keep only recent errors
-    if (this.errorLogs.length > this.MAX_ERRORS) {
-      this.errorLogs.shift();
+    // 🛡️ Prevent infinite recursion
+    if (this.isLoggingError) {
+      return;
     }
+    
+    this.isLoggingError = true;
+    
+    try {
+      this.errorLogs.push(error);
 
-    // Log to console with full details
-    console.error('🔴 [ERROR] ========================================');
-    console.error(`Type: ${error.type}`);
-    console.error(`Component: ${error.component || 'unknown'}`);
-    console.error(`Time: ${new Date(error.timestamp).toISOString()}`);
-    console.error(`User: ${error.userId || 'anonymous'}`);
-    console.error(`Message: ${error.message}`);
-    if (error.stack) {
-      console.error(`Stack:\n${error.stack}`);
-    }
-    if (error.metadata) {
-      console.error(`Metadata:`, error.metadata);
-    }
-    console.error('===============================================');
+      // Keep only recent errors
+      if (this.errorLogs.length > this.MAX_ERRORS) {
+        this.errorLogs.shift();
+      }
 
-    this.saveToStorage();
+      // Log to console with full details (safely)
+      console.error('🔴 [ERROR] ========================================');
+      console.error(`Type: ${error.type}`);
+      console.error(`Component: ${error.component || 'unknown'}`);
+      console.error(`Time: ${new Date(error.timestamp).toISOString()}`);
+      console.error(`User: ${error.userId || 'anonymous'}`);
+      console.error(`Message: ${error.message}`);
+      if (error.stack) {
+        console.error(`Stack:\n${error.stack}`);
+      }
+      if (error.metadata) {
+        try {
+          // Safely log metadata (might have circular refs)
+          console.error(`Metadata:`, error.metadata);
+        } catch {
+          console.error(`Metadata: [Unable to display - circular reference]`);
+        }
+      }
+      console.error('===============================================');
+
+      this.saveToStorage();
+    } finally {
+      this.isLoggingError = false;
+    }
   }
 
   public logUserAction(action: UserAction) {
