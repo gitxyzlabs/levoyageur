@@ -146,11 +146,23 @@ export default function App() {
     // 📊 Track app initialization
     trackAction('app_initialized');
     
-    initializeApp();
-    checkExistingSession(); // Check for existing session on mount
+    // Initialize the app and auth
+    const init = async () => {
+      // First, initialize the app (load API key and locations)
+      initializeApp();
+      
+      // Restore map state after OAuth redirect
+      restoreMapStateAfterLogin();
+      
+      // Wait a moment for Supabase to parse the URL hash after OAuth redirect
+      // This ensures the session is available when we check
+      await new Promise(resolve => setTimeout(resolve, 100));
+      
+      // Now check for existing session
+      await checkExistingSession();
+    };
     
-    // Restore map state after OAuth redirect
-    restoreMapStateAfterLogin();
+    init();
     
     // 🎹 Keyboard shortcut for monitoring dashboard (Ctrl+Shift+M)
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -164,7 +176,7 @@ export default function App() {
     
     // Listen for auth state changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-      console.log('Auth state changed:', event, session);
+      console.log('🔐 Auth state changed:', event);
       console.log('🔍 Session details:', {
         hasSession: !!session,
         hasUser: !!session?.user,
@@ -248,44 +260,29 @@ export default function App() {
         hasSession: !!session,
         hasUser: !!session?.user,
         userId: session?.user?.id,
+        email: session?.user?.email,
+        accessToken: session?.access_token?.substring(0, 20) + '...',
       });
       
       if (session?.user) {
-        // User has an active session - load their profile
-        try {
-          const { user: userProfile } = await api.getCurrentUser();
-          setUser(userProfile);
-          console.log('✅ Restored user profile from session:', userProfile);
-          
-          // Load user's favorites and want-to-go lists
-          await loadUserLists();
-          
-          // Load saved location for logged-in user (this will check permission preference)
-          loadSavedLocation(session.user.id);
-        } catch (error: any) {
-          console.error('Failed to fetch user profile on session restore:', error);
-          
-          // Check if it's an AbortError or network issue
-          if (error.name === 'AbortError') {
-            console.warn('⚠️ Request was aborted, using basic session data');
-          }
-          
-          // Fallback to basic user data from session
-          setUser({
-            id: session.user.id,
-            email: session.user.email || '',
-            name: session.user.user_metadata?.name || session.user.email || 'User',
-            role: 'user',
-          });
-          
-          // Still try to load user lists with fallback
-          try {
-            await loadUserLists();
-          } catch (listError) {
-            console.error('Failed to load user lists on fallback:', listError);
-          }
-        }
+        console.log('✅ Session found! User:', session.user.email);
+        
+        // Don't load user profile here - let onAuthStateChange handle it
+        // This avoids race conditions and duplicate API calls
+        // Just update the monitoring with user ID
+        monitor.setUserId(session.user.id);
+        
+        // Set a basic user object temporarily
+        setUser({
+          id: session.user.id,
+          email: session.user.email || '',
+          name: session.user.user_metadata?.name || session.user.email || 'User',
+          role: 'user',
+        });
+        
+        console.log('⏳ Waiting for onAuthStateChange to load full profile...');
       } else {
+        console.log('❌ No session found');
         // No session - only request location if user hasn't explicitly denied it
         const hasExplicitlyDeniedLocation = localStorage.getItem('lv_location_denied') === 'true';
         if (!hasExplicitlyDeniedLocation) {
@@ -298,7 +295,7 @@ export default function App() {
         }
       }
     } catch (error) {
-      console.error('Error checking existing session:', error);
+      console.error('❌ Error checking existing session:', error);
       // Continue app initialization even if session check fails
       const hasExplicitlyDeniedLocation = localStorage.getItem('lv_location_denied') === 'true';
       if (!hasExplicitlyDeniedLocation) {
