@@ -229,6 +229,8 @@ class MonitoringStore {
   }
 
   public logPerformance(metric: PerformanceMetric) {
+    if (typeof window === 'undefined') return;
+    
     this.performanceMetrics.push(metric);
 
     // Keep only recent metrics
@@ -260,6 +262,8 @@ class MonitoringStore {
   }
 
   public logError(error: ErrorLog) {
+    if (typeof window === 'undefined') return;
+    
     this.errorLogs.push(error);
 
     // Keep only recent errors
@@ -286,6 +290,8 @@ class MonitoringStore {
   }
 
   public logUserAction(action: UserAction) {
+    if (typeof window === 'undefined') return;
+    
     this.userActions.push(action);
 
     // Keep only recent actions
@@ -442,6 +448,11 @@ export async function trackApiCall<T>(
   fn: () => Promise<T>,
   metadata?: Record<string, any>
 ): Promise<T> {
+  if (typeof window === 'undefined' || typeof performance === 'undefined') {
+    // In non-browser environment, just execute the function
+    return await fn();
+  }
+  
   const startTime = performance.now();
   let error: string | undefined;
   let status: number | undefined;
@@ -472,10 +483,16 @@ export async function trackApiCall<T>(
  * Track a user interaction
  */
 export function trackInteraction(name: string, metadata?: Record<string, any>) {
+  if (typeof window === 'undefined' || typeof performance === 'undefined') {
+    return () => {}; // Return no-op function
+  }
+  
   const startTime = performance.now();
   
   // Return a function to call when interaction completes
   return () => {
+    if (typeof performance === 'undefined') return;
+    
     const duration = performance.now() - startTime;
     monitor.logPerformance({
       type: 'interaction',
@@ -491,6 +508,8 @@ export function trackInteraction(name: string, metadata?: Record<string, any>) {
  * Track a user action
  */
 export function trackAction(action: string, component?: string, metadata?: Record<string, any>) {
+  if (typeof window === 'undefined') return;
+  
   monitor.logUserAction({
     timestamp: Date.now(),
     action,
@@ -503,6 +522,8 @@ export function trackAction(action: string, component?: string, metadata?: Recor
  * Track component performance
  */
 export function trackComponentRender(componentName: string, duration: number, metadata?: Record<string, any>) {
+  if (typeof window === 'undefined') return;
+  
   monitor.logPerformance({
     type: 'component',
     name: componentName,

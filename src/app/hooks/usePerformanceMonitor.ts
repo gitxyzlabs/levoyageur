@@ -22,10 +22,12 @@ export function usePerformanceMonitor(
   options?: { logEveryRender?: boolean; warnThreshold?: number }
 ) {
   const renderCount = useRef(0);
-  const lastRenderTime = useRef(performance.now());
+  const lastRenderTime = useRef(typeof performance !== 'undefined' ? performance.now() : Date.now());
   const { logEveryRender = false, warnThreshold = 50 } = options || {};
 
   useEffect(() => {
+    if (typeof performance === 'undefined') return;
+    
     const renderTime = performance.now();
     const renderDuration = renderTime - lastRenderTime.current;
     renderCount.current++;
