@@ -248,15 +248,32 @@ app.get('/make-server-48182530/locations', async (c) => {
   try {
     const supabase = getSupabaseAdmin();
     
-    // ✅ Fetch ALL locations from the unified locations table
-    // All Michelin data is already in the locations table after backfill
+    // Get query parameters for filtering
+    const bounds = c.req.query('bounds'); // Optional: "minLat,minLng,maxLat,maxLng"
+    const limit = parseInt(c.req.query('limit') || '1000');
+    
+    let query = supabase
+      .from('locations')
+      .select('*');
+    
+    // If bounds provided, filter by geographic bounds for map viewport
+    if (bounds) {
+      const [minLat, minLng, maxLat, maxLng] = bounds.split(',').map(Number);
+      if (!isNaN(minLat) && !isNaN(minLng) && !isNaN(maxLat) && !isNaN(maxLng)) {
+        query = query
+          .gte('lat', minLat)
+          .lte('lat', maxLat)
+          .gte('lng', minLng)
+          .lte('lng', maxLng);
+        console.log(`📍 Filtering by bounds: lat[${minLat},${maxLat}] lng[${minLng},${maxLng}]`);
+      }
+    }
+    
+    // Fetch locations with limit
     const { data: locations, error } = await trackDatabaseOperation(
       'SELECT',
       'locations',
-      () => supabase
-        .from('locations')
-        .select('*')
-        .limit(50000) // Very high limit to ensure we get all locations
+      () => query.limit(limit)
     );
 
     if (error) {
@@ -266,77 +283,69 @@ app.get('/make-server-48182530/locations', async (c) => {
 
     console.log('📍 GET /locations - Found locations:', locations?.length || 0);
     
-    // Get favorites count for each location
-    const { data: favoriteCounts, error: favCountError } = await trackDatabaseOperation(
-      'SELECT',
-      'favorites',
-      () => supabase
-        .from('favorites')
-        .select('location_id')
-    );
+    // Extract location IDs for efficient counting
+    const locationIds = locations?.map(loc => loc.id) || [];
     
-    if (favCountError) {
-      console.error('❌ Error fetching favorite counts:', favCountError);
-    }
-    
-    // Create a map of location_id to favorites count
+    // Initialize count maps
     const favCountMap = new Map<string, number>();
-    favoriteCounts?.forEach(fav => {
-      const count = favCountMap.get(fav.location_id) || 0;
-      favCountMap.set(fav.location_id, count + 1);
-    });
+    const wtgCountMap = new Map<string, number>();
     
-    // Get want-to-go count for each location
-    const { data: wantToGoCounts, error: wtgCountError } = await supabase
-      .from('want_to_go')
-      .select('location_id');
-    
-    if (wtgCountError) {
-      console.error('❌ Error fetching want-to-go counts:', wtgCountError);
+    // Only query counts if we have locations (avoid Bad Request from empty .in() query)
+    if (locationIds.length > 0) {
+      // Optimize: Only query favorites/want-to-go for the locations we're returning
+      try {
+        const { data: favoriteCounts, error: favCountError } = await trackDatabaseOperation(
+          'SELECT',
+          'favorites',
+          () => supabase
+            .from('favorites')
+            .select('location_id')
+            .in('location_id', locationIds)
+        );
+        
+        if (favCountError) {
+          console.error('❌ Error fetching favorite counts:', JSON.stringify(favCountError, null, 2));
+          console.log('Note: Run SUPABASE_MIGRATION.sql if favorites table does not exist');
+        } else {
+          // Create a map of location_id to favorites count
+          favoriteCounts?.forEach(fav => {
+            const count = favCountMap.get(fav.location_id) || 0;
+            favCountMap.set(fav.location_id, count + 1);
+          });
+        }
+      } catch (e) {
+        console.error('❌ Exception querying favorites:', JSON.stringify(e, null, 2));
+      }
+      
+      // Optimize: Only query want-to-go for the locations we're returning
+      try {
+        const { data: wantToGoCounts, error: wtgCountError } = await supabase
+          .from('want_to_go')
+          .select('location_id')
+          .in('location_id', locationIds);
+        
+        if (wtgCountError) {
+          console.error('❌ Error fetching want-to-go counts:', JSON.stringify(wtgCountError, null, 2));
+          console.log('Note: Run SUPABASE_MIGRATION.sql if want_to_go table does not exist');
+        } else {
+          // Create a map of location_id to want-to-go count
+          wantToGoCounts?.forEach(wtg => {
+            const count = wtgCountMap.get(wtg.location_id) || 0;
+            wtgCountMap.set(wtg.location_id, count + 1);
+          });
+        }
+      } catch (e) {
+        console.error('❌ Exception querying want_to_go:', JSON.stringify(e, null, 2));
+      }
     }
     
-    // Create a map of location_id to want-to-go count
-    const wtgCountMap = new Map<string, number>();
-    wantToGoCounts?.forEach(wtg => {
-      const count = wtgCountMap.get(wtg.location_id) || 0;
-      wtgCountMap.set(wtg.location_id, count + 1);
-    });
-    
-    console.log('📊 Favorites count map:', Object.fromEntries(favCountMap));
-    console.log('📊 Want-to-go count map:', Object.fromEntries(wtgCountMap));
+    console.log('📊 Favorites count map entries:', favCountMap.size);
+    console.log('📊 Want-to-go count map entries:', wtgCountMap.size);
     
     // Convert database format to API format using helper
     const formattedLocations = locations?.map(loc => 
       formatLocationForAPI(loc as LocationRow, favCountMap.get(loc.id), wtgCountMap.get(loc.id))
     ) || [];
-    
-    // 🐛 DEBUG: Check if Elcielo is in the response
-    const elcieloFormatted = formattedLocations.find(loc => loc.name?.toLowerCase().includes('elcielo'));
-    if (elcieloFormatted) {
-      console.log('🐛 DEBUG: Elcielo formatted for API response:', {
-        id: elcieloFormatted.id,
-        name: elcieloFormatted.name,
-        lvEditorScore: elcieloFormatted.lvEditorScore,
-        lvEditorsScore: elcieloFormatted.lvEditorsScore,
-        michelinStars: elcieloFormatted.michelinStars,
-        googlePlaceId: elcieloFormatted.googlePlaceId,
-      });
-    } else {
-      console.log('🐛 DEBUG: Elcielo NOT FOUND in formatted locations');
-      
-      // Check if it's in the raw DB data
-      const elcieloRaw = locations?.find(loc => loc.name?.toLowerCase().includes('elcielo'));
-      if (elcieloRaw) {
-        console.log('🐛 DEBUG: Elcielo FOUND in raw DB data:', {
-          id: elcieloRaw.id,
-          name: elcieloRaw.name,
-          lv_editor_score: elcieloRaw.lv_editor_score,
-          michelin_stars: elcieloRaw.michelin_stars,
-        });
-      } else {
-        console.log('🐛 DEBUG: Elcielo NOT in raw DB data - may be beyond limit or not in database');
-      }
-    }
     
     return c.json({ locations: formattedLocations });
   } catch (error) {
@@ -367,37 +376,57 @@ app.get('/make-server-48182530/locations/tag/:tag', async (c) => {
     
     console.log('📍 GET /locations/tag - Found locations:', locations?.length || 0);
     
-    // Get favorites count for each location
-    const { data: favoriteCounts, error: favCountError } = await supabase
-      .from('favorites')
-      .select('location_id');
+    // Extract location IDs for efficient counting
+    const locationIds = locations?.map(loc => loc.id) || [];
     
-    if (favCountError) {
-      console.error('❌ Error fetching favorite counts:', favCountError);
-    }
-    
-    // Create a map of location_id to favorites count
+    // Initialize count maps
     const favCountMap = new Map<string, number>();
-    favoriteCounts?.forEach(fav => {
-      const count = favCountMap.get(fav.location_id) || 0;
-      favCountMap.set(fav.location_id, count + 1);
-    });
-    
-    // Get want-to-go count for each location
-    const { data: wantToGoCounts, error: wtgCountError } = await supabase
-      .from('want_to_go')
-      .select('location_id');
-    
-    if (wtgCountError) {
-      console.error('❌ Error fetching want-to-go counts:', wtgCountError);
-    }
-    
-    // Create a map of location_id to want-to-go count
     const wtgCountMap = new Map<string, number>();
-    wantToGoCounts?.forEach(wtg => {
-      const count = wtgCountMap.get(wtg.location_id) || 0;
-      wtgCountMap.set(wtg.location_id, count + 1);
-    });
+    
+    // Only query counts if we have locations
+    if (locationIds.length > 0) {
+      try {
+        // Get favorites count for each location
+        const { data: favoriteCounts, error: favCountError } = await supabase
+          .from('favorites')
+          .select('location_id')
+          .in('location_id', locationIds);
+        
+        if (favCountError) {
+          console.error('❌ Error fetching favorite counts:', JSON.stringify(favCountError, null, 2));
+          console.log('Note: Run SUPABASE_MIGRATION.sql if favorites table does not exist');
+        } else {
+          // Create a map of location_id to favorites count
+          favoriteCounts?.forEach(fav => {
+            const count = favCountMap.get(fav.location_id) || 0;
+            favCountMap.set(fav.location_id, count + 1);
+          });
+        }
+      } catch (e) {
+        console.error('❌ Exception querying favorites:', JSON.stringify(e, null, 2));
+      }
+      
+      try {
+        // Get want-to-go count for each location
+        const { data: wantToGoCounts, error: wtgCountError } = await supabase
+          .from('want_to_go')
+          .select('location_id')
+          .in('location_id', locationIds);
+        
+        if (wtgCountError) {
+          console.error('❌ Error fetching want-to-go counts:', JSON.stringify(wtgCountError, null, 2));
+          console.log('Note: Run SUPABASE_MIGRATION.sql if want_to_go table does not exist');
+        } else {
+          // Create a map of location_id to want-to-go count
+          wantToGoCounts?.forEach(wtg => {
+            const count = wtgCountMap.get(wtg.location_id) || 0;
+            wtgCountMap.set(wtg.location_id, count + 1);
+          });
+        }
+      } catch (e) {
+        console.error('❌ Exception querying want_to_go:', JSON.stringify(e, null, 2));
+      }
+    }
     
     // Convert database format to API format using helper
     const formattedLocations = locations?.map(loc => 

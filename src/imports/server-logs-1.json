@@ -1,0 +1,802 @@
+[
+  {
+    "event_message": "🟢 [PERF] GET /make-server-48182530/locations - 1112.37ms - 200\n",
+    "event_type": "Log",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "568b1074-1f44-4704-92c9-aee96ae244cf",
+    "level": "info",
+    "timestamp": 1772788307024000
+  },
+  {
+    "event_message": "📍 [REQUEST END] GET /make-server-48182530/locations - 1112.37ms - 200\n",
+    "event_type": "Log",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "3869576b-1b03-44d8-9dc1-3998e744e0e0",
+    "level": "info",
+    "timestamp": 1772788307024000
+  },
+  {
+    "event_message": "--> GET /make-server-48182530/locations 200 1s\n",
+    "event_type": "Log",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "0742881d-183c-4fc8-b8f1-1e6bc44cfffa",
+    "level": "info",
+    "timestamp": 1772788307023000
+  },
+  {
+    "event_message": "🐛 DEBUG: Elcielo NOT FOUND in formatted locations\n",
+    "event_type": "Log",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "95cd617e-33ae-4bfc-b6da-dd088c92d30c",
+    "level": "info",
+    "timestamp": 1772788307015000
+  },
+  {
+    "event_message": "🐛 DEBUG: Elcielo NOT in raw DB data - may be beyond limit or not in database\n",
+    "event_type": "Log",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "0cda9c7e-5c8b-4235-82eb-8e5dc218ddd5",
+    "level": "info",
+    "timestamp": 1772788307015000
+  },
+  {
+    "event_message": "📊 Want-to-go count map: {\n  \"5e543557-80b3-41c7-86c9-0caa43b1457e\": 1,\n  \"49f4f97e-d2f0-414f-a233-f1a77680d70f\": 1,\n  \"118b25a6-0511-4cb0-a192-a758fb198481\": 1,\n  \"2bb0a7e4-1495-46dd-91e4-d4fb99e213c9\": 1,\n  \"3f524f46-20ad-4b2b-b8e5-640062798dcf\": 1,\n  \"fb087ee3-4802-47a5-8306-ebbc3af53625\": 1,\n  \"43e238da-66e8-4822-931a-55e6c06b148b\": 1,\n  \"6699c62f-ef8e-4f98-a9a6-f73f73a706f2\": 1,\n  \"0ad76461-33a4-45b3-b304-11c6dfbedd08\": 1,\n  \"8c8f6db0-c1f7-4133-8a9f-4099f25e2aca\": 1,\n  \"d556d49d-0e22-4b46-92b6-917451110838\": 1,\n  \"e2e4b100-2271-4cee-847c-6baa32c34f54\": 1,\n  \"7d7ccf15-2e10-4d32-8598-67558817c8c2\": 1,\n  \"52a25c9a-241e-48a4-a212-00cc2c99dc8b\": 1,\n  \"73da69b3-d90a-4969-90d8-3b4583727750\": 1,\n  \"742a73a9-ef20-49f2-b24a-ec76a32df723\": 1,\n  \"c47d2d00-64c3-4e69-a52a-a9b7b5aff66f\": 1,\n  \"3860b0e0-b54e-4bb1-b877-59e7fb5a99c2\": 1,\n  \"823d4696-e53b-4627-9dc7-f53f1fcf2c87\": 1,\n  \"492fa1b5-9796-4b45-8c7d-21f9ff86520c\": 1,\n  \"5734354e-de36-481a-a3f3-c9d58dc5d2fa\": 1,\n  \"bc420dc4-5380-4272-a129-2b5b98fa3e82\": 1,\n  \"90c1092a-6f01-4c48-817b-084f9d78b776\": 1,\n  \"900b5287-9d1c-4ebe-9bd7-5c81b825327b\": 1,\n  \"ca540185-e9ce-48ed-9b32-db69fcd334f3\": 1,\n  \"a548b080-12b8-42c0-9da6-c61025fa1e40\": 1,\n  \"bce2c83f-0c65-4105-9ea5-1a4114ffd95c\": 1,\n  \"3ff494cf-2c69-4693-8164-ba3680462316\": 1,\n  \"cf50a927-bb64-4547-a277-4fca0242917d\": 1,\n  \"86bf631c-5d5e-4fd3-b4f8-aa14a30dc5b5\": 1,\n  \"6eeca2bf-2682-47eb-901e-ee2fe4b72195\": 1,\n  \"e5fd83bc-bdab-4f93-805d-f2db6d5cc5e6\": 1,\n  \"bfa03fc0-e08d-4b76-8c43-9257e64cfe9e\": 1,\n  \"6276ab3f-73f5-48c4-abf1-d51bfc387051\": 1,\n  \"f4adf64f-3391-45dc-91ae-f25c19fb0e38\": 1\n}\n",
+    "event_type": "Log",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "75a9aa06-bb56-408f-9242-f2fa3da9be7d",
+    "level": "info",
+    "timestamp": 1772788307013000
+  },
+  {
+    "event_message": "📊 Favorites count map: {\n  \"adaf2567-604f-4268-b6d6-29c0ab6d1bd2\": 1,\n  \"197a860a-7410-44ba-b44a-97deceabe828\": 1,\n  \"68c6ab48-a0b8-457a-b20c-d6cc6fa1fde1\": 1,\n  \"c20eafc2-9565-4c20-aa18-0488931d0ae6\": 1,\n  \"5e543557-80b3-41c7-86c9-0caa43b1457e\": 1,\n  \"5dca6990-a0cf-40ed-98d3-02ff1388f479\": 1,\n  \"731d3143-a874-4655-931b-e43f8d025867\": 2,\n  \"2bb0a7e4-1495-46dd-91e4-d4fb99e213c9\": 1,\n  \"17c87f68-7b85-49b2-99ad-f763611a4c69\": 1,\n  \"a9ebc3e3-f9a1-4e37-a82a-2c6412eca9fd\": 1,\n  \"f126e9ae-9042-4541-95f6-45838062849c\": 1,\n  \"258189e0-d250-41c3-912b-32cf376d6512\": 1,\n  \"5a690aef-038b-4064-af01-c22fdebab182\": 1,\n  \"3983b714-5692-40cd-8d7d-6d124d4215cf\": 1,\n  \"15c0faee-5e7e-4907-b03d-7b72a87d6b45\": 1,\n  \"6546d5cd-f573-43a0-9c99-ac7d5e6e3373\": 1,\n  \"8c9ec0cd-caa3-4910-b3b7-98d7d226badf\": 1,\n  \"d6a3d518-de5d-4675-b38b-12f9be1fb740\": 1,\n  \"99ccd0ac-6ed8-4016-bc15-f488f0f4fb3a\": 1,\n  \"d4270bfa-1521-4dfd-af60-66c6f518eba8\": 1\n}\n",
+    "event_type": "Log",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "9c2ae24d-8e9e-44f7-ae97-f795c3f9260e",
+    "level": "info",
+    "timestamp": 1772788307012000
+  },
+  {
+    "event_message": "⚠️ [DB SLOW] SELECT on favorites took 176.78ms\n",
+    "event_type": "Log",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "b24d83fb-937b-44b6-8bc1-967340dfbc97",
+    "level": "warning",
+    "timestamp": 1772788306864000
+  },
+  {
+    "event_message": "📍 GET /locations - Found locations: 1000\n",
+    "event_type": "Log",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "5553e90b-9807-43cc-8ec2-3875e96bf3da",
+    "level": "info",
+    "timestamp": 1772788306687000
+  },
+  {
+    "event_message": "⚠️ [DB SLOW] SELECT on locations took 769.52ms\n",
+    "event_type": "Log",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "4965e111-01d7-4eee-8ed8-bd0cb348df5a",
+    "level": "warning",
+    "timestamp": 1772788306687000
+  },
+  {
+    "event_message": "📍 GET /locations - Start\n",
+    "event_type": "Log",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "c302fe2e-8303-433d-8e59-45c3645b9c4e",
+    "level": "info",
+    "timestamp": 1772788305913000
+  },
+  {
+    "event_message": "📍 [REQUEST START] GET /make-server-48182530/locations - User: anonymous\n",
+    "event_type": "Log",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "060d19c0-fc8e-484d-8f56-487fd58ddbbe",
+    "level": "info",
+    "timestamp": 1772788305911000
+  },
+  {
+    "event_message": "<-- GET /make-server-48182530/locations\n",
+    "event_type": "Log",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "268bb6aa-0e51-4986-8c32-8cfdbf9601b7",
+    "level": "info",
+    "timestamp": 1772788305911000
+  },
+  {
+    "event_message": "🚀 Server starting...\n",
+    "event_type": "Log",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "4c0833b5-81d4-4a17-a792-e6149d3f4db6",
+    "level": "info",
+    "timestamp": 1772788305902000
+  },
+  {
+    "event_message": "✅ Server is listening\n",
+    "event_type": "Log",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "c8080069-5ea0-4dbc-af65-40b6cc367137",
+    "level": "info",
+    "timestamp": 1772788305902000
+  },
+  {
+    "event_message": "booted (time: 73ms)",
+    "event_type": "Boot",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "88d4a0b6-8e64-41d1-8a3b-6d6bbd6b1d9b",
+    "level": "log",
+    "timestamp": 1772788305862000
+  },
+  {
+    "event_message": "--> OPTIONS /make-server-48182530/locations 204 1ms\n",
+    "event_type": "Log",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "20669082-106a-46c7-b82b-05a346fbe322",
+    "level": "info",
+    "timestamp": 1772788305471000
+  },
+  {
+    "event_message": "📍 [REQUEST END] OPTIONS /make-server-48182530/locations - 2.05ms - 204\n",
+    "event_type": "Log",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "9388581b-b3dc-4e12-a0b0-1fb256ca9581",
+    "level": "info",
+    "timestamp": 1772788305471000
+  },
+  {
+    "event_message": "🟢 [PERF] OPTIONS /make-server-48182530/locations - 2.05ms - 204\n",
+    "event_type": "Log",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "cb0c3583-6e7a-4327-9132-9560d707fbf2",
+    "level": "info",
+    "timestamp": 1772788305471000
+  },
+  {
+    "event_message": "<-- OPTIONS /make-server-48182530/locations\n",
+    "event_type": "Log",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "c10eb0b6-c367-40a9-be8f-fbbe1398f3d0",
+    "level": "info",
+    "timestamp": 1772788305469000
+  },
+  {
+    "event_message": "📍 [REQUEST START] OPTIONS /make-server-48182530/locations - User: anonymous\n",
+    "event_type": "Log",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "238f5ed7-3339-40ab-b68a-74b15dc76fb2",
+    "level": "info",
+    "timestamp": 1772788305469000
+  },
+  {
+    "event_message": "✅ Server is listening\n",
+    "event_type": "Log",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "55d0323b-e1d4-4582-95bc-712e3ff893f4",
+    "level": "info",
+    "timestamp": 1772788305462000
+  },
+  {
+    "event_message": "🚀 Server starting...\n",
+    "event_type": "Log",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "921c8dc0-1200-4e00-909c-bcc350295ab1",
+    "level": "info",
+    "timestamp": 1772788305462000
+  },
+  {
+    "event_message": "booted (time: 44ms)",
+    "event_type": "Boot",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "1be104aa-39e3-4e71-a4a2-d2e52858d87d",
+    "level": "log",
+    "timestamp": 1772788305437000
+  },
+  {
+    "event_message": "🟢 [PERF] PUT /make-server-48182530/locations/ChIJZ_tC5FLTD4gRhNEB1u2CKgc/rating - 1397.78ms - 200\n",
+    "event_type": "Log",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "23009230-4b06-49b9-b457-6f13c9b5c7c0",
+    "level": "info",
+    "timestamp": 1772788305217000
+  },
+  {
+    "event_message": "📍 [REQUEST END] PUT /make-server-48182530/locations/ChIJZ_tC5FLTD4gRhNEB1u2CKgc/rating - 1397.78ms - 200\n",
+    "event_type": "Log",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "a02ddbb1-30af-45a2-ad1c-d0cb8cbaa321",
+    "level": "info",
+    "timestamp": 1772788305217000
+  },
+  {
+    "event_message": "--> PUT /make-server-48182530/locations/ChIJZ_tC5FLTD4gRhNEB1u2CKgc/rating 200 1s\n",
+    "event_type": "Log",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "94c58452-b107-4f23-8bc3-d938ea4ea471",
+    "level": "info",
+    "timestamp": 1772788305217000
+  },
+  {
+    "event_message": "�� Location created and rating added: d6a80b8f-cc64-4660-bf64-f3943e0ce4d5\n",
+    "event_type": "Log",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "02cf8745-88d8-49db-9bc3-83f15c10f085",
+    "level": "info",
+    "timestamp": 1772788305216000
+  },
+  {
+    "event_message": "📍 Attempting to create location with data: {\n  google_place_id: \"ChIJZ_tC5FLTD4gRhNEB1u2CKgc\",\n  name: \"Flaco's Tacos\",\n  address: \"46 E Chicago Ave, Chicago, IL 60611, USA\",\n  lat: 41.896918299999996,\n  lng: -87.6264198,\n  google_rating: 4.2,\n  lv_editor_score: 5.4,\n  tags: [ \"mexican\", \"tacos\" ],\n  michelin_id: null,\n  created_by_user_id: \"c5a7bcab-894a-4349-b71b-d5bd43fc0374\",\n  updated_by_user_id: \"c5a7bcab-894a-4349-b71b-d5bd43fc0374\"\n}\n",
+    "event_type": "Log",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "673ee7e0-c9c8-4265-a3de-a6ca5dfa4ebd",
+    "level": "info",
+    "timestamp": 1772788304977000
+  },
+  {
+    "event_message": "📍 michelin_id value: null Type: object\n",
+    "event_type": "Log",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "c2af5b28-a807-49a8-93dc-81635f1e1420",
+    "level": "info",
+    "timestamp": 1772788304977000
+  },
+  {
+    "event_message": "📍 Location not found, creating new location: ChIJZ_tC5FLTD4gRhNEB1u2CKgc\n",
+    "event_type": "Log",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "702c8618-4879-43ca-b7ef-f8b41b694629",
+    "level": "info",
+    "timestamp": 1772788304976000
+  },
+  {
+    "event_message": "📍 Normalized michelinId: null Type: object\n",
+    "event_type": "Log",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "a9592ae8-5ada-4a85-a2b1-a0a5073a16a1",
+    "level": "info",
+    "timestamp": 1772788304723000
+  },
+  {
+    "event_message": "📍 Received michelinId: undefined Type: undefined\n",
+    "event_type": "Log",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "74f456c8-541c-4c0c-8770-8ab8d185ffcd",
+    "level": "info",
+    "timestamp": 1772788304723000
+  },
+  {
+    "event_message": "📍 PUT /locations/:id/rating - Start\n",
+    "event_type": "Log",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "ebac6292-d061-4381-973b-e17933e06daa",
+    "level": "info",
+    "timestamp": 1772788304723000
+  },
+  {
+    "event_message": "✅ Editor role verified from user_metadata table: editor\n",
+    "event_type": "Log",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "40ecfe2c-5429-4977-acc2-e5108ca93888",
+    "level": "info",
+    "timestamp": 1772788304723000
+  },
+  {
+    "event_message": "✅ User verified successfully: c5a7bcab-894a-4349-b71b-d5bd43fc0374\n",
+    "event_type": "Log",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "dfc1bc20-aa82-42be-b20f-bdedfebc46c9",
+    "level": "info",
+    "timestamp": 1772788304125000
+  },
+  {
+    "event_message": "✅ User email: hursab@gmail.com\n",
+    "event_type": "Log",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "144508ed-da89-4b97-9cc5-d6ad52e7aafa",
+    "level": "info",
+    "timestamp": 1772788304125000
+  },
+  {
+    "event_message": "📍 Calling supabase.auth.getUser() with token\n",
+    "event_type": "Log",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "5f607931-7a88-4713-a80a-065389c9620e",
+    "level": "info",
+    "timestamp": 1772788303823000
+  },
+  {
+    "event_message": "📍 Authorization header present: true\n",
+    "event_type": "Log",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "3ab68cb6-cc4b-4bbf-bfa7-3afe219f3f8f",
+    "level": "info",
+    "timestamp": 1772788303821000
+  },
+  {
+    "event_message": "📍 Token extracted (first 20 chars): eyJhbGciOiJFUzI1NiIs\n",
+    "event_type": "Log",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "3b3be5b2-a537-4075-8ae1-59d21880bf0c",
+    "level": "info",
+    "timestamp": 1772788303821000
+  },
+  {
+    "event_message": "📍 verifyAuth middleware called\n",
+    "event_type": "Log",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "8ff12ac9-19fb-4b6d-a0bc-819fd2ccde97",
+    "level": "info",
+    "timestamp": 1772788303820000
+  },
+  {
+    "event_message": "<-- PUT /make-server-48182530/locations/ChIJZ_tC5FLTD4gRhNEB1u2CKgc/rating\n",
+    "event_type": "Log",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "db766164-0408-4c36-88a8-e80f2506c243",
+    "level": "info",
+    "timestamp": 1772788303819000
+  },
+  {
+    "event_message": "📍 [REQUEST START] PUT /make-server-48182530/locations/ChIJZ_tC5FLTD4gRhNEB1u2CKgc/rating - User: anonymous\n",
+    "event_type": "Log",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "333e13a3-8d71-46f4-ad96-ffce2a55e053",
+    "level": "info",
+    "timestamp": 1772788303819000
+  },
+  {
+    "event_message": "✅ Server is listening\n",
+    "event_type": "Log",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "3afb0bf0-e9c3-494e-b19d-ed65f3cae347",
+    "level": "info",
+    "timestamp": 1772788303813000
+  },
+  {
+    "event_message": "🚀 Server starting...\n",
+    "event_type": "Log",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "6f02ac66-95ab-4fa5-a199-a1a898c86a04",
+    "level": "info",
+    "timestamp": 1772788303812000
+  },
+  {
+    "event_message": "booted (time: 48ms)",
+    "event_type": "Boot",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "d8d5a9ec-83e1-4ab0-9aa1-6a5868fb0e53",
+    "level": "log",
+    "timestamp": 1772788303785000
+  },
+  {
+    "event_message": "📍 [REQUEST END] OPTIONS /make-server-48182530/locations/ChIJZ_tC5FLTD4gRhNEB1u2CKgc/rating - 2.21ms - 204\n",
+    "event_type": "Log",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "53c19385-f8ff-4cd0-b6e9-579004107427",
+    "level": "info",
+    "timestamp": 1772788303599000
+  },
+  {
+    "event_message": "🟢 [PERF] OPTIONS /make-server-48182530/locations/ChIJZ_tC5FLTD4gRhNEB1u2CKgc/rating - 2.21ms - 204\n",
+    "event_type": "Log",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "6c96f3be-74ea-4c0a-8153-7f6212e17da7",
+    "level": "info",
+    "timestamp": 1772788303599000
+  },
+  {
+    "event_message": "--> OPTIONS /make-server-48182530/locations/ChIJZ_tC5FLTD4gRhNEB1u2CKgc/rating 204 2ms\n",
+    "event_type": "Log",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "d34e6cb9-29e6-4b13-bed3-090d9bded0e1",
+    "level": "info",
+    "timestamp": 1772788303599000
+  },
+  {
+    "event_message": "📍 [REQUEST START] OPTIONS /make-server-48182530/locations/ChIJZ_tC5FLTD4gRhNEB1u2CKgc/rating - User: anonymous\n",
+    "event_type": "Log",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "30faf030-87cb-4900-a2e6-7d88c609caf0",
+    "level": "info",
+    "timestamp": 1772788303597000
+  },
+  {
+    "event_message": "<-- OPTIONS /make-server-48182530/locations/ChIJZ_tC5FLTD4gRhNEB1u2CKgc/rating\n",
+    "event_type": "Log",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "274b4d6a-4711-402e-ab80-ca436f69c445",
+    "level": "info",
+    "timestamp": 1772788303597000
+  },
+  {
+    "event_message": "✅ Server is listening\n",
+    "event_type": "Log",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "657d2eae-464a-4e93-aab3-b1e3a553299c",
+    "level": "info",
+    "timestamp": 1772788303591000
+  },
+  {
+    "event_message": "🚀 Server starting...\n",
+    "event_type": "Log",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "1cf22332-96cb-43ca-8f75-c957cd337242",
+    "level": "info",
+    "timestamp": 1772788303590000
+  },
+  {
+    "event_message": "booted (time: 42ms)",
+    "event_type": "Boot",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "a9b80cef-319d-48e6-9a81-ac50267b4ef4",
+    "level": "log",
+    "timestamp": 1772788303567000
+  },
+  {
+    "event_message": "🟢 [PERF] GET /make-server-48182530/tags - 120.91ms - 200\n",
+    "event_type": "Log",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "1e50a1fb-491c-4741-9169-48577a20b1d5",
+    "level": "info",
+    "timestamp": 1772788293006000
+  },
+  {
+    "event_message": "📍 [REQUEST END] GET /make-server-48182530/tags - 120.91ms - 200\n",
+    "event_type": "Log",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "5d57926d-1d7b-4781-b449-d252642a2832",
+    "level": "info",
+    "timestamp": 1772788293006000
+  },
+  {
+    "event_message": "--> GET /make-server-48182530/tags 200 121ms\n",
+    "event_type": "Log",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "e5c35f0e-3779-4ee1-a9e5-68c9f624453f",
+    "level": "info",
+    "timestamp": 1772788293006000
+  },
+  {
+    "event_message": "GET /tags - Found unique tags: 31\n",
+    "event_type": "Log",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "5649d82e-d11a-4516-8efa-1b1069eb7c23",
+    "level": "info",
+    "timestamp": 1772788293005000
+  },
+  {
+    "event_message": "📍 GET /tags - Start\n",
+    "event_type": "Log",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "da8ae412-5a7a-408d-af2f-147811a819a5",
+    "level": "info",
+    "timestamp": 1772788292886000
+  },
+  {
+    "event_message": "<-- GET /make-server-48182530/tags\n",
+    "event_type": "Log",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "9aa17aa6-8bb5-4f32-a105-7883430ca746",
+    "level": "info",
+    "timestamp": 1772788292885000
+  },
+  {
+    "event_message": "📍 [REQUEST START] GET /make-server-48182530/tags - User: anonymous\n",
+    "event_type": "Log",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "0707b9cb-73b4-49a8-82a2-f4b76d75ea90",
+    "level": "info",
+    "timestamp": 1772788292885000
+  },
+  {
+    "event_message": "✅ Server is listening\n",
+    "event_type": "Log",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "4f476307-adeb-4bc8-83bc-3502778c8772",
+    "level": "info",
+    "timestamp": 1772788292879000
+  },
+  {
+    "event_message": "🚀 Server starting...\n",
+    "event_type": "Log",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "5b322923-7bac-4cef-ac67-7f39efce7879",
+    "level": "info",
+    "timestamp": 1772788292878000
+  },
+  {
+    "event_message": "booted (time: 34ms)",
+    "event_type": "Boot",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "261f2f25-87a9-4507-a53a-8f8c9d790163",
+    "level": "log",
+    "timestamp": 1772788292852000
+  },
+  {
+    "event_message": "--> OPTIONS /make-server-48182530/tags 204 1ms\n",
+    "event_type": "Log",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "d68f518a-a0a4-4122-b6a8-4340d8adee4f",
+    "level": "info",
+    "timestamp": 1772788292571000
+  },
+  {
+    "event_message": "📍 [REQUEST END] OPTIONS /make-server-48182530/tags - 2.22ms - 204\n",
+    "event_type": "Log",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "0d5d2125-9d7b-4ac9-901e-eb8a17730131",
+    "level": "info",
+    "timestamp": 1772788292571000
+  },
+  {
+    "event_message": "🟢 [PERF] OPTIONS /make-server-48182530/tags - 2.22ms - 204\n",
+    "event_type": "Log",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "0404d195-8315-4414-962c-2c079850ac61",
+    "level": "info",
+    "timestamp": 1772788292571000
+  },
+  {
+    "event_message": "<-- OPTIONS /make-server-48182530/tags\n",
+    "event_type": "Log",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "a02021d8-c785-42e2-ad98-4cfd4acdd187",
+    "level": "info",
+    "timestamp": 1772788292569000
+  },
+  {
+    "event_message": "📍 [REQUEST START] OPTIONS /make-server-48182530/tags - User: anonymous\n",
+    "event_type": "Log",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "677bbdab-8f22-4ca1-baa3-493058460a1b",
+    "level": "info",
+    "timestamp": 1772788292569000
+  },
+  {
+    "event_message": "✅ Server is listening\n",
+    "event_type": "Log",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "8f009519-8760-4963-ba5a-79ac98a2ac49",
+    "level": "info",
+    "timestamp": 1772788292562000
+  },
+  {
+    "event_message": "🚀 Server starting...\n",
+    "event_type": "Log",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "81419206-7cfe-4930-b4df-4ecad781f05b",
+    "level": "info",
+    "timestamp": 1772788292562000
+  },
+  {
+    "event_message": "booted (time: 33ms)",
+    "event_type": "Boot",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "36033801-b981-4fa7-9450-2e7f6970e607",
+    "level": "log",
+    "timestamp": 1772788292538000
+  },
+  {
+    "event_message": "shutdown",
+    "event_type": "Shutdown",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "e8d052cb-7b26-409b-a3cc-4dccfde341af",
+    "level": "log",
+    "timestamp": 1772788291851000
+  },
+  {
+    "event_message": "shutdown",
+    "event_type": "Shutdown",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "c1233037-be88-4d04-9ee6-035d25a60046",
+    "level": "log",
+    "timestamp": 1772788291589000
+  },
+  {
+    "event_message": "📍 [REQUEST END] GET /make-server-48182530/michelin/rating - 363.56ms - 200\n",
+    "event_type": "Log",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "88e85dcf-df56-4d50-8a7f-c2dde7db5e0d",
+    "level": "info",
+    "timestamp": 1772788290388000
+  },
+  {
+    "event_message": "🟢 [PERF] GET /make-server-48182530/michelin/rating - 363.56ms - 200\n",
+    "event_type": "Log",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "6bda9f7b-2c7a-4e4c-bc58-c37fca9163fc",
+    "level": "info",
+    "timestamp": 1772788290388000
+  },
+  {
+    "event_message": "--> GET /make-server-48182530/michelin/rating?lat=41.896918299999996&lng=-87.6264198&name=Flaco%27s+Tacos 200 363ms\n",
+    "event_type": "Log",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "8e9d40d1-bd62-4c58-8147-df8275ffc135",
+    "level": "info",
+    "timestamp": 1772788290388000
+  },
+  {
+    "event_message": "❌ No Michelin restaurant found within range\n",
+    "event_type": "Log",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "841a3dfe-5a0a-4941-8b70-3954dabaa4ff",
+    "level": "info",
+    "timestamp": 1772788290386000
+  },
+  {
+    "event_message": "📊 Searching 1000 Michelin restaurants\n",
+    "event_type": "Log",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "a8827040-fddd-4dd1-bc24-fb17d622d359",
+    "level": "info",
+    "timestamp": 1772788290384000
+  },
+  {
+    "event_message": "🔍 Searching for Michelin rating near (41.896918299999996, -87.6264198) for \"Flaco's Tacos\"\n",
+    "event_type": "Log",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "feb14c5c-0ae1-4320-97de-c18e289fa26d",
+    "level": "info",
+    "timestamp": 1772788290026000
+  },
+  {
+    "event_message": "📍 GET /michelin/rating - Start\n",
+    "event_type": "Log",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "ff2adfd0-ff6e-41b6-9c0d-07cf45c2882d",
+    "level": "info",
+    "timestamp": 1772788290025000
+  },
+  {
+    "event_message": "<-- GET /make-server-48182530/michelin/rating?lat=41.896918299999996&lng=-87.6264198&name=Flaco%27s+Tacos\n",
+    "event_type": "Log",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "d3abeb70-6755-4bb7-b13f-cb0012b03c46",
+    "level": "info",
+    "timestamp": 1772788290024000
+  },
+  {
+    "event_message": "📍 [REQUEST START] GET /make-server-48182530/michelin/rating - User: anonymous\n",
+    "event_type": "Log",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "52243030-c72d-4e9b-ac37-f700fc127c0c",
+    "level": "info",
+    "timestamp": 1772788290024000
+  },
+  {
+    "event_message": "🚀 Server starting...\n",
+    "event_type": "Log",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "39df6b2e-057f-4195-9a6a-eb911c1e142e",
+    "level": "info",
+    "timestamp": 1772788290017000
+  },
+  {
+    "event_message": "✅ Server is listening\n",
+    "event_type": "Log",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "3146a625-215f-4e09-97e4-976c209c3a73",
+    "level": "info",
+    "timestamp": 1772788290017000
+  },
+  {
+    "event_message": "booted (time: 35ms)",
+    "event_type": "Boot",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "1dce0338-0492-4718-9dad-33ade397e34c",
+    "level": "log",
+    "timestamp": 1772788289992000
+  },
+  {
+    "event_message": "📍 [REQUEST END] OPTIONS /make-server-48182530/michelin/rating - 2.94ms - 204\n",
+    "event_type": "Log",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "950405d0-787c-401c-bdcb-a4bb70748a39",
+    "level": "info",
+    "timestamp": 1772788289826000
+  },
+  {
+    "event_message": "🟢 [PERF] OPTIONS /make-server-48182530/michelin/rating - 2.94ms - 204\n",
+    "event_type": "Log",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "556047d8-8cac-4fff-b8e4-019a8097359e",
+    "level": "info",
+    "timestamp": 1772788289826000
+  },
+  {
+    "event_message": "--> OPTIONS /make-server-48182530/michelin/rating?lat=41.896918299999996&lng=-87.6264198&name=Flaco%27s+Tacos 204 2ms\n",
+    "event_type": "Log",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "0ad7eb57-2e4f-4dbc-95b1-79516241705f",
+    "level": "info",
+    "timestamp": 1772788289825000
+  },
+  {
+    "event_message": "<-- OPTIONS /make-server-48182530/michelin/rating?lat=41.896918299999996&lng=-87.6264198&name=Flaco%27s+Tacos\n",
+    "event_type": "Log",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "d161a864-89ec-4b8c-b36c-6f86a59d71dc",
+    "level": "info",
+    "timestamp": 1772788289823000
+  },
+  {
+    "event_message": "📍 [REQUEST START] OPTIONS /make-server-48182530/michelin/rating - User: anonymous\n",
+    "event_type": "Log",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "e3320b23-eaba-4e70-8249-3d4f0d85ec4c",
+    "level": "info",
+    "timestamp": 1772788289823000
+  },
+  {
+    "event_message": "✅ Server is listening\n",
+    "event_type": "Log",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "dcdf4fb5-db6e-4537-b924-8d444d6edb07",
+    "level": "info",
+    "timestamp": 1772788289813000
+  },
+  {
+    "event_message": "🚀 Server starting...\n",
+    "event_type": "Log",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "da2347b3-f309-4d15-a3b9-f0fef47e4755",
+    "level": "info",
+    "timestamp": 1772788289813000
+  },
+  {
+    "event_message": "booted (time: 48ms)",
+    "event_type": "Boot",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "89553df0-2bc8-46f3-a0ed-e002e678b314",
+    "level": "log",
+    "timestamp": 1772788289781000
+  },
+  {
+    "event_message": "shutdown",
+    "event_type": "Shutdown",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "d1e98fb0-c301-4eeb-b1c0-868ba13b017d",
+    "level": "log",
+    "timestamp": 1772788289023000
+  },
+  {
+    "event_message": "shutdown",
+    "event_type": "Shutdown",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "7ee80dd7-acb2-41a3-9cd9-7eedc6e91451",
+    "level": "log",
+    "timestamp": 1772788288732000
+  },
+  {
+    "event_message": "shutdown",
+    "event_type": "Shutdown",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "9a647015-5508-4469-bfe1-d93072b519a3",
+    "level": "log",
+    "timestamp": 1772788288449000
+  },
+  {
+    "event_message": "shutdown",
+    "event_type": "Shutdown",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "f1c61e53-d289-497a-a7b4-68d50a509740",
+    "level": "log",
+    "timestamp": 1772788288245000
+  },
+  {
+    "event_message": "shutdown",
+    "event_type": "Shutdown",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "f379579b-f9f8-4628-a978-7e675b6d8044",
+    "level": "log",
+    "timestamp": 1772788279204000
+  },
+  {
+    "event_message": "shutdown",
+    "event_type": "Shutdown",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "e315b376-1226-4e21-9e28-d9feba66919a",
+    "level": "log",
+    "timestamp": 1772788278964000
+  }
+]

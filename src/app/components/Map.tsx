@@ -7,6 +7,7 @@ import { MobileInfoSheet } from './MobileInfoSheet';
 import { CityInfoWindow } from './CityInfoWindow';
 import { LuxuryMarker } from './LuxuryMarker';
 import { PlaceIdValidationPopup } from './PlaceIdValidationPopup';
+import { HeatMapOverlay } from './HeatMapOverlay';
 import { Locate, Plus, Minus, Filter } from 'lucide-react';
 import { toast } from 'sonner';
 import { AnimatePresence, motion } from 'motion/react';
@@ -968,6 +969,14 @@ export function Map({
             />
           )}
         </div>
+        
+        {/* Heat Map Overlay */}
+        {showHeatMap && heatMapData && heatMapData.length > 0 && (
+          <HeatMapOverlay
+            locations={heatMapData}
+            enabled={showHeatMap}
+          />
+        )}
       </GoogleMap>
       
       {/* Mobile Info Sheet - MOBILE ONLY */}

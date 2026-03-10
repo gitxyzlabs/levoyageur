@@ -1,0 +1,802 @@
+[
+  {
+    "event_message": "🟢 [PERF] GET /make-server-48182530/locations - 643.39ms - 200\n",
+    "event_type": "Log",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "c46f030b-8b60-47d9-b060-208067f9af52",
+    "level": "info",
+    "timestamp": 1773126433987000
+  },
+  {
+    "event_message": "--> GET /make-server-48182530/locations 200 643ms\n",
+    "event_type": "Log",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "fb79031e-7162-4723-976d-8e56fb23eb41",
+    "level": "info",
+    "timestamp": 1773126433987000
+  },
+  {
+    "event_message": "📍 [REQUEST END] GET /make-server-48182530/locations - 643.39ms - 200\n",
+    "event_type": "Log",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "44f2d6ed-1ffd-4294-be4c-ae33284cf337",
+    "level": "info",
+    "timestamp": 1773126433987000
+  },
+  {
+    "event_message": "Note: Run SUPABASE_MIGRATION.sql if want_to_go table does not exist\n",
+    "event_type": "Log",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "1bb70061-e9be-475e-b6ec-b611e2e6c442",
+    "level": "info",
+    "timestamp": 1773126433979000
+  },
+  {
+    "event_message": "📊 Want-to-go count map entries: 0\n",
+    "event_type": "Log",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "00d156ae-ab5a-4278-aa8e-0d6b223690bd",
+    "level": "info",
+    "timestamp": 1773126433979000
+  },
+  {
+    "event_message": "📊 Favorites count map entries: 0\n",
+    "event_type": "Log",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "0a24254b-4c73-46c2-b8cd-405a70ac8fb4",
+    "level": "info",
+    "timestamp": 1773126433979000
+  },
+  {
+    "event_message": "❌ Error fetching want-to-go counts: { message: \"Bad Request\" }\n",
+    "event_type": "Log",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "0b5c3ce9-b564-4016-a921-55f8b04f5f72",
+    "level": "error",
+    "timestamp": 1773126433979000
+  },
+  {
+    "event_message": "Note: Run SUPABASE_MIGRATION.sql if favorites table does not exist\n",
+    "event_type": "Log",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "e5124c82-964d-4804-8b29-528dae30a0a6",
+    "level": "info",
+    "timestamp": 1773126433885000
+  },
+  {
+    "event_message": "❌ Error fetching favorite counts: { message: \"Bad Request\" }\n",
+    "event_type": "Log",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "59e88cd7-e07f-456b-a04d-563cde23bbab",
+    "level": "error",
+    "timestamp": 1773126433885000
+  },
+  {
+    "event_message": "⚠️ [DB SLOW] SELECT on favorites took 109.24ms\n",
+    "event_type": "Log",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "df972c08-2c24-4224-a79f-bf496b42790d",
+    "level": "warning",
+    "timestamp": 1773126433883000
+  },
+  {
+    "event_message": "📍 GET /locations - Found locations: 1000\n",
+    "event_type": "Log",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "a62214f0-8522-4f7a-93e4-00d3ad486b7d",
+    "level": "info",
+    "timestamp": 1773126433774000
+  },
+  {
+    "event_message": "⚠️ [DB SLOW] SELECT on locations took 425.48ms\n",
+    "event_type": "Log",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "51aa9090-d7b4-4a39-8607-608385e3db8a",
+    "level": "warning",
+    "timestamp": 1773126433774000
+  },
+  {
+    "event_message": "📍 GET /locations - Start\n",
+    "event_type": "Log",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "871ea62a-8e41-4dcc-9e81-1fd7d4ca2201",
+    "level": "info",
+    "timestamp": 1773126433344000
+  },
+  {
+    "event_message": "📍 [REQUEST START] GET /make-server-48182530/locations - User: anonymous\n",
+    "event_type": "Log",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "39f871d4-aad8-431a-94f8-c418b5e4629b",
+    "level": "info",
+    "timestamp": 1773126433343000
+  },
+  {
+    "event_message": "<-- GET /make-server-48182530/locations\n",
+    "event_type": "Log",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "1aa414d8-8f80-4dd1-9391-aa17431cbf15",
+    "level": "info",
+    "timestamp": 1773126433343000
+  },
+  {
+    "event_message": "🚀 Server starting...\n",
+    "event_type": "Log",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "8a2a3889-dc38-4497-a2a0-75dc7e76775b",
+    "level": "info",
+    "timestamp": 1773126433335000
+  },
+  {
+    "event_message": "✅ Server is listening\n",
+    "event_type": "Log",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "c7045a18-0f78-46c2-8e5f-7ce1dc2561b9",
+    "level": "info",
+    "timestamp": 1773126433335000
+  },
+  {
+    "event_message": "booted (time: 34ms)",
+    "event_type": "Boot",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "959651b9-e9da-40fd-8197-e68026ac96ed",
+    "level": "log",
+    "timestamp": 1773126433311000
+  },
+  {
+    "event_message": "🟢 [PERF] OPTIONS /make-server-48182530/locations - 1.83ms - 204\n",
+    "event_type": "Log",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "e13079d0-e163-4b03-ad9f-ceb7c3e8da1c",
+    "level": "info",
+    "timestamp": 1773126433129000
+  },
+  {
+    "event_message": "--> OPTIONS /make-server-48182530/locations 204 1ms\n",
+    "event_type": "Log",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "07158ca7-00ff-4ef4-a185-9b6585c3f00f",
+    "level": "info",
+    "timestamp": 1773126433129000
+  },
+  {
+    "event_message": "📍 [REQUEST END] OPTIONS /make-server-48182530/locations - 1.83ms - 204\n",
+    "event_type": "Log",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "902119e8-270e-49ec-8d9b-b416f4a4d7bf",
+    "level": "info",
+    "timestamp": 1773126433129000
+  },
+  {
+    "event_message": "<-- OPTIONS /make-server-48182530/locations\n",
+    "event_type": "Log",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "1e19a587-1fcc-4d0e-a7bc-e2dcd0a2228e",
+    "level": "info",
+    "timestamp": 1773126433128000
+  },
+  {
+    "event_message": "📍 [REQUEST START] OPTIONS /make-server-48182530/locations - User: anonymous\n",
+    "event_type": "Log",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "bae3ac79-4831-4ff0-963a-1b7e6c98278b",
+    "level": "info",
+    "timestamp": 1773126433127000
+  },
+  {
+    "event_message": "🚀 Server starting...\n",
+    "event_type": "Log",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "1aa9c6ed-adc1-43ad-a933-9ca6ff61f3f7",
+    "level": "info",
+    "timestamp": 1773126433119000
+  },
+  {
+    "event_message": "✅ Server is listening\n",
+    "event_type": "Log",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "f525ed26-3880-4a1f-979b-8954e77f13a2",
+    "level": "info",
+    "timestamp": 1773126433119000
+  },
+  {
+    "event_message": "booted (time: 46ms)",
+    "event_type": "Boot",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "f9490987-55a7-47ea-9aca-097416735ad0",
+    "level": "log",
+    "timestamp": 1773126433092000
+  },
+  {
+    "event_message": "📍 [REQUEST END] GET /make-server-48182530/config/google-maps-key - 2.09ms - 200\n",
+    "event_type": "Log",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "cfe0852c-d53e-4f71-89be-1e308ab293a2",
+    "level": "info",
+    "timestamp": 1773126432917000
+  },
+  {
+    "event_message": "🟢 [PERF] GET /make-server-48182530/config/google-maps-key - 2.09ms - 200\n",
+    "event_type": "Log",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "09b6325c-ef64-41ea-8d58-18683eca410e",
+    "level": "info",
+    "timestamp": 1773126432917000
+  },
+  {
+    "event_message": "--> GET /make-server-48182530/config/google-maps-key 200 1ms\n",
+    "event_type": "Log",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "d9e09968-2041-4fb7-b01d-a73bd023dcea",
+    "level": "info",
+    "timestamp": 1773126432916000
+  },
+  {
+    "event_message": "<-- GET /make-server-48182530/config/google-maps-key\n",
+    "event_type": "Log",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "dd7e35ef-fc21-413b-ba86-04173926a240",
+    "level": "info",
+    "timestamp": 1773126432915000
+  },
+  {
+    "event_message": "📍 [REQUEST START] GET /make-server-48182530/config/google-maps-key - User: anonymous\n",
+    "event_type": "Log",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "1d06502a-8d59-4d8b-93fc-2398ae3e599a",
+    "level": "info",
+    "timestamp": 1773126432914000
+  },
+  {
+    "event_message": "✅ Server is listening\n",
+    "event_type": "Log",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "1a9e921c-9d83-48d0-8ea5-5d113e77be0a",
+    "level": "info",
+    "timestamp": 1773126432909000
+  },
+  {
+    "event_message": "🚀 Server starting...\n",
+    "event_type": "Log",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "e21f70d6-fc0f-4162-8186-ea1d17505049",
+    "level": "info",
+    "timestamp": 1773126432908000
+  },
+  {
+    "event_message": "booted (time: 29ms)",
+    "event_type": "Boot",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "fc302e1a-fcc6-4b88-bf45-e55d0fb2af73",
+    "level": "log",
+    "timestamp": 1773126432889000
+  },
+  {
+    "event_message": "📍 [REQUEST END] OPTIONS /make-server-48182530/config/google-maps-key - 1.77ms - 204\n",
+    "event_type": "Log",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "17cb4215-de94-4db9-9fc1-fad1286fe069",
+    "level": "info",
+    "timestamp": 1773126432732000
+  },
+  {
+    "event_message": "--> OPTIONS /make-server-48182530/config/google-maps-key 204 1ms\n",
+    "event_type": "Log",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "7de93ecd-c744-4f0a-8517-0ff6e3611f71",
+    "level": "info",
+    "timestamp": 1773126432732000
+  },
+  {
+    "event_message": "🟢 [PERF] OPTIONS /make-server-48182530/config/google-maps-key - 1.77ms - 204\n",
+    "event_type": "Log",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "d1e07941-00aa-4571-8e78-8a4b39ac6194",
+    "level": "info",
+    "timestamp": 1773126432732000
+  },
+  {
+    "event_message": "📍 [REQUEST START] OPTIONS /make-server-48182530/config/google-maps-key - User: anonymous\n",
+    "event_type": "Log",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "6a28faee-50eb-459c-8bb0-f187359efe06",
+    "level": "info",
+    "timestamp": 1773126432730000
+  },
+  {
+    "event_message": "<-- OPTIONS /make-server-48182530/config/google-maps-key\n",
+    "event_type": "Log",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "2faf6110-7ddd-4cdb-b650-979a5711c3ea",
+    "level": "info",
+    "timestamp": 1773126432730000
+  },
+  {
+    "event_message": "✅ Server is listening\n",
+    "event_type": "Log",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "c5ef16c4-c46f-4398-b9e6-aa56098849b1",
+    "level": "info",
+    "timestamp": 1773126432722000
+  },
+  {
+    "event_message": "🚀 Server starting...\n",
+    "event_type": "Log",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "e4fc42a9-8ba1-4349-be4c-676ea766eb6d",
+    "level": "info",
+    "timestamp": 1773126432721000
+  },
+  {
+    "event_message": "booted (time: 34ms)",
+    "event_type": "Boot",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "ae8adbc4-dddd-485b-800b-fc2a93713516",
+    "level": "log",
+    "timestamp": 1773126432688000
+  },
+  {
+    "event_message": "shutdown",
+    "event_type": "Shutdown",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "baef3de1-ac91-421b-986e-0014f8979a19",
+    "level": "log",
+    "timestamp": 1773126422808000
+  },
+  {
+    "event_message": "shutdown",
+    "event_type": "Shutdown",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "3822d238-939b-47c9-93fb-2e13febbc131",
+    "level": "log",
+    "timestamp": 1773126420518000
+  },
+  {
+    "event_message": "shutdown",
+    "event_type": "Shutdown",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "b96db49c-7359-4f32-b7d2-c0618c878231",
+    "level": "log",
+    "timestamp": 1773126420354000
+  },
+  {
+    "event_message": "📍 [REQUEST END] GET /make-server-48182530/michelin/rating - 393.58ms - 200\n",
+    "event_type": "Log",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "6c48cbc9-a8cd-47b0-9b72-99def1c84994",
+    "level": "info",
+    "timestamp": 1773126348217000
+  },
+  {
+    "event_message": "🟢 [PERF] GET /make-server-48182530/michelin/rating - 393.58ms - 200\n",
+    "event_type": "Log",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "499fe384-30b4-449d-a74b-444d0edc3664",
+    "level": "info",
+    "timestamp": 1773126348217000
+  },
+  {
+    "event_message": "--> GET /make-server-48182530/michelin/rating?lat=34.66803590000001&lng=135.502638&name=Kitan+Hibiki 200 393ms\n",
+    "event_type": "Log",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "a217d5c1-25b0-4ea8-b153-5cf3493807a7",
+    "level": "info",
+    "timestamp": 1773126348216000
+  },
+  {
+    "event_message": "❌ No Michelin restaurant found within range\n",
+    "event_type": "Log",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "e9e003ce-32a8-433a-be66-aaf249af7790",
+    "level": "info",
+    "timestamp": 1773126348215000
+  },
+  {
+    "event_message": "📊 Searching 1000 Michelin restaurants\n",
+    "event_type": "Log",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "1177da9b-fae5-4784-8e43-57d551d0d9a6",
+    "level": "info",
+    "timestamp": 1773126348213000
+  },
+  {
+    "event_message": "📍 GET /michelin/rating - Start\n",
+    "event_type": "Log",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "25b23c82-ee85-4627-8d99-f2999b06b278",
+    "level": "info",
+    "timestamp": 1773126347824000
+  },
+  {
+    "event_message": "🔍 Searching for Michelin rating near (34.66803590000001, 135.502638) for \"Kitan Hibiki\"\n",
+    "event_type": "Log",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "990a7578-1bc0-4c11-889a-29b4cde4be63",
+    "level": "info",
+    "timestamp": 1773126347824000
+  },
+  {
+    "event_message": "📍 [REQUEST START] GET /make-server-48182530/michelin/rating - User: anonymous\n",
+    "event_type": "Log",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "71d193c0-166c-4765-8dd0-869e1d114556",
+    "level": "info",
+    "timestamp": 1773126347823000
+  },
+  {
+    "event_message": "<-- GET /make-server-48182530/michelin/rating?lat=34.66803590000001&lng=135.502638&name=Kitan+Hibiki\n",
+    "event_type": "Log",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "78cc42bd-effe-4c25-a0e5-ebacd1fc2bb7",
+    "level": "info",
+    "timestamp": 1773126347823000
+  },
+  {
+    "event_message": "✅ Server is listening\n",
+    "event_type": "Log",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "71b2f72c-8fea-423b-8f38-ada3306edf57",
+    "level": "info",
+    "timestamp": 1773126347815000
+  },
+  {
+    "event_message": "🚀 Server starting...\n",
+    "event_type": "Log",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "24767711-7154-484b-b3d8-af56ff498202",
+    "level": "info",
+    "timestamp": 1773126347815000
+  },
+  {
+    "event_message": "booted (time: 40ms)",
+    "event_type": "Boot",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "735277a3-ea2f-4c38-b897-b3a442397df6",
+    "level": "log",
+    "timestamp": 1773126347791000
+  },
+  {
+    "event_message": "🟢 [PERF] GET /make-server-48182530/michelin/rating - 870.32ms - 200\n",
+    "event_type": "Log",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "54d3270a-afe9-4d06-b2d2-9ce3412004b4",
+    "level": "info",
+    "timestamp": 1773126346401000
+  },
+  {
+    "event_message": "📍 [REQUEST END] GET /make-server-48182530/michelin/rating - 870.32ms - 200\n",
+    "event_type": "Log",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "f8a2e0e7-f497-4be1-a4b0-cbc46e682cc5",
+    "level": "info",
+    "timestamp": 1773126346401000
+  },
+  {
+    "event_message": "--> GET /make-server-48182530/michelin/rating?lat=34.66803590000001&lng=135.502638&name=Kitan+Hibiki 200 870ms\n",
+    "event_type": "Log",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "b47dc530-8686-414c-a9f4-042bd523a226",
+    "level": "info",
+    "timestamp": 1773126346401000
+  },
+  {
+    "event_message": "❌ No Michelin restaurant found within range\n",
+    "event_type": "Log",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "71a9a9a8-efa7-4dc2-92d0-8d6e33598f76",
+    "level": "info",
+    "timestamp": 1773126346399000
+  },
+  {
+    "event_message": "📊 Searching 1000 Michelin restaurants\n",
+    "event_type": "Log",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "7d191bae-ffc7-4529-b1a8-a79251fa4984",
+    "level": "info",
+    "timestamp": 1773126346397000
+  },
+  {
+    "event_message": "shutdown",
+    "event_type": "Shutdown",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "d3531394-bdee-447e-98df-f500fd51c6e1",
+    "level": "log",
+    "timestamp": 1773126346205000
+  },
+  {
+    "event_message": "shutdown",
+    "event_type": "Shutdown",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "d98dcd8c-29ae-4eec-9dcc-edaec7935d4b",
+    "level": "log",
+    "timestamp": 1773126345908000
+  },
+  {
+    "event_message": "📍 GET /michelin/rating - Start\n",
+    "event_type": "Log",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "6b1a4320-3731-4eb0-af2f-1fc2cb5683c1",
+    "level": "info",
+    "timestamp": 1773126345532000
+  },
+  {
+    "event_message": "🔍 Searching for Michelin rating near (34.66803590000001, 135.502638) for \"Kitan Hibiki\"\n",
+    "event_type": "Log",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "3482093c-7e27-47b7-9739-3b615f3727ec",
+    "level": "info",
+    "timestamp": 1773126345532000
+  },
+  {
+    "event_message": "<-- GET /make-server-48182530/michelin/rating?lat=34.66803590000001&lng=135.502638&name=Kitan+Hibiki\n",
+    "event_type": "Log",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "bfdfe210-00b5-4fc8-98ed-c841add38e18",
+    "level": "info",
+    "timestamp": 1773126345531000
+  },
+  {
+    "event_message": "📍 [REQUEST START] GET /make-server-48182530/michelin/rating - User: anonymous\n",
+    "event_type": "Log",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "c5ae96f1-6eb1-4c02-a36e-ce10dfb845df",
+    "level": "info",
+    "timestamp": 1773126345531000
+  },
+  {
+    "event_message": "🚀 Server starting...\n",
+    "event_type": "Log",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "f486c261-2e5f-40ce-ae26-19452b0c0704",
+    "level": "info",
+    "timestamp": 1773126345525000
+  },
+  {
+    "event_message": "✅ Server is listening\n",
+    "event_type": "Log",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "23964be0-491f-4ec7-acc9-be4da2f4d3ef",
+    "level": "info",
+    "timestamp": 1773126345525000
+  },
+  {
+    "event_message": "booted (time: 33ms)",
+    "event_type": "Boot",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "16237c07-7159-42cf-989c-c84fc2ccc99a",
+    "level": "log",
+    "timestamp": 1773126345497000
+  },
+  {
+    "event_message": "📍 [REQUEST END] OPTIONS /make-server-48182530/michelin/rating - 1.25ms - 204\n",
+    "event_type": "Log",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "83e2aed1-84c6-4a5a-8633-dac0cadb0291",
+    "level": "info",
+    "timestamp": 1773126345352000
+  },
+  {
+    "event_message": "--> OPTIONS /make-server-48182530/michelin/rating?lat=34.66803590000001&lng=135.502638&name=Kitan+Hibiki 204 1ms\n",
+    "event_type": "Log",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "14a5605f-af75-4a41-bcbb-e6384855ac0b",
+    "level": "info",
+    "timestamp": 1773126345352000
+  },
+  {
+    "event_message": "🟢 [PERF] OPTIONS /make-server-48182530/michelin/rating - 1.25ms - 204\n",
+    "event_type": "Log",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "6a44e337-7999-4eae-bf02-6c0de7c2dce1",
+    "level": "info",
+    "timestamp": 1773126345352000
+  },
+  {
+    "event_message": "<-- OPTIONS /make-server-48182530/michelin/rating?lat=34.66803590000001&lng=135.502638&name=Kitan+Hibiki\n",
+    "event_type": "Log",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "e8875a84-dbd9-46bc-ba20-792069696896",
+    "level": "info",
+    "timestamp": 1773126345351000
+  },
+  {
+    "event_message": "📍 [REQUEST START] OPTIONS /make-server-48182530/michelin/rating - User: anonymous\n",
+    "event_type": "Log",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "49aa33ed-23b2-4015-acae-7887904c6cdd",
+    "level": "info",
+    "timestamp": 1773126345351000
+  },
+  {
+    "event_message": "✅ Server is listening\n",
+    "event_type": "Log",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "e19ea437-3ebe-4b9b-92b7-f5578ab8b0d9",
+    "level": "info",
+    "timestamp": 1773126345346000
+  },
+  {
+    "event_message": "🚀 Server starting...\n",
+    "event_type": "Log",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "8b57d267-bae2-49df-9ffe-7271b5dbc516",
+    "level": "info",
+    "timestamp": 1773126345345000
+  },
+  {
+    "event_message": "booted (time: 26ms)",
+    "event_type": "Boot",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "e32f2232-e180-42d1-8e95-e5083df843be",
+    "level": "log",
+    "timestamp": 1773126345325000
+  },
+  {
+    "event_message": "shutdown",
+    "event_type": "Shutdown",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "77171f5e-d94d-4a62-b325-e2010d84b419",
+    "level": "log",
+    "timestamp": 1773126337689000
+  },
+  {
+    "event_message": "shutdown",
+    "event_type": "Shutdown",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "2b018644-2d85-483a-9853-1e33e10a0447",
+    "level": "log",
+    "timestamp": 1773126336634000
+  },
+  {
+    "event_message": "shutdown",
+    "event_type": "Shutdown",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "20ab22de-68fc-47ad-bee4-54e1fc0be9b7",
+    "level": "log",
+    "timestamp": 1773126336203000
+  },
+  {
+    "event_message": "shutdown",
+    "event_type": "Shutdown",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "3a918103-b1d5-4c5d-b304-e032a5d4db5a",
+    "level": "log",
+    "timestamp": 1773126335962000
+  },
+  {
+    "event_message": "shutdown",
+    "event_type": "Shutdown",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "677f5217-2328-4757-b821-eb038ff452ab",
+    "level": "log",
+    "timestamp": 1773126335703000
+  },
+  {
+    "event_message": "shutdown",
+    "event_type": "Shutdown",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "6884b903-b025-4142-a65f-604bf96a0f42",
+    "level": "log",
+    "timestamp": 1773126335519000
+  },
+  {
+    "event_message": "shutdown",
+    "event_type": "Shutdown",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "a175fd1c-ef26-4cf8-beea-cb43dde9e8a0",
+    "level": "log",
+    "timestamp": 1773126335489000
+  },
+  {
+    "event_message": "shutdown",
+    "event_type": "Shutdown",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "bd40378b-8a8c-42a5-875f-13b8190a828e",
+    "level": "log",
+    "timestamp": 1773126335280000
+  },
+  {
+    "event_message": "shutdown",
+    "event_type": "Shutdown",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "abee4186-9840-4a80-905c-14c630d3cf50",
+    "level": "log",
+    "timestamp": 1773126335276000
+  },
+  {
+    "event_message": "shutdown",
+    "event_type": "Shutdown",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "7506854c-d0c7-4b45-9ce6-fd6722ab3f41",
+    "level": "log",
+    "timestamp": 1773126293647000
+  },
+  {
+    "event_message": "shutdown",
+    "event_type": "Shutdown",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "a3e5351d-e0e3-44ec-8c00-72d70996bad3",
+    "level": "log",
+    "timestamp": 1773126293123000
+  },
+  {
+    "event_message": "shutdown",
+    "event_type": "Shutdown",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "6ed4f4cd-8344-419e-8006-6812190dee0e",
+    "level": "log",
+    "timestamp": 1773126273257000
+  },
+  {
+    "event_message": "shutdown",
+    "event_type": "Shutdown",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "e01e1a49-be06-435e-8356-4083bf4199f5",
+    "level": "log",
+    "timestamp": 1773126273086000
+  },
+  {
+    "event_message": "shutdown",
+    "event_type": "Shutdown",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "450fd98f-e281-4130-b4b3-b530ffcf8d05",
+    "level": "log",
+    "timestamp": 1773126273079000
+  },
+  {
+    "event_message": "shutdown",
+    "event_type": "Shutdown",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "3805dc5f-1c24-4d9c-9919-82592774b588",
+    "level": "log",
+    "timestamp": 1773126272574000
+  },
+  {
+    "event_message": "shutdown",
+    "event_type": "Shutdown",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "f4998874-8a42-4306-a06f-ffd1374a7bb5",
+    "level": "log",
+    "timestamp": 1773126272401000
+  },
+  {
+    "event_message": "shutdown",
+    "event_type": "Shutdown",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "c1e4ddf7-7ccf-4657-b65e-f95d8de59b22",
+    "level": "log",
+    "timestamp": 1773126272368000
+  },
+  {
+    "event_message": "shutdown",
+    "event_type": "Shutdown",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "111cfc11-0527-4130-b0cf-d3abaa4d394d",
+    "level": "log",
+    "timestamp": 1773126272149000
+  },
+  {
+    "event_message": "shutdown",
+    "event_type": "Shutdown",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "fffe36f4-84f1-4570-b48b-089c4a50eeb3",
+    "level": "log",
+    "timestamp": 1773126271995000
+  },
+  {
+    "event_message": "shutdown",
+    "event_type": "Shutdown",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "bd73c59c-e44b-467d-98be-64a894849fcd",
+    "level": "log",
+    "timestamp": 1773126271899000
+  },
+  {
+    "event_message": "shutdown",
+    "event_type": "Shutdown",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "150fd1c0-0c9f-41dc-a15a-14bc65e42a65",
+    "level": "log",
+    "timestamp": 1773126271785000
+  }
+]

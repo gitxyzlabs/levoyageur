@@ -17,7 +17,8 @@ import {
   Bookmark,
   Settings,
   Menu,
-  Filter
+  Filter,
+  Layers
 } from 'lucide-react';
 
 import { Map } from './components/Map';
@@ -406,7 +407,8 @@ export default function App() {
     try {
       const { locations: data } = await api.getLocationsByTag(tag);
       setHeatMapLocations(data);
-      setShowHeatMap(data.length > 0);
+      // Default heat map to OFF when searching a tag - only show when user toggles it
+      setShowHeatMap(false);
 
       if (data.length === 0) {
         toast.info(`No locations found with tag "${tag}"`);
@@ -418,6 +420,82 @@ export default function App() {
       toast.error('Failed to search locations');
     }
   };
+
+  // Auto-zoom to encompass all heat map locations when heat map is enabled
+  useEffect(() => {
+    if (showHeatMap && heatMapLocations.length > 0) {
+      // Calculate bounds to fit all heat map locations
+      const validLocations = heatMapLocations.filter(
+        loc => loc.lat && loc.lng
+      );
+
+      if (validLocations.length === 0) return;
+
+      // Find the bounds of all locations
+      let minLat = validLocations[0].lat!;
+      let maxLat = validLocations[0].lat!;
+      let minLng = validLocations[0].lng!;
+      let maxLng = validLocations[0].lng!;
+
+      validLocations.forEach(loc => {
+        if (loc.lat! < minLat) minLat = loc.lat!;
+        if (loc.lat! > maxLat) maxLat = loc.lat!;
+        if (loc.lng! < minLng) minLng = loc.lng!;
+        if (loc.lng! > maxLng) maxLng = loc.lng!;
+      });
+
+      // Add padding (10% on each side)
+      const latPadding = (maxLat - minLat) * 0.1;
+      const lngPadding = (maxLng - minLng) * 0.1;
+
+      minLat -= latPadding;
+      maxLat += latPadding;
+      minLng -= lngPadding;
+      maxLng += lngPadding;
+
+      // Calculate center point
+      const centerLat = (minLat + maxLat) / 2;
+      const centerLng = (minLng + maxLng) / 2;
+
+      // Calculate appropriate zoom level
+      // Based on latitude span (roughly 111km per degree)
+      const latSpan = maxLat - minLat;
+      const lngSpan = maxLng - minLng;
+      const maxSpan = Math.max(latSpan, lngSpan);
+
+      let zoom = 14; // default
+      if (maxSpan > 10) zoom = 5;
+      else if (maxSpan > 5) zoom = 6;
+      else if (maxSpan > 2) zoom = 7;
+      else if (maxSpan > 1) zoom = 8;
+      else if (maxSpan > 0.5) zoom = 9;
+      else if (maxSpan > 0.2) zoom = 10;
+      else if (maxSpan > 0.1) zoom = 11;
+      else if (maxSpan > 0.05) zoom = 12;
+      else if (maxSpan > 0.02) zoom = 13;
+
+      console.log('🗺️ Auto-zooming to heat map bounds:', {
+        center: { lat: centerLat, lng: centerLng },
+        zoom,
+        locationsCount: validLocations.length,
+        bounds: { minLat, maxLat, minLng, maxLng }
+      });
+
+      setMapCenter({ lat: centerLat, lng: centerLng });
+      setMapZoom(zoom);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [showHeatMap]); // Only run when showHeatMap changes, not heatMapLocations
+
+  // Filter main locations when heat map search is active
+  const filteredLocations = React.useMemo(() => {
+    // If we have heat map locations from a tag search, only show those
+    if (heatMapLocations.length > 0) {
+      return heatMapLocations;
+    }
+    // Otherwise show all locations
+    return locations;
+  }, [locations, heatMapLocations]);
 
   // Filter want-to-go locations based on active search query
   const filteredWantToGoLocations = React.useMemo(() => {
@@ -547,7 +625,8 @@ export default function App() {
         if (taggedLocations.length > 0) {
           console.log(`📍 Found ${taggedLocations.length} LV locations tagged with "${query}"`);
           setHeatMapLocations(taggedLocations);
-          setShowHeatMap(true);
+          // Default heat map to OFF when searching - only show when user toggles it
+          setShowHeatMap(false);
         } else {
           setHeatMapLocations([]);
           setShowHeatMap(false);
@@ -1372,24 +1451,48 @@ export default function App() {
                 searchResults={searchResults}
                 showSearchResults={showSearchResults}
               />
-              {showHeatMap && heatMapLocations.length > 0 && (
+              {heatMapLocations.length > 0 && (
                 <motion.div
                   initial={{ opacity: 0, y: -10 }}
                   animate={{ opacity: 1, y: 0 }}
                   className="mt-3 mx-auto w-fit"
                 >
-                  <div className="flex items-center gap-3 px-4 py-2 bg-white/95 backdrop-blur-2xl rounded-xl shadow-lg border border-amber-200">
-                    <Flame className="h-4 w-4 text-orange-600" />
-                    <span className="text-sm font-medium text-gray-900">
-                      Heat Map Active: {heatMapLocations.length} locations
-                    </span>
+                  <div className="flex items-center gap-3 px-4 py-2 bg-white/95 backdrop-blur-2xl rounded-xl shadow-lg border border-slate-200">
+                    {/* Heat Map Toggle Button */}
+                    <button
+                      onClick={() => {
+                        setShowHeatMap(!showHeatMap);
+                      }}
+                      className={`flex items-center gap-2 px-3 py-1.5 rounded-lg transition-all ${
+                        showHeatMap 
+                          ? 'bg-gradient-to-r from-orange-500 to-red-500 text-white shadow-md' 
+                          : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                      }`}
+                      title={showHeatMap ? 'Hide heat map' : 'Show heat map'}
+                    >
+                      <Layers className={`h-4 w-4 ${showHeatMap ? 'animate-pulse' : ''}`} />
+                      <span className="text-sm font-medium">
+                        Heat Map
+                      </span>
+                    </button>
+
+                    {/* Location Count */}
+                    <div className="flex items-center gap-2 text-gray-600">
+                      <MapPin className="h-4 w-4" />
+                      <span className="text-sm font-medium">
+                        {heatMapLocations.length} locations
+                      </span>
+                    </div>
+
+                    {/* Clear Search Button */}
                     <button
                       onClick={() => {
                         setShowHeatMap(false);
                         setSearchQuery("");
                         setHeatMapLocations([]);
                       }}
-                      className="ml-2 text-gray-400 hover:text-gray-700 transition"
+                      className="text-gray-400 hover:text-gray-700 transition"
+                      title="Clear search"
                     >
                       <X className="h-4 w-4" />
                     </button>
@@ -1481,7 +1584,7 @@ export default function App() {
 
             {/* Map Component */}
             <Map
-              locations={locations}
+              locations={filteredLocations}
               heatMapData={heatMapLocations}
               showHeatMap={showHeatMap}
               googleMapsApiKey={googleMapsApiKey}
