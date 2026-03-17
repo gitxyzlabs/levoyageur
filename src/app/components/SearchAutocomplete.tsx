@@ -77,19 +77,6 @@ export function SearchAutocomplete({ onPlaceSelect, onTagSelect, onClear, mapBou
   const [allLocationsCache, setAllLocationsCache] = useState<Location[]>([]);
   const locationsLoadedRef = useRef(false);
   
-  // 🚀 Create a stable reference for mapBounds to prevent unnecessary re-renders
-  // Only update if bounds actually changed significantly
-  const boundsRef = useRef<string>('');
-  const stableMapBounds = mapBounds;
-  const boundsKey = mapBounds 
-    ? `${mapBounds.getNorthEast().lat().toFixed(3)},${mapBounds.getNorthEast().lng().toFixed(3)},${mapBounds.getSouthWest().lat().toFixed(3)},${mapBounds.getSouthWest().lng().toFixed(3)}`
-    : '';
-  
-  // Only update if bounds changed by a reasonable amount (3 decimal places = ~100m)
-  if (boundsKey !== boundsRef.current) {
-    boundsRef.current = boundsKey;
-  }
-
   // 📊 Performance monitoring
   usePerformanceMonitor('SearchAutocomplete');
   const { catchError } = useErrorHandler('SearchAutocomplete');
@@ -147,9 +134,17 @@ export function SearchAutocomplete({ onPlaceSelect, onTagSelect, onClear, mapBou
           
           console.log('🔍 Fetching autocomplete suggestions for:', searchValue);
           
+          // Add timeout to prevent hanging
+          const timeoutPromise = new Promise((_, reject) => 
+            setTimeout(() => reject(new Error('Google Autocomplete API timeout after 5s')), 5000)
+          );
+          
           // Access AutocompleteSuggestion from the places library
           const { AutocompleteSuggestion } = await google.maps.importLibrary("places") as any;
-          const { suggestions } = await AutocompleteSuggestion.fetchAutocompleteSuggestions(request);
+          const autocompletePromise = AutocompleteSuggestion.fetchAutocompleteSuggestions(request);
+          
+          // Race between API call and timeout
+          const { suggestions } = await Promise.race([autocompletePromise, timeoutPromise]) as any;
           
           endTracking();
           
@@ -172,60 +167,9 @@ export function SearchAutocomplete({ onPlaceSelect, onTagSelect, onClear, mapBou
             console.log('✅ Setting global predictions:', predictions.length);
             setGooglePredictionsGlobal(predictions.slice(0, 5));
             
-            // Additionally filter by map bounds if available to show "On Your Map" section
-            if (mapBounds && predictions.length > 0) {
-              console.log('🗺️ Filtering Google Places by map bounds...');
-              
-              try {
-                // Fetch place details for predictions in parallel (limit to first 10 for performance)
-                const { Place } = await google.maps.importLibrary("places") as google.maps.PlacesLibrary;
-                const ne = mapBounds.getNorthEast();
-                const sw = mapBounds.getSouthWest();
-                
-                // Process up to 10 predictions in parallel
-                const predictionsToCheck = predictions.slice(0, 10);
-                const locationChecks = await Promise.all(
-                  predictionsToCheck.map(async (prediction) => {
-                    try {
-                      const place = new Place({ id: prediction.place_id });
-                      await place.fetchFields({ fields: ['location'] });
-                      
-                      if (place.location) {
-                        const lat = place.location.lat();
-                        const lng = place.location.lng();
-                        
-                        // Check if within bounds
-                        const isInBounds = lat >= sw.lat() && lat <= ne.lat() && 
-                                          lng >= sw.lng() && lng <= ne.lng();
-                        
-                        return { prediction, isInBounds };
-                      }
-                    } catch (error) {
-                      console.error('Error fetching place location:', error);
-                    }
-                    return { prediction, isInBounds: false };
-                  })
-                );
-                
-                // Get predictions within bounds
-                const filteredPredictions = locationChecks
-                  .filter(item => item.isInBounds)
-                  .map(item => item.prediction)
-                  .slice(0, 5);
-                
-                console.log('✅ Google predictions in map bounds:', filteredPredictions.length);
-                
-                // Set bounded predictions for "On Your Map" section
-                setGooglePredictions(filteredPredictions);
-              } catch (error) {
-                console.error('❌ Error filtering Google Places:', error);
-                // Even if filtering fails, we still have global results
-                setGooglePredictions([]);
-              }
-            } else {
-              // No bounds available, clear bounded predictions
-              setGooglePredictions([]);
-            }
+            // Skip the expensive bounds filtering - just show global results
+            // The map bounds filtering was causing 229-second delays by making 10+ API calls per search
+            setGooglePredictions([]);
           } else {
             console.log('⚠️ No Google predictions returned');
             setGooglePredictions([]);
@@ -312,94 +256,95 @@ export function SearchAutocomplete({ onPlaceSelect, onTagSelect, onClear, mapBou
       }
 
       // Fetch Google Places using Text Search (for queries like "tacos")
-      if (places && mapBounds) {
-        try {
-          console.log('🔍 Performing Google Text Search for:', searchValue);
+      // DISABLED: This was causing 100+ second delays by making slow API calls on every search
+      // if (places && mapBounds) {
+      //   try {
+      //     console.log('🔍 Performing Google Text Search for:', searchValue);
           
-          const { Place } = await google.maps.importLibrary("places") as google.maps.PlacesLibrary;
+      //     const { Place } = await google.maps.importLibrary("places") as google.maps.PlacesLibrary;
           
-          // Calculate center and radius for circular search
-          const ne = mapBounds.getNorthEast();
-          const sw = mapBounds.getSouthWest();
-          const centerLat = (ne.lat() + sw.lat()) / 2;
-          const centerLng = (ne.lng() + sw.lng()) / 2;
-          const center = new google.maps.LatLng(centerLat, centerLng);
+      //     // Calculate center and radius for circular search
+      //     const ne = mapBounds.getNorthEast();
+      //     const sw = mapBounds.getSouthWest();
+      //     const centerLat = (ne.lat() + sw.lat()) / 2;
+      //     const centerLng = (ne.lng() + sw.lng()) / 2;
+      //     const center = new google.maps.LatLng(centerLat, centerLng);
           
-          // Calculate radius (distance from center to corner in meters)
-          const latDiff = ne.lat() - sw.lat();
-          const lngDiff = ne.lng() - sw.lng();
-          const radius = Math.sqrt(latDiff * latDiff + lngDiff * lngDiff) / 2 * 111000;
+      //     // Calculate radius (distance from center to corner in meters)
+      //     const latDiff = ne.lat() - sw.lat();
+      //     const lngDiff = ne.lng() - sw.lng();
+      //     const radius = Math.sqrt(latDiff * latDiff + lngDiff * lngDiff) / 2 * 111000;
           
-          // Use searchNearby for location-based searches
-          const request = {
-            textQuery: searchValue,
-            fields: ['id', 'displayName', 'formattedAddress', 'location', 'rating', 'userRatingCount'],
-            locationBias: center,
-            maxResultCount: 10,
-          };
+      //     // Use searchNearby for location-based searches
+      //     const request = {
+      //       textQuery: searchValue,
+      //       fields: ['id', 'displayName', 'formattedAddress', 'location', 'rating', 'userRatingCount'],
+      //       locationBias: center,
+      //       maxResultCount: 10,
+      //     };
           
-          const { places: searchResults } = await Place.searchByText(request);
+      //     const { places: searchResults } = await Place.searchByText(request);
           
-          if (searchResults && searchResults.length > 0) {
-            console.log('✅ Google Text Search results:', searchResults.length);
-            
-            // Filter results within map bounds
-            const filteredResults = searchResults
-              .filter(place => {
-                if (!place.location) return false;
-                const lat = place.location.lat();
-                const lng = place.location.lng();
-                return lat >= sw.lat() && lat <= ne.lat() && lng >= sw.lng() && lng <= ne.lng();
-              })
-              .map(place => ({
-                place_id: place.id,
-                description: `${place.displayName} - ${place.formattedAddress}`,
-                structured_formatting: {
-                  main_text: place.displayName || 'Unknown',
-                  secondary_text: place.formattedAddress || '',
-                },
-                rating: place.rating,
-                user_ratings_total: place.userRatingCount,
-              }));
-            
-            // Sort by review count tiers, then by rating within each tier
-            const sortedResults = filteredResults.sort((a, b) => {
-              const reviewsA = a.user_ratings_total || 0;
-              const reviewsB = b.user_ratings_total || 0;
-              const ratingA = a.rating || 0;
-              const ratingB = b.rating || 0;
+      //     if (searchResults && searchResults.length > 0) {
+      //       console.log('✅ Google Text Search results:', searchResults.length);
+          
+      //       // Filter results within map bounds
+      //       const filteredResults = searchResults
+      //         .filter(place => {
+      //           if (!place.location) return false;
+      //           const lat = place.location.lat();
+      //           const lng = place.location.lng();
+      //           return lat >= sw.lat() && lat <= ne.lat() && lng >= sw.lng() && lng <= ne.lng();
+      //         })
+      //         .map(place => ({
+      //           place_id: place.id,
+      //           description: `${place.displayName} - ${place.formattedAddress}`,
+      //           structured_formatting: {
+      //             main_text: place.displayName || 'Unknown',
+      //             secondary_text: place.formattedAddress || '',
+      //           },
+      //           rating: place.rating,
+      //           user_ratings_total: place.userRatingCount,
+      //         }));
+          
+      //       // Sort by review count tiers, then by rating within each tier
+      //       const sortedResults = filteredResults.sort((a, b) => {
+      //         const reviewsA = a.user_ratings_total || 0;
+      //         const reviewsB = b.user_ratings_total || 0;
+      //         const ratingA = a.rating || 0;
+      //         const ratingB = b.rating || 0;
               
-              // Determine tier for each place
-              const getTier = (reviews: number) => {
-                if (reviews >= 10000) return 4;
-                if (reviews >= 5000) return 3;
-                if (reviews >= 1000) return 2;
-                return 1;
-              };
+      //         // Determine tier for each place
+      //         const getTier = (reviews: number) => {
+      //           if (reviews >= 10000) return 4;
+      //           if (reviews >= 5000) return 3;
+      //           if (reviews >= 1000) return 2;
+      //           return 1;
+      //         };
               
-              const tierA = getTier(reviewsA);
-              const tierB = getTier(reviewsB);
+      //         const tierA = getTier(reviewsA);
+      //         const tierB = getTier(reviewsB);
               
-              // If different tiers, higher tier comes first
-              if (tierA !== tierB) {
-                return tierB - tierA;
-              }
+      //         // If different tiers, higher tier comes first
+      //         if (tierA !== tierB) {
+      //           return tierB - tierA;
+      //         }
               
-              // Same tier: sort by rating (descending)
-              return ratingB - ratingA;
-            }).slice(0, 5);
-            
-            console.log('✅ Filtered and sorted Google Text Search results in map bounds:', sortedResults.length);
-            setGoogleTextSearchResults(sortedResults);
-          } else {
-            console.log('⚠️ No Google Text Search results returned');
-            setGoogleTextSearchResults([]);
-          }
-        } catch (error) {
-          console.error('❌ Error performing Google Text Search:', error);
-          setGoogleTextSearchResults([]);
-        }
-      }
+      //         // Same tier: sort by rating (descending)
+      //         return ratingB - ratingA;
+      //       }).slice(0, 5);
+          
+      //       console.log('✅ Filtered and sorted Google Text Search results in map bounds:', sortedResults.length);
+      //       setGoogleTextSearchResults(sortedResults);
+      //     } else {
+      //       console.log('⚠️ No Google Text Search results returned');
+      //       setGoogleTextSearchResults([]);
+      //     }
+      //   } catch (error) {
+      //     console.error('❌ Error performing Google Text Search:', error);
+      //     setGoogleTextSearchResults([]);
+      //   }
+      // }
     };
 
     const timeoutId = setTimeout(async () => {
@@ -408,7 +353,7 @@ export function SearchAutocomplete({ onPlaceSelect, onTagSelect, onClear, mapBou
       setShowDropdown(true);
     }, 300);
     return () => clearTimeout(timeoutId);
-  }, [searchValue, places, boundsRef.current, justSelected, allLocationsCache.length]);
+  }, [searchValue, places, justSelected]);
 
   // Handle click outside to close dropdown
   useEffect(() => {

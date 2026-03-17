@@ -139,8 +139,18 @@ const fetchWithAuth = async (url: string, options: RequestInit = {}) => {
     });
 
     if (!response.ok) {
-      const error = await response.json().catch(() => ({ error: response.statusText }));
-      console.error('❌ fetchWithAuth error:', error);
+      const errorText = await response.text();
+      console.error('❌ fetchWithAuth error response:');
+      console.error('  Status:', response.status);
+      console.error('  Status text:', response.statusText);
+      console.error('  Response body:', errorText);
+      
+      let error;
+      try {
+        error = JSON.parse(errorText);
+      } catch {
+        error = { error: errorText || response.statusText };
+      }
       
       // If we get a 401, the session might be invalid - force sign out
       if (response.status === 401) {
