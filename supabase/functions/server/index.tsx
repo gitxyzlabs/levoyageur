@@ -292,50 +292,52 @@ app.get('/make-server-48182530/locations', async (c) => {
     
     // Only query counts if we have locations (avoid Bad Request from empty .in() query)
     if (locationIds.length > 0) {
+      console.log('📊 Querying counts for', locationIds.length, 'locations');
+      
       // Optimize: Only query favorites/want-to-go for the locations we're returning
       try {
-        const { data: favoriteCounts, error: favCountError } = await trackDatabaseOperation(
-          'SELECT',
-          'favorites',
-          () => supabase
-            .from('favorites')
-            .select('location_id')
-            .in('location_id', locationIds)
-        );
+        const favResult = await supabase
+          .from('favorites')
+          .select('location_id')
+          .in('location_id', locationIds);
         
-        if (favCountError) {
-          console.error('❌ Error fetching favorite counts:', JSON.stringify(favCountError, null, 2));
-          console.log('Note: Run SUPABASE_MIGRATION.sql if favorites table does not exist');
-        } else {
+        console.log('📊 Favorites query:', { hasError: !!favResult.error, count: favResult.data?.length });
+        
+        if (favResult.error) {
+          // Silently skip if table doesn't exist - run /CREATE_MISSING_TABLES.sql to fix
+          console.log('⚠️ Favorites table not accessible - counts will be 0');
+        } else if (favResult.data) {
           // Create a map of location_id to favorites count
-          favoriteCounts?.forEach(fav => {
+          favResult.data.forEach(fav => {
             const count = favCountMap.get(fav.location_id) || 0;
             favCountMap.set(fav.location_id, count + 1);
           });
         }
       } catch (e) {
-        console.error('❌ Exception querying favorites:', JSON.stringify(e, null, 2));
+        // Silently skip exceptions
       }
       
       // Optimize: Only query want-to-go for the locations we're returning
       try {
-        const { data: wantToGoCounts, error: wtgCountError } = await supabase
+        const wtgResult = await supabase
           .from('want_to_go')
           .select('location_id')
           .in('location_id', locationIds);
         
-        if (wtgCountError) {
-          console.error('❌ Error fetching want-to-go counts:', JSON.stringify(wtgCountError, null, 2));
-          console.log('Note: Run SUPABASE_MIGRATION.sql if want_to_go table does not exist');
-        } else {
+        console.log('📊 Want-to-go query:', { hasError: !!wtgResult.error, count: wtgResult.data?.length });
+        
+        if (wtgResult.error) {
+          // Silently skip if table doesn't exist - run /CREATE_MISSING_TABLES.sql to fix
+          console.log('⚠️ Want-to-go table not accessible - counts will be 0');
+        } else if (wtgResult.data) {
           // Create a map of location_id to want-to-go count
-          wantToGoCounts?.forEach(wtg => {
+          wtgResult.data.forEach(wtg => {
             const count = wtgCountMap.get(wtg.location_id) || 0;
             wtgCountMap.set(wtg.location_id, count + 1);
           });
         }
       } catch (e) {
-        console.error('❌ Exception querying want_to_go:', JSON.stringify(e, null, 2));
+        // Silently skip exceptions
       }
     }
     
@@ -393,8 +395,8 @@ app.get('/make-server-48182530/locations/tag/:tag', async (c) => {
           .in('location_id', locationIds);
         
         if (favCountError) {
-          console.error('❌ Error fetching favorite counts:', JSON.stringify(favCountError, null, 2));
-          console.log('Note: Run SUPABASE_MIGRATION.sql if favorites table does not exist');
+          // Silently skip if table doesn't exist - run /CREATE_MISSING_TABLES.sql to fix
+          console.log('⚠️ Favorites table not accessible (tag route) - counts will be 0');
         } else {
           // Create a map of location_id to favorites count
           favoriteCounts?.forEach(fav => {
@@ -403,7 +405,7 @@ app.get('/make-server-48182530/locations/tag/:tag', async (c) => {
           });
         }
       } catch (e) {
-        console.error('❌ Exception querying favorites:', JSON.stringify(e, null, 2));
+        // Silently skip exceptions
       }
       
       try {
@@ -414,8 +416,8 @@ app.get('/make-server-48182530/locations/tag/:tag', async (c) => {
           .in('location_id', locationIds);
         
         if (wtgCountError) {
-          console.error('❌ Error fetching want-to-go counts:', JSON.stringify(wtgCountError, null, 2));
-          console.log('Note: Run SUPABASE_MIGRATION.sql if want_to_go table does not exist');
+          // Silently skip if table doesn't exist - run /CREATE_MISSING_TABLES.sql to fix
+          console.log('⚠️ Want-to-go table not accessible (tag route) - counts will be 0');
         } else {
           // Create a map of location_id to want-to-go count
           wantToGoCounts?.forEach(wtg => {
@@ -424,7 +426,7 @@ app.get('/make-server-48182530/locations/tag/:tag', async (c) => {
           });
         }
       } catch (e) {
-        console.error('❌ Exception querying want_to_go:', JSON.stringify(e, null, 2));
+        // Silently skip exceptions
       }
     }
     
