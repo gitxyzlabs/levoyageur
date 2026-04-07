@@ -1,0 +1,902 @@
+[
+  {
+    "event_message": "🟢 [PERF] GET /make-server-48182530/locations - 2088.92ms - 200\n",
+    "event_type": "Log",
+    "execution_id": "201d8cd9-f84c-410d-bfbf-85bb6984c5e7",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "828a587b-c767-4fc2-a2e7-f15bc9f732d5",
+    "level": "info",
+    "timestamp": 1775532356759000
+  },
+  {
+    "event_message": "📍 [REQUEST END] GET /make-server-48182530/locations - 2088.92ms - 200\n",
+    "event_type": "Log",
+    "execution_id": "201d8cd9-f84c-410d-bfbf-85bb6984c5e7",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "313446dc-1032-4423-8284-26f289cd8748",
+    "level": "info",
+    "timestamp": 1775532356759000
+  },
+  {
+    "event_message": "--> GET /make-server-48182530/locations 200 2s\n",
+    "event_type": "Log",
+    "execution_id": "201d8cd9-f84c-410d-bfbf-85bb6984c5e7",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "1b0688e2-35fa-4331-a4e5-d507b74a10c7",
+    "level": "info",
+    "timestamp": 1775532356759000
+  },
+  {
+    "event_message": "📊 Favorites count map entries: 0\n",
+    "event_type": "Log",
+    "execution_id": "201d8cd9-f84c-410d-bfbf-85bb6984c5e7",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "d7ad75a5-32d9-480e-a056-c03f06666a9c",
+    "level": "info",
+    "timestamp": 1775532356750000
+  },
+  {
+    "event_message": "⚠️ Want-to-go table not accessible - counts will be 0\n",
+    "event_type": "Log",
+    "execution_id": "201d8cd9-f84c-410d-bfbf-85bb6984c5e7",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "024e700c-523d-4e94-a024-3a4eeaf2bceb",
+    "level": "info",
+    "timestamp": 1775532356750000
+  },
+  {
+    "event_message": "📊 Want-to-go count map entries: 0\n",
+    "event_type": "Log",
+    "execution_id": "201d8cd9-f84c-410d-bfbf-85bb6984c5e7",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "7a550abf-e8bb-4d42-bbdc-311c935546c6",
+    "level": "info",
+    "timestamp": 1775532356750000
+  },
+  {
+    "event_message": "📊 Want-to-go query: { hasError: true, count: undefined }\n",
+    "event_type": "Log",
+    "execution_id": "201d8cd9-f84c-410d-bfbf-85bb6984c5e7",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "3c0d4c23-bf5e-4583-ae83-a739675cf40c",
+    "level": "info",
+    "timestamp": 1775532356750000
+  },
+  {
+    "event_message": "⚠️ Favorites table not accessible - counts will be 0\n",
+    "event_type": "Log",
+    "execution_id": "201d8cd9-f84c-410d-bfbf-85bb6984c5e7",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "fd7836f3-2965-482f-9d10-29523ff9acf5",
+    "level": "info",
+    "timestamp": 1775532356658000
+  },
+  {
+    "event_message": "📊 Favorites query: { hasError: true, count: undefined }\n",
+    "event_type": "Log",
+    "execution_id": "201d8cd9-f84c-410d-bfbf-85bb6984c5e7",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "ee1feeb5-a435-434d-b4b7-6565140b445e",
+    "level": "info",
+    "timestamp": 1775532356658000
+  },
+  {
+    "event_message": "📊 Querying counts for 1000 locations\n",
+    "event_type": "Log",
+    "execution_id": "201d8cd9-f84c-410d-bfbf-85bb6984c5e7",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "68d36594-976e-4c60-bd04-301a9a54193f",
+    "level": "info",
+    "timestamp": 1775532356439000
+  },
+  {
+    "event_message": "📍 GET /locations - Found locations: 1000\n",
+    "event_type": "Log",
+    "execution_id": "201d8cd9-f84c-410d-bfbf-85bb6984c5e7",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "86b1d546-f24e-4e9c-936d-64dddcdcfb20",
+    "level": "info",
+    "timestamp": 1775532356438000
+  },
+  {
+    "event_message": "⚠️ [DB SLOW] SELECT on locations took 1763.26ms\n",
+    "event_type": "Log",
+    "execution_id": "201d8cd9-f84c-410d-bfbf-85bb6984c5e7",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "f18ed9e6-7b89-46ff-b315-a3500e543d74",
+    "level": "warning",
+    "timestamp": 1775532356438000
+  },
+  {
+    "event_message": "📍 GET /locations - Start\n",
+    "event_type": "Log",
+    "execution_id": "201d8cd9-f84c-410d-bfbf-85bb6984c5e7",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "2b52971f-a0b1-4f53-9d88-f2cacdebd719",
+    "level": "info",
+    "timestamp": 1775532354671000
+  },
+  {
+    "event_message": "<-- GET /make-server-48182530/locations\n",
+    "event_type": "Log",
+    "execution_id": "201d8cd9-f84c-410d-bfbf-85bb6984c5e7",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "3760a73f-ead4-4d69-b81e-e73fad66450c",
+    "level": "info",
+    "timestamp": 1775532354670000
+  },
+  {
+    "event_message": "📍 [REQUEST START] GET /make-server-48182530/locations - User: anonymous\n",
+    "event_type": "Log",
+    "execution_id": "201d8cd9-f84c-410d-bfbf-85bb6984c5e7",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "057a7bf3-f58c-4058-9aad-d1ceef145781",
+    "level": "info",
+    "timestamp": 1775532354670000
+  },
+  {
+    "event_message": "✅ Server is listening\n",
+    "event_type": "Log",
+    "execution_id": "201d8cd9-f84c-410d-bfbf-85bb6984c5e7",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "25441aad-c22f-422e-a423-0645b99c0ecc",
+    "level": "info",
+    "timestamp": 1775532354662000
+  },
+  {
+    "event_message": "🚀 Server starting...\n",
+    "event_type": "Log",
+    "execution_id": "201d8cd9-f84c-410d-bfbf-85bb6984c5e7",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "3012fc25-365e-4c2f-8f71-4cf9138c6012",
+    "level": "info",
+    "timestamp": 1775532354661000
+  },
+  {
+    "event_message": "booted (time: 37ms)",
+    "event_type": "Boot",
+    "execution_id": "201d8cd9-f84c-410d-bfbf-85bb6984c5e7",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "92241582-2a68-4464-8f4f-88dc8b14179f",
+    "level": "log",
+    "timestamp": 1775532354635000
+  },
+  {
+    "event_message": "🟢 [PERF] GET /make-server-48182530/config/google-maps-key - 2.57ms - 200\n",
+    "event_type": "Log",
+    "execution_id": "a620b66b-b65c-4313-a633-30dd9a5806f2",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "0b04228c-c664-468c-9e3c-72cd11a1ff20",
+    "level": "info",
+    "timestamp": 1775532354380000
+  },
+  {
+    "event_message": "--> GET /make-server-48182530/config/google-maps-key 200 1ms\n",
+    "event_type": "Log",
+    "execution_id": "a620b66b-b65c-4313-a633-30dd9a5806f2",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "3ce3a9a7-2509-4db1-9433-706ecc97cfb4",
+    "level": "info",
+    "timestamp": 1775532354380000
+  },
+  {
+    "event_message": "📍 [REQUEST END] GET /make-server-48182530/config/google-maps-key - 2.57ms - 200\n",
+    "event_type": "Log",
+    "execution_id": "a620b66b-b65c-4313-a633-30dd9a5806f2",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "df71c04f-7548-4259-9498-55923ba1fa23",
+    "level": "info",
+    "timestamp": 1775532354380000
+  },
+  {
+    "event_message": "📍 [REQUEST START] GET /make-server-48182530/config/google-maps-key - User: anonymous\n",
+    "event_type": "Log",
+    "execution_id": "a620b66b-b65c-4313-a633-30dd9a5806f2",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "f76586b4-b5ed-40db-9133-9983979d4a71",
+    "level": "info",
+    "timestamp": 1775532354377000
+  },
+  {
+    "event_message": "<-- GET /make-server-48182530/config/google-maps-key\n",
+    "event_type": "Log",
+    "execution_id": "a620b66b-b65c-4313-a633-30dd9a5806f2",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "d6d915e0-8f99-4309-a23e-d0c401357f9a",
+    "level": "info",
+    "timestamp": 1775532354377000
+  },
+  {
+    "event_message": "✅ Server is listening\n",
+    "event_type": "Log",
+    "execution_id": "a620b66b-b65c-4313-a633-30dd9a5806f2",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "bc4b99ea-32bc-4643-b218-b3c4522a3165",
+    "level": "info",
+    "timestamp": 1775532354370000
+  },
+  {
+    "event_message": "🚀 Server starting...\n",
+    "event_type": "Log",
+    "execution_id": "a620b66b-b65c-4313-a633-30dd9a5806f2",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "66080443-d8a2-4bc5-be2e-dedab7094c89",
+    "level": "info",
+    "timestamp": 1775532354369000
+  },
+  {
+    "event_message": "booted (time: 37ms)",
+    "event_type": "Boot",
+    "execution_id": "a620b66b-b65c-4313-a633-30dd9a5806f2",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "d9c3dc40-0fb1-4fd0-811d-e4b206a45eb1",
+    "level": "log",
+    "timestamp": 1775532354342000
+  },
+  {
+    "event_message": "shutdown",
+    "event_type": "Shutdown",
+    "execution_id": "1f5e9319-15a7-49c6-b618-26961db06e7d",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "fa877716-a752-4c82-b68f-8051331caedb",
+    "level": "log",
+    "timestamp": 1775529432736000
+  },
+  {
+    "event_message": "shutdown",
+    "event_type": "Shutdown",
+    "execution_id": "85b908a7-012c-47ce-a821-3193f6eee84d",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "55f9c371-8f01-4791-b208-33b7e519386f",
+    "level": "log",
+    "timestamp": 1775529429350000
+  },
+  {
+    "event_message": "shutdown",
+    "event_type": "Shutdown",
+    "execution_id": "ac22be64-9af2-4f24-ad43-397d23899f4c",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "c9f4c59c-2e30-4475-9741-bc03603a1662",
+    "level": "log",
+    "timestamp": 1775529429029000
+  },
+  {
+    "event_message": "shutdown",
+    "event_type": "Shutdown",
+    "execution_id": "f57cdb3e-bb15-465a-9e7b-d1fae0b51ebe",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "27e20d04-332b-4b57-80a5-36a9849f34da",
+    "level": "log",
+    "timestamp": 1775529394958000
+  },
+  {
+    "event_message": "shutdown",
+    "event_type": "Shutdown",
+    "execution_id": "b5b876bd-3cae-4c25-9351-6d2878b2a6f1",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "44bed822-7854-45e6-8b02-466cc8aa5c77",
+    "level": "log",
+    "timestamp": 1775529373511000
+  },
+  {
+    "event_message": "shutdown",
+    "event_type": "Shutdown",
+    "execution_id": "91c08b9d-b5e9-49ab-99ac-7ec57e02a7ba",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "b50a91a0-c501-431f-9cf9-b5c995f23482",
+    "level": "log",
+    "timestamp": 1775529373201000
+  },
+  {
+    "event_message": "shutdown",
+    "event_type": "Shutdown",
+    "execution_id": "179a1543-4abb-4c48-adf1-5c9a4140f88d",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "bbcc5b3d-6d85-4259-8038-0d4a1c263a97",
+    "level": "log",
+    "timestamp": 1775529372863000
+  },
+  {
+    "event_message": "shutdown",
+    "event_type": "Shutdown",
+    "execution_id": "84d163f7-56d9-4252-954e-975438a11e1c",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "4e3f1455-2c77-4993-a9a4-8862fa99e988",
+    "level": "log",
+    "timestamp": 1775529372537000
+  },
+  {
+    "event_message": "shutdown",
+    "event_type": "Shutdown",
+    "execution_id": "285665d8-c37a-4cc4-a60e-6ca46ccd5710",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "6a5b55f6-a410-4fee-8ab1-eeaab972ce70",
+    "level": "log",
+    "timestamp": 1775529372213000
+  },
+  {
+    "event_message": "shutdown",
+    "event_type": "Shutdown",
+    "execution_id": "06d699d1-58ef-42d9-8e37-e6c27d5c6e41",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "e622af49-676e-4421-95bc-55a34ff017fa",
+    "level": "log",
+    "timestamp": 1775529372088000
+  },
+  {
+    "event_message": "shutdown",
+    "event_type": "Shutdown",
+    "execution_id": "8fb74ee2-e129-4347-88b6-179d79e6f2c2",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "1f34eb11-b1d4-4e41-b6ad-4ffdd3fb11c0",
+    "level": "log",
+    "timestamp": 1775529371724000
+  },
+  {
+    "event_message": "shutdown",
+    "event_type": "Shutdown",
+    "execution_id": "07fe8e1a-76f4-4e49-a7ae-8529d5f492e8",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "9ade506b-acd2-458e-b41b-d6c948216bd7",
+    "level": "log",
+    "timestamp": 1775529371506000
+  },
+  {
+    "event_message": "shutdown",
+    "event_type": "Shutdown",
+    "execution_id": "ebdc9a77-dede-4d30-98ca-3d7c34eec575",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "9fd41971-61d8-4922-b143-cb5d9405c0a3",
+    "level": "log",
+    "timestamp": 1775529370503000
+  },
+  {
+    "event_message": "--> GET /make-server-48182530/tags 200 184ms\n",
+    "event_type": "Log",
+    "execution_id": "ac22be64-9af2-4f24-ad43-397d23899f4c",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "f632580c-94d4-40bc-88ac-ad2257ea8ddd",
+    "level": "info",
+    "timestamp": 1775529358197000
+  },
+  {
+    "event_message": "🟢 [PERF] GET /make-server-48182530/tags - 184.35ms - 200\n",
+    "event_type": "Log",
+    "execution_id": "ac22be64-9af2-4f24-ad43-397d23899f4c",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "e06a787b-4a16-4e36-9491-17df33f9f4a4",
+    "level": "info",
+    "timestamp": 1775529358197000
+  },
+  {
+    "event_message": "📍 [REQUEST END] GET /make-server-48182530/tags - 184.35ms - 200\n",
+    "event_type": "Log",
+    "execution_id": "ac22be64-9af2-4f24-ad43-397d23899f4c",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "0ce82798-1f12-45dd-abd2-d26f42d044ff",
+    "level": "info",
+    "timestamp": 1775529358197000
+  },
+  {
+    "event_message": "GET /tags - Found unique tags: 43\n",
+    "event_type": "Log",
+    "execution_id": "ac22be64-9af2-4f24-ad43-397d23899f4c",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "8550c21e-9877-4861-bac6-a323ce2867c1",
+    "level": "info",
+    "timestamp": 1775529358196000
+  },
+  {
+    "event_message": "📍 [REQUEST START] GET /make-server-48182530/tags - User: anonymous\n",
+    "event_type": "Log",
+    "execution_id": "ac22be64-9af2-4f24-ad43-397d23899f4c",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "80f5518b-3308-4ce3-8e08-61a755123cf2",
+    "level": "info",
+    "timestamp": 1775529358013000
+  },
+  {
+    "event_message": "<-- GET /make-server-48182530/tags\n",
+    "event_type": "Log",
+    "execution_id": "ac22be64-9af2-4f24-ad43-397d23899f4c",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "c312a5f9-d111-473e-96e5-d3940860cb58",
+    "level": "info",
+    "timestamp": 1775529358013000
+  },
+  {
+    "event_message": "📍 GET /tags - Start\n",
+    "event_type": "Log",
+    "execution_id": "ac22be64-9af2-4f24-ad43-397d23899f4c",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "6bd4073f-bc0f-4e73-bd12-55143f58497a",
+    "level": "info",
+    "timestamp": 1775529358013000
+  },
+  {
+    "event_message": "📍 [REQUEST END] OPTIONS /make-server-48182530/tags - 1.79ms - 204\n",
+    "event_type": "Log",
+    "execution_id": "1f5e9319-15a7-49c6-b618-26961db06e7d",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "a2fc5fe3-e2fd-4743-8387-c9f2ddb331c9",
+    "level": "info",
+    "timestamp": 1775529357755000
+  },
+  {
+    "event_message": "🟢 [PERF] OPTIONS /make-server-48182530/tags - 1.79ms - 204\n",
+    "event_type": "Log",
+    "execution_id": "1f5e9319-15a7-49c6-b618-26961db06e7d",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "c5a7634a-1660-412b-aff3-d4d245c2e018",
+    "level": "info",
+    "timestamp": 1775529357755000
+  },
+  {
+    "event_message": "--> OPTIONS /make-server-48182530/tags 204 2ms\n",
+    "event_type": "Log",
+    "execution_id": "1f5e9319-15a7-49c6-b618-26961db06e7d",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "970ad9c9-23de-4c30-9142-e4fe2371a036",
+    "level": "info",
+    "timestamp": 1775529357755000
+  },
+  {
+    "event_message": "<-- OPTIONS /make-server-48182530/tags\n",
+    "event_type": "Log",
+    "execution_id": "1f5e9319-15a7-49c6-b618-26961db06e7d",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "a1c88090-469a-4cbb-8250-20a13e09a3af",
+    "level": "info",
+    "timestamp": 1775529357753000
+  },
+  {
+    "event_message": "📍 [REQUEST START] OPTIONS /make-server-48182530/tags - User: anonymous\n",
+    "event_type": "Log",
+    "execution_id": "1f5e9319-15a7-49c6-b618-26961db06e7d",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "232a8453-8c2e-4248-94b1-d45b20551a0b",
+    "level": "info",
+    "timestamp": 1775529357753000
+  },
+  {
+    "event_message": "✅ Server is listening\n",
+    "event_type": "Log",
+    "execution_id": "1f5e9319-15a7-49c6-b618-26961db06e7d",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "527c49d5-032f-40a0-a8a2-c3fab5730be2",
+    "level": "info",
+    "timestamp": 1775529357745000
+  },
+  {
+    "event_message": "🚀 Server starting...\n",
+    "event_type": "Log",
+    "execution_id": "1f5e9319-15a7-49c6-b618-26961db06e7d",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "55a13597-175e-425f-92f8-994a55deee2d",
+    "level": "info",
+    "timestamp": 1775529357745000
+  },
+  {
+    "event_message": "booted (time: 40ms)",
+    "event_type": "Boot",
+    "execution_id": "1f5e9319-15a7-49c6-b618-26961db06e7d",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "48934a0a-2aff-4a48-b063-bfca38fa17c6",
+    "level": "log",
+    "timestamp": 1775529357719000
+  },
+  {
+    "event_message": "🟢 [PERF] GET /make-server-48182530/michelin/rating - 630.77ms - 200\n",
+    "event_type": "Log",
+    "execution_id": "85b908a7-012c-47ce-a821-3193f6eee84d",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "69f706bd-e80b-4372-a210-9c4fd52c6d08",
+    "level": "info",
+    "timestamp": 1775529355046000
+  },
+  {
+    "event_message": "📍 [REQUEST END] GET /make-server-48182530/michelin/rating - 630.77ms - 200\n",
+    "event_type": "Log",
+    "execution_id": "85b908a7-012c-47ce-a821-3193f6eee84d",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "dd1c5a4b-997f-4e7d-8cbb-b4cea67b1d10",
+    "level": "info",
+    "timestamp": 1775529355046000
+  },
+  {
+    "event_message": "--> GET /make-server-48182530/michelin/rating?lat=36.1320963&lng=-115.1767564&name=Rollin+Smoke+Barbeque 200 630ms\n",
+    "event_type": "Log",
+    "execution_id": "85b908a7-012c-47ce-a821-3193f6eee84d",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "0572106c-3962-457a-990f-3ed75c7d1211",
+    "level": "info",
+    "timestamp": 1775529355045000
+  },
+  {
+    "event_message": "❌ No Michelin restaurant found within range\n",
+    "event_type": "Log",
+    "execution_id": "85b908a7-012c-47ce-a821-3193f6eee84d",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "2461a1b3-f757-4ae6-9856-5f6ab0ad5f7f",
+    "level": "info",
+    "timestamp": 1775529355044000
+  },
+  {
+    "event_message": "📊 Searching 1000 Michelin restaurants\n",
+    "event_type": "Log",
+    "execution_id": "85b908a7-012c-47ce-a821-3193f6eee84d",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "8ab2aa48-7730-4a16-99ff-5aa0d25aee78",
+    "level": "info",
+    "timestamp": 1775529355043000
+  },
+  {
+    "event_message": "📍 GET /michelin/rating - Start\n",
+    "event_type": "Log",
+    "execution_id": "85b908a7-012c-47ce-a821-3193f6eee84d",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "0bbbf5f4-85b2-4471-ad87-b9ddc52fa33f",
+    "level": "info",
+    "timestamp": 1775529354416000
+  },
+  {
+    "event_message": "🔍 Searching for Michelin rating near (36.1320963, -115.1767564) for \"Rollin Smoke Barbeque\"\n",
+    "event_type": "Log",
+    "execution_id": "85b908a7-012c-47ce-a821-3193f6eee84d",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "2661f923-d257-4909-a092-69cdc1db9ad2",
+    "level": "info",
+    "timestamp": 1775529354416000
+  },
+  {
+    "event_message": "<-- GET /make-server-48182530/michelin/rating?lat=36.1320963&lng=-115.1767564&name=Rollin+Smoke+Barbeque\n",
+    "event_type": "Log",
+    "execution_id": "85b908a7-012c-47ce-a821-3193f6eee84d",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "5f93993d-b55c-4c48-aa34-01c530fd15de",
+    "level": "info",
+    "timestamp": 1775529354415000
+  },
+  {
+    "event_message": "📍 [REQUEST START] GET /make-server-48182530/michelin/rating - User: anonymous\n",
+    "event_type": "Log",
+    "execution_id": "85b908a7-012c-47ce-a821-3193f6eee84d",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "0b3166e5-079b-4d68-8c22-c2bdb425c51b",
+    "level": "info",
+    "timestamp": 1775529354415000
+  },
+  {
+    "event_message": "✅ Server is listening\n",
+    "event_type": "Log",
+    "execution_id": "85b908a7-012c-47ce-a821-3193f6eee84d",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "f7378631-241c-44e3-9d2b-6d3999ecc136",
+    "level": "info",
+    "timestamp": 1775529354407000
+  },
+  {
+    "event_message": "🚀 Server starting...\n",
+    "event_type": "Log",
+    "execution_id": "85b908a7-012c-47ce-a821-3193f6eee84d",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "0b1652eb-86a8-45c1-b433-1c6f091f10c7",
+    "level": "info",
+    "timestamp": 1775529354406000
+  },
+  {
+    "event_message": "booted (time: 43ms)",
+    "event_type": "Boot",
+    "execution_id": "85b908a7-012c-47ce-a821-3193f6eee84d",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "5d538eb7-c124-4710-b3cd-1f7bbe074866",
+    "level": "log",
+    "timestamp": 1775529354336000
+  },
+  {
+    "event_message": "📍 [REQUEST END] OPTIONS /make-server-48182530/michelin/rating - 1.75ms - 204\n",
+    "event_type": "Log",
+    "execution_id": "ac22be64-9af2-4f24-ad43-397d23899f4c",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "85c47225-51f2-4c31-8bfc-090507c3eb22",
+    "level": "info",
+    "timestamp": 1775529354047000
+  },
+  {
+    "event_message": "🟢 [PERF] OPTIONS /make-server-48182530/michelin/rating - 1.75ms - 204\n",
+    "event_type": "Log",
+    "execution_id": "ac22be64-9af2-4f24-ad43-397d23899f4c",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "b767e99a-e649-4ebd-852f-cf6917ea029c",
+    "level": "info",
+    "timestamp": 1775529354047000
+  },
+  {
+    "event_message": "--> OPTIONS /make-server-48182530/michelin/rating?lat=36.1320963&lng=-115.1767564&name=Rollin+Smoke+Barbeque 204 1ms\n",
+    "event_type": "Log",
+    "execution_id": "ac22be64-9af2-4f24-ad43-397d23899f4c",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "1b7c6df4-989c-4d6d-9bfb-44a6a5e1bd86",
+    "level": "info",
+    "timestamp": 1775529354047000
+  },
+  {
+    "event_message": "<-- OPTIONS /make-server-48182530/michelin/rating?lat=36.1320963&lng=-115.1767564&name=Rollin+Smoke+Barbeque\n",
+    "event_type": "Log",
+    "execution_id": "ac22be64-9af2-4f24-ad43-397d23899f4c",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "8493f10b-e2e1-4167-995f-5d9236fef6db",
+    "level": "info",
+    "timestamp": 1775529354045000
+  },
+  {
+    "event_message": "📍 [REQUEST START] OPTIONS /make-server-48182530/michelin/rating - User: anonymous\n",
+    "event_type": "Log",
+    "execution_id": "ac22be64-9af2-4f24-ad43-397d23899f4c",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "0e96ba24-0be4-42b1-968f-35e7c912fb13",
+    "level": "info",
+    "timestamp": 1775529354045000
+  },
+  {
+    "event_message": "🚀 Server starting...\n",
+    "event_type": "Log",
+    "execution_id": "ac22be64-9af2-4f24-ad43-397d23899f4c",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "c19d5914-6617-4135-bc47-c931ece7e12c",
+    "level": "info",
+    "timestamp": 1775529354037000
+  },
+  {
+    "event_message": "✅ Server is listening\n",
+    "event_type": "Log",
+    "execution_id": "ac22be64-9af2-4f24-ad43-397d23899f4c",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "f55f1f92-077b-41b6-81b3-2acc0b1fa221",
+    "level": "info",
+    "timestamp": 1775529354037000
+  },
+  {
+    "event_message": "booted (time: 36ms)",
+    "event_type": "Boot",
+    "execution_id": "ac22be64-9af2-4f24-ad43-397d23899f4c",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "4d4afc9d-1508-4969-8309-22ded18e7627",
+    "level": "log",
+    "timestamp": 1775529354012000
+  },
+  {
+    "event_message": "shutdown",
+    "event_type": "Shutdown",
+    "execution_id": "869f7e44-667b-4222-8ed5-ebffb78dc491",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "cff195d5-5d03-4db8-9b8d-49132e6f0adb",
+    "level": "log",
+    "timestamp": 1775529349259000
+  },
+  {
+    "event_message": "shutdown",
+    "event_type": "Shutdown",
+    "execution_id": "1117d423-adf1-4f61-859c-ca81db6647fb",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "4ad33082-d4c3-4b8e-96d0-7d930f11a3e0",
+    "level": "log",
+    "timestamp": 1775529349007000
+  },
+  {
+    "event_message": "shutdown",
+    "event_type": "Shutdown",
+    "execution_id": "e8aeac08-b366-451c-b0b2-5c7b9fdefaff",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "037b52a4-7eae-4c72-90de-4f3b603bda38",
+    "level": "log",
+    "timestamp": 1775529348723000
+  },
+  {
+    "event_message": "shutdown",
+    "event_type": "Shutdown",
+    "execution_id": "f397e3d6-bcb1-440c-b5af-e755f70cc131",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "a143e723-1fef-4261-8ef3-1b416acacc94",
+    "level": "log",
+    "timestamp": 1775529348358000
+  },
+  {
+    "event_message": "--> GET /make-server-48182530/locations/tag/brisket 200 389ms\n",
+    "event_type": "Log",
+    "execution_id": "869f7e44-667b-4222-8ed5-ebffb78dc491",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "9f9581d2-9686-45ff-bafe-d55a8e5b621f",
+    "level": "info",
+    "timestamp": 1775529320645000
+  },
+  {
+    "event_message": "📍 [REQUEST END] GET /make-server-48182530/locations/tag/brisket - 390.00ms - 200\n",
+    "event_type": "Log",
+    "execution_id": "869f7e44-667b-4222-8ed5-ebffb78dc491",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "d9c5813b-daaa-4a53-99d4-d8b11ffc7d8f",
+    "level": "info",
+    "timestamp": 1775529320645000
+  },
+  {
+    "event_message": "🟢 [PERF] GET /make-server-48182530/locations/tag/brisket - 390.00ms - 200\n",
+    "event_type": "Log",
+    "execution_id": "869f7e44-667b-4222-8ed5-ebffb78dc491",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "c712bc46-88f0-42ae-9e5a-46f64e123711",
+    "level": "info",
+    "timestamp": 1775529320645000
+  },
+  {
+    "event_message": "📍 GET /locations/tag - Found locations: 4\n",
+    "event_type": "Log",
+    "execution_id": "869f7e44-667b-4222-8ed5-ebffb78dc491",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "e16e29cf-9cef-4cd7-a079-723df07e089d",
+    "level": "info",
+    "timestamp": 1775529320330000
+  },
+  {
+    "event_message": "Searching for tag: brisket\n",
+    "event_type": "Log",
+    "execution_id": "869f7e44-667b-4222-8ed5-ebffb78dc491",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "cd3c9419-a2db-4381-b5dd-cbd9aa4cd34e",
+    "level": "info",
+    "timestamp": 1775529320259000
+  },
+  {
+    "event_message": "📍 GET /locations/tag/:tag - Start\n",
+    "event_type": "Log",
+    "execution_id": "869f7e44-667b-4222-8ed5-ebffb78dc491",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "53b1a15b-3fa5-4955-99f0-ceb81cc3e2c6",
+    "level": "info",
+    "timestamp": 1775529320259000
+  },
+  {
+    "event_message": "📍 [REQUEST START] GET /make-server-48182530/locations/tag/brisket - User: anonymous\n",
+    "event_type": "Log",
+    "execution_id": "869f7e44-667b-4222-8ed5-ebffb78dc491",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "aa2d019b-21f1-43fc-b73e-82d8d518ac1e",
+    "level": "info",
+    "timestamp": 1775529320256000
+  },
+  {
+    "event_message": "<-- GET /make-server-48182530/locations/tag/brisket\n",
+    "event_type": "Log",
+    "execution_id": "869f7e44-667b-4222-8ed5-ebffb78dc491",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "e3dbee73-8afe-4c28-8f22-7eadb875a01a",
+    "level": "info",
+    "timestamp": 1775529320256000
+  },
+  {
+    "event_message": "--> OPTIONS /make-server-48182530/locations/tag/brisket 204 1ms\n",
+    "event_type": "Log",
+    "execution_id": "f57cdb3e-bb15-465a-9e7b-d1fae0b51ebe",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "1813309e-810a-4fa6-be1a-52e951d191a6",
+    "level": "info",
+    "timestamp": 1775529319981000
+  },
+  {
+    "event_message": "🟢 [PERF] OPTIONS /make-server-48182530/locations/tag/brisket - 1.23ms - 204\n",
+    "event_type": "Log",
+    "execution_id": "f57cdb3e-bb15-465a-9e7b-d1fae0b51ebe",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "08706ee9-4362-4415-a923-5f48e5f66574",
+    "level": "info",
+    "timestamp": 1775529319981000
+  },
+  {
+    "event_message": "📍 [REQUEST END] OPTIONS /make-server-48182530/locations/tag/brisket - 1.23ms - 204\n",
+    "event_type": "Log",
+    "execution_id": "f57cdb3e-bb15-465a-9e7b-d1fae0b51ebe",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "cc3d64cf-879e-4aa1-b759-f8bafbbfd370",
+    "level": "info",
+    "timestamp": 1775529319981000
+  },
+  {
+    "event_message": "📍 [REQUEST START] OPTIONS /make-server-48182530/locations/tag/brisket - User: anonymous\n",
+    "event_type": "Log",
+    "execution_id": "f57cdb3e-bb15-465a-9e7b-d1fae0b51ebe",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "80cf5fa9-4e0c-421d-9147-eb0f9286b547",
+    "level": "info",
+    "timestamp": 1775529319979000
+  },
+  {
+    "event_message": "<-- OPTIONS /make-server-48182530/locations/tag/brisket\n",
+    "event_type": "Log",
+    "execution_id": "f57cdb3e-bb15-465a-9e7b-d1fae0b51ebe",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "bacc9c20-5f04-4d83-af24-7e791b6e01b2",
+    "level": "info",
+    "timestamp": 1775529319979000
+  },
+  {
+    "event_message": "✅ Server is listening\n",
+    "event_type": "Log",
+    "execution_id": "f57cdb3e-bb15-465a-9e7b-d1fae0b51ebe",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "351308db-f19d-47ff-8cc2-355a14b4f2d0",
+    "level": "info",
+    "timestamp": 1775529319974000
+  },
+  {
+    "event_message": "🚀 Server starting...\n",
+    "event_type": "Log",
+    "execution_id": "f57cdb3e-bb15-465a-9e7b-d1fae0b51ebe",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "b3796443-0f8d-429f-ba3b-68ac97a61a98",
+    "level": "info",
+    "timestamp": 1775529319973000
+  },
+  {
+    "event_message": "booted (time: 26ms)",
+    "event_type": "Boot",
+    "execution_id": "f57cdb3e-bb15-465a-9e7b-d1fae0b51ebe",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "a96d44b4-67cb-4da6-9ab9-e5902f986689",
+    "level": "log",
+    "timestamp": 1775529319944000
+  },
+  {
+    "event_message": "🟢 [PERF] GET /make-server-48182530/favorites - 238.86ms - 200\n",
+    "event_type": "Log",
+    "execution_id": "b5b876bd-3cae-4c25-9351-6d2878b2a6f1",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "eb5c8a95-81ea-4710-b583-ade6c96cfd0d",
+    "level": "info",
+    "timestamp": 1775529298770000
+  },
+  {
+    "event_message": "--> GET /make-server-48182530/favorites 200 238ms\n",
+    "event_type": "Log",
+    "execution_id": "b5b876bd-3cae-4c25-9351-6d2878b2a6f1",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "68a8039b-85c8-4c16-9342-18f0d1ab0809",
+    "level": "info",
+    "timestamp": 1775529298770000
+  },
+  {
+    "event_message": "📍 [REQUEST END] GET /make-server-48182530/favorites - 238.86ms - 200\n",
+    "event_type": "Log",
+    "execution_id": "b5b876bd-3cae-4c25-9351-6d2878b2a6f1",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "43d17ae9-f56b-4ab3-bd8f-5688dded94c6",
+    "level": "info",
+    "timestamp": 1775529298770000
+  },
+  {
+    "event_message": "GET /favorites - Found favorites: 27\n",
+    "event_type": "Log",
+    "execution_id": "b5b876bd-3cae-4c25-9351-6d2878b2a6f1",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "99620435-ccb2-4f2c-9ad4-582541e827ce",
+    "level": "info",
+    "timestamp": 1775529298667000
+  },
+  {
+    "event_message": "📍 GET /favorites - Start\n",
+    "event_type": "Log",
+    "execution_id": "b5b876bd-3cae-4c25-9351-6d2878b2a6f1",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "6a867633-ca36-4a10-a1ef-7f27e84798c6",
+    "level": "info",
+    "timestamp": 1775529298604000
+  },
+  {
+    "event_message": "✅ User verified successfully: c5a7bcab-894a-4349-b71b-d5bd43fc0374\n",
+    "event_type": "Log",
+    "execution_id": "b5b876bd-3cae-4c25-9351-6d2878b2a6f1",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "6991072e-f188-4630-8e6b-e3c8334c1adb",
+    "level": "info",
+    "timestamp": 1775529298604000
+  }
+]
