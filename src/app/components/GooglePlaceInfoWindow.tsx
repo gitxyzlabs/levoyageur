@@ -186,9 +186,11 @@ export function GooglePlaceInfoWindow({
 
   // Handle native sharing
   const handleShare = async () => {
+    // Create Le Voyageur share URL
+    const baseUrl = window.location.origin; // Will be lvofc.com in production, localhost in dev
     const shareUrl = place.place_id
-      ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(place.name || '')}&query_place_id=${place.place_id}`
-      : `https://www.google.com/maps/search/?api=1&query=${lat},${lng}`;
+      ? `${baseUrl}/place/${place.place_id}`
+      : `${baseUrl}/place/${lat},${lng}`;
 
     const shareData = {
       title: place.name || 'Le Voyageur',
