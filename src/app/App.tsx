@@ -426,12 +426,16 @@ export default function App() {
           return;
         }
 
-        // Try to find the location in our database first (to get LV data)
+        // Try to find the location in our database (for LV data)
         const lvLocation = locations.find(
           loc => loc.place_id === placeId || loc.googlePlaceId === placeId || loc.id === placeId
         );
 
-        // Always fetch full Google details (including photos) from Google Places API
+        if (lvLocation) {
+          console.log('✅ Found LV location data:', lvLocation);
+        }
+
+        // ALWAYS fetch from Google Places API to get photos and complete data
         console.log('📍 Fetching place from Google Places API...');
         const response = await fetch(
           `https://${projectId}.supabase.co/functions/v1/make-server-48182530/google-places/${placeId}/details`,
@@ -446,36 +450,39 @@ export default function App() {
 
         const placeData = await response.json();
         console.log('✅ Fetched place from Google:', placeData);
+        console.log('📸 Photos:', placeData.photos?.length || 0);
+
+        // Convert photos to the format the InfoWindow expects
+        const photos = placeData.photos?.map((photo: any) => ({
+          getUrl: (opts?: { maxWidth?: number; maxHeight?: number }) => photo.photoReference,
+          height: photo.height || 600,
+          width: photo.width || 800,
+        })) || [];
 
         const place: google.maps.places.PlaceResult = {
-          place_id: placeData.id,
-          name: placeData.displayName,
-          formatted_address: placeData.formattedAddress,
+          place_id: placeData.place_id,
+          name: placeData.name,
+          formatted_address: placeData.formatted_address,
           geometry: placeData.location ? {
             location: placeData.location as google.maps.LatLng
-          } as google.maps.places.PlaceGeometry : undefined,
+          } : undefined,
           rating: placeData.rating,
-          user_ratings_total: placeData.userRatingCount,
-          types: placeData.types,
-          photos: placeData.photos,
+          user_ratings_total: placeData.user_ratings_total,
+          website: placeData.website,
+          formatted_phone_number: placeData.formatted_phone_number,
+          reviews: placeData.reviews,
+          photos: photos,
         };
 
-        const lat = placeData.location?.lat || 0;
-        const lng = placeData.location?.lng || 0;
+        const lat = placeData.location?.lat || lvLocation?.lat || 0;
+        const lng = placeData.location?.lng || lvLocation?.lng || 0;
 
         setMapCenter({ lat, lng });
         setMapZoom(15);
         setSelectedGooglePlace(place);
-        setSelectedLVLocation(lvLocation || null); // Include LV data if we found it
+        setSelectedLVLocation(lvLocation || null);
         setSelectedCity(null);
-
-        if (lvLocation) {
-          console.log('✅ Found LV location data:', lvLocation);
-          toast.success(`Opened ${placeData.displayName || 'location'}`);
-        } else {
-          console.log('ℹ️ No LV data for this location');
-          toast.success(`Opened ${placeData.displayName || 'location'}`);
-        }
+        toast.success(`Opened ${placeData.name || 'location'}`);
       } catch (error) {
         console.error('❌ Error loading shared place:', error);
         toast.error('Failed to load shared location');
