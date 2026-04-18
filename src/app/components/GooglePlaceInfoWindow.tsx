@@ -186,11 +186,11 @@ export function GooglePlaceInfoWindow({
 
   // Handle native sharing
   const handleShare = async () => {
-    // Create Le Voyageur share URL
-    const baseUrl = window.location.origin; // Will be lvofc.com in production, localhost in dev
+    // Create Le Voyageur share URL with place parameter
+    const baseUrl = window.location.origin;
     const shareUrl = place.place_id
-      ? `${baseUrl}/place/${place.place_id}`
-      : `${baseUrl}/place/${lat},${lng}`;
+      ? `${baseUrl}/?place=${place.place_id}`
+      : `${baseUrl}/?place=${lat},${lng}`;
 
     const shareData = {
       title: place.name || 'Le Voyageur',
@@ -508,7 +508,7 @@ export function GooglePlaceInfoWindow({
             )}
 
             {/* Favorites Counter - only show if count > 0 */}
-            {lvLocation && lvLocation.favoritesCount && lvLocation.favoritesCount > 0 && (
+            {lvLocation && lvLocation.favoritesCount != null && lvLocation.favoritesCount > 0 && (
               <div className="flex items-center justify-between text-sm pb-2 border-b border-gray-100">
                 <div className="flex items-center gap-2">
                   <Heart className="w-4 h-4 text-red-500" />
@@ -526,10 +526,10 @@ export function GooglePlaceInfoWindow({
             {/* Google Rating - Clickable to view reviews */}
             <button
               onClick={handleOpenReviews}
-              className="flex items-center justify-between text-sm pb-2 border-b border-gray-100 w-full hover:bg-blue-50 transition-colors px-2 -mx-2 rounded cursor-pointer group"
+              className="flex items-center justify-between text-sm pb-2 border-b border-gray-100 w-full hover:bg-blue-50 transition-colors rounded cursor-pointer group"
               title="Click to read Google reviews"
             >
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 flex-1">
                 <svg className="w-4 h-4" viewBox="0 0 24 24">
                   <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
                   <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
@@ -537,19 +537,21 @@ export function GooglePlaceInfoWindow({
                   <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
                 </svg>
                 <span className="text-gray-600 group-hover:text-blue-600 transition-colors">Google Rating</span>
-              </div>
-              <div className="flex items-center gap-2">
-                {renderStars(place.rating ?? null)}
-                <div className="flex items-center gap-1">
-                  <span className="text-sm font-medium text-gray-900 w-8 text-right">
-                    {place.rating?.toFixed(1) || 'N/A'}
-                  </span>
-                  {place.user_ratings_total && (
-                    <span className="text-xs text-gray-500 group-hover:text-blue-600 transition-colors">
-                      ({place.user_ratings_total.toLocaleString()})
-                    </span>
-                  )}
+                <div className="flex-1 flex justify-center">
+                  {renderStars(place.rating ?? null)}
                 </div>
+              </div>
+              <div className="flex items-center gap-1">
+                <span className="text-sm font-medium text-gray-900">
+                  {place.rating?.toFixed(1) || 'N/A'}
+                </span>
+                {place.user_ratings_total ? (
+                  <span className="text-xs text-gray-500 group-hover:text-blue-600 transition-colors">
+                    ({place.user_ratings_total.toLocaleString()})
+                  </span>
+                ) : (
+                  <span className="text-xs text-gray-500">&nbsp;</span>
+                )}
               </div>
             </button>
 

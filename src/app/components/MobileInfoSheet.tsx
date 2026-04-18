@@ -111,11 +111,11 @@ export function MobileInfoSheet({
 
   // Handle native sharing
   const handleShare = async () => {
-    // Create Le Voyageur share URL
-    const baseUrl = window.location.origin; // Will be lvofc.com in production, localhost in dev
+    // Create Le Voyageur share URL with place parameter
+    const baseUrl = window.location.origin;
     const shareUrl = place.place_id
-      ? `${baseUrl}/place/${place.place_id}`
-      : `${baseUrl}/place/${lat},${lng}`;
+      ? `${baseUrl}/?place=${place.place_id}`
+      : `${baseUrl}/?place=${lat},${lng}`;
 
     const shareData = {
       title: place.name || 'Le Voyageur',

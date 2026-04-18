@@ -386,7 +386,25 @@ export function Map({
       filters: { showLVMarkers, showMichelinMarkers }
     });
 
-    return markers;
+    // Sort markers by LV score (ascending), then by Google review count (ascending)
+    // Lower-rated markers get lower z-index, higher-rated get higher z-index
+    const sortedMarkers = [...markers].sort((a, b) => {
+      // Primary sort: LV rating (lowest first)
+      const ratingA = a.rating || 0;
+      const ratingB = b.rating || 0;
+
+      if (ratingA !== ratingB) {
+        return ratingA - ratingB; // Ascending
+      }
+
+      // Tie-breaker: Google review count (lowest first)
+      const reviewsA = a.location?.user_ratings_total || a.location?.userRatingCount || 0;
+      const reviewsB = b.location?.user_ratings_total || b.location?.userRatingCount || 0;
+
+      return reviewsA - reviewsB; // Ascending
+    });
+
+    return sortedMarkers;
   }, [
     displayLocations,
     wantToGoLocations,
@@ -847,22 +865,28 @@ export function Map({
         }}
       >
         {/* Unified Smart Markers - Single marker per location based on priority */}
-        {unifiedMarkers.map((marker) => {
+        {unifiedMarkers.map((marker, index) => {
           const scale = showHeatMap ? 0.8 : 1;
-          
+
           // ✅ SIMPLIFIED: All markers now have location data from locations table
-          const handleClick = marker.location 
+          const handleClick = marker.location
             ? () => handleMarkerClick(marker.location!)
             : () => {
                 console.warn('⚠️ Marker without location data (should not happen):', marker.id);
               };
-          
+
+          // Dynamic zIndex based on sorted position
+          // Markers are sorted highest to lowest, so index 0 = highest rated
+          // Higher index in sorted array = higher z-index (appears on top)
+          const baseZIndex = 100 + index;
+          const isSelected = selectedGooglePlace?.place_id === marker.location?.place_id;
+
           return (
             <AdvancedMarker
               key={marker.id}
               position={{ lat: marker.lat, lng: marker.lng }}
               onClick={handleClick}
-              zIndex={selectedGooglePlace?.place_id === marker.location?.place_id ? 1000 : 100}
+              zIndex={isSelected ? 1000 : baseZIndex}
             >
               <LuxuryMarker
                 rating={marker.rating}

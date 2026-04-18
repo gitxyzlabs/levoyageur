@@ -63,7 +63,7 @@ export function SearchAutocomplete({ onPlaceSelect, onTagSelect, onClear, mapBou
   const [googlePredictions, setGooglePredictions] = useState<any[]>([]); // Results within map bounds
   const [googlePredictionsGlobal, setGooglePredictionsGlobal] = useState<any[]>([]); // Global results (anywhere)
   const [googleTextSearchResults, setGoogleTextSearchResults] = useState<any[]>([]);
-  const [supabaseTags, setSupabaseTags] = useState<string[]>([]);
+  const [supabaseTags, setSupabaseTags] = useState<Array<{ name: string; count: number }>>([]);
   const [michelinLocations, setMichelinLocations] = useState<Location[]>([]);
   const [lvLocations, setLvLocations] = useState<Location[]>([]);
   const [focusedIndex, setFocusedIndex] = useState(-1);
@@ -186,12 +186,19 @@ export function SearchAutocomplete({ onPlaceSelect, onTagSelect, onClear, mapBou
       // 🚀 Use cached locations instead of fetching 3 times
       if (allLocationsCache.length > 0) {
         try {
-          // Extract and filter tags from cache
-          const allTags = allLocationsCache.flatMap(loc => loc.tags || []);
-          const uniqueTags = Array.from(new Set(allTags));
-          const matchingTags = uniqueTags.filter(tag => 
-            tag.toLowerCase().includes(searchValue.toLowerCase())
-          ).slice(0, 5);
+          // Extract and filter tags from cache with counts
+          const tagCounts = new Map<string, number>();
+          allLocationsCache.forEach(loc => {
+            (loc.tags || []).forEach(tag => {
+              tagCounts.set(tag, (tagCounts.get(tag) || 0) + 1);
+            });
+          });
+
+          const uniqueTags = Array.from(tagCounts.keys());
+          const matchingTags = uniqueTags
+            .filter(tag => tag.toLowerCase().includes(searchValue.toLowerCase()))
+            .map(tag => ({ name: tag, count: tagCounts.get(tag) || 0 }))
+            .slice(0, 5);
           console.log('✅ Matching tags found:', matchingTags.length);
           setSupabaseTags(matchingTags);
 
@@ -660,7 +667,7 @@ export function SearchAutocomplete({ onPlaceSelect, onTagSelect, onClear, mapBou
       } else if (focusedIndex < michelinLocations.length + lvLocations.length) {
         handleLvLocationSelect(lvLocations[focusedIndex - michelinLocations.length]);
       } else if (focusedIndex < michelinLocations.length + lvLocations.length + supabaseTags.length) {
-        handleTagSelect(supabaseTags[focusedIndex - michelinLocations.length - lvLocations.length]);
+        handleTagSelect(supabaseTags[focusedIndex - michelinLocations.length - lvLocations.length].name);
       } else if (focusedIndex < michelinLocations.length + lvLocations.length + supabaseTags.length + googleTextSearchResults.length) {
         handleGooglePlaceSelect(googleTextSearchResults[focusedIndex - michelinLocations.length - lvLocations.length - supabaseTags.length]);
       } else {
@@ -858,8 +865,30 @@ export function SearchAutocomplete({ onPlaceSelect, onTagSelect, onClear, mapBou
                         focusedIndex === index + michelinLocations.length + 1 ? 'bg-amber-50' : ''
                       }`}
                     >
-                      <div className="flex items-center justify-center w-8 h-8 rounded-full bg-gradient-to-br from-amber-100 to-rose-100 flex-shrink-0">
-                        <LVIcon className="w-4 h-4 text-amber-700" />
+                      <div
+                        className="flex items-center justify-center w-8 h-8 rounded-full flex-shrink-0 shadow-md border-2 border-white/30"
+                        style={{ background: lvScoreColor.bg }}
+                      >
+                        <svg
+                          viewBox="0 0 24 24"
+                          className="w-5 h-5"
+                        >
+                          <text
+                            x="12"
+                            y="12"
+                            textAnchor="middle"
+                            dominantBaseline="central"
+                            style={{
+                              fontSize: '14px',
+                              fontWeight: '700',
+                              fontFamily: 'Georgia, serif',
+                              fill: lvScoreColor.text,
+                              letterSpacing: '-0.5px'
+                            }}
+                          >
+                            LV
+                          </text>
+                        </svg>
                       </div>
                       <div className="flex-1 min-w-0">
                         <div className="font-medium text-gray-900 truncate">
@@ -931,20 +960,22 @@ export function SearchAutocomplete({ onPlaceSelect, onTagSelect, onClear, mapBou
                   const itemIndex = index + michelinLocations.length + lvLocations.length + 1;
                   return (
                     <button
-                      key={tag}
-                      onClick={() => handleTagSelect(tag)}
+                      key={tag.name}
+                      onClick={() => handleTagSelect(tag.name)}
                       className={`w-full px-4 py-3 flex items-center gap-3 hover:bg-blue-50 transition-colors text-left ${
                         focusedIndex === itemIndex ? 'bg-blue-50' : ''
                       }`}
                     >
                       <div className="flex items-center justify-center w-8 h-8 rounded-full bg-gradient-to-br from-blue-100 to-sky-100 flex-shrink-0">
-                        <LVIcon className="w-4 h-4 text-blue-700" />
+                        <Tag className="w-4 h-4 text-blue-700" />
                       </div>
                       <div className="flex-1">
-                        <div className="font-medium text-gray-900">{tag}</div>
+                        <div className="font-medium text-gray-900">{tag.name}</div>
                         <div className="text-xs text-gray-500">Search Le Voyageur collection</div>
                       </div>
-                      <Tag className="w-4 h-4 text-blue-600" />
+                      <div className="flex items-center justify-center min-w-[32px] h-7 px-2.5 bg-blue-100 rounded-full">
+                        <span className="text-sm font-semibold text-blue-700">{tag.count}</span>
+                      </div>
                     </button>
                   );
                 })}
@@ -1025,6 +1056,21 @@ export function SearchAutocomplete({ onPlaceSelect, onTagSelect, onClear, mapBou
                         {prediction.structured_formatting?.secondary_text || ''}
                       </div>
                     </div>
+                    <div className="flex items-center gap-2 flex-shrink-0">
+                      {prediction.user_ratings_total !== undefined && (
+                        <div className="text-xs text-gray-500 font-medium">
+                          {prediction.user_ratings_total} reviews
+                        </div>
+                      )}
+                      {prediction.rating !== undefined && (
+                        <div className="flex items-center gap-1 px-2.5 py-1 bg-gray-100 rounded-full">
+                          <Star className="w-3.5 h-3.5 text-gray-600 fill-gray-600" />
+                          <span className="text-sm font-semibold text-gray-700">
+                            {prediction.rating.toFixed(1)}
+                          </span>
+                        </div>
+                      )}
+                    </div>
                   </button>
                 ))}
               </div>
@@ -1056,6 +1102,21 @@ export function SearchAutocomplete({ onPlaceSelect, onTagSelect, onClear, mapBou
                       <div className="text-xs text-gray-500 truncate">
                         {prediction.structured_formatting?.secondary_text || ''}
                       </div>
+                    </div>
+                    <div className="flex items-center gap-2 flex-shrink-0">
+                      {prediction.user_ratings_total !== undefined && (
+                        <div className="text-xs text-gray-500 font-medium">
+                          {prediction.user_ratings_total} reviews
+                        </div>
+                      )}
+                      {prediction.rating !== undefined && (
+                        <div className="flex items-center gap-1 px-2.5 py-1 bg-gray-100 rounded-full">
+                          <Star className="w-3.5 h-3.5 text-gray-600 fill-gray-600" />
+                          <span className="text-sm font-semibold text-gray-700">
+                            {prediction.rating.toFixed(1)}
+                          </span>
+                        </div>
+                      )}
                     </div>
                   </button>
                 ))}
