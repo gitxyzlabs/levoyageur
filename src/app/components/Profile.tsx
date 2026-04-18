@@ -4,6 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import type { User } from '../../utils/api';
 import { toast } from 'sonner';
 import { api } from '../../utils/api';
+import { AdminStatsPanel } from './AdminStatsPanel';
 
 interface ProfileProps {
   user: User;
@@ -357,6 +358,11 @@ export function Profile({
           </div>
         </CardContent>
       </Card>
+
+      {/* Admin Stats Panel - Editor Only */}
+      {user.role === 'editor' && (
+        <AdminStatsPanel />
+      )}
 
       {/* Michelin Guide Data Management - Editor Only */}
       {user.role === 'editor' && (

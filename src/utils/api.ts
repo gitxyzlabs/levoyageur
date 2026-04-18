@@ -578,6 +578,11 @@ export const api = {
     });
   },
 
+  // Admin
+  getAdminStats: async (): Promise<{ stats: { totalUsers: number; totalLocations: number; totalFavorites: number; totalWantToGo: number; lvRatedLocations: number; michelinLocations: number } }> => {
+    return fetchWithAuth(`${API_BASE}/admin/stats`);
+  },
+
   getMichelinRating: async (lat: number, lng: number, name?: string): Promise<{ michelinScore: number | null; hasMichelinRating: boolean }> => {
     // Public endpoint - doesn't require auth
     const params = new URLSearchParams({
