@@ -459,13 +459,18 @@ export default function App() {
           width: photo.width || 800,
         })) || [];
 
+        const lat = placeData.location?.lat || lvLocation?.lat || 0;
+        const lng = placeData.location?.lng || lvLocation?.lng || 0;
+
+        console.log('📍 Setting map center to:', { lat, lng });
+
         const place: google.maps.places.PlaceResult = {
           place_id: placeData.place_id,
           name: placeData.name,
           formatted_address: placeData.formatted_address,
-          geometry: placeData.location ? {
-            location: placeData.location as google.maps.LatLng
-          } : undefined,
+          geometry: {
+            location: { lat, lng } as google.maps.LatLng
+          },
           rating: placeData.rating,
           user_ratings_total: placeData.user_ratings_total,
           website: placeData.website,
@@ -474,15 +479,17 @@ export default function App() {
           photos: photos,
         };
 
-        const lat = placeData.location?.lat || lvLocation?.lat || 0;
-        const lng = placeData.location?.lng || lvLocation?.lng || 0;
-
+        // Set map position BEFORE opening info window
         setMapCenter({ lat, lng });
         setMapZoom(15);
-        setSelectedGooglePlace(place);
-        setSelectedLVLocation(lvLocation || null);
-        setSelectedCity(null);
-        toast.success(`Opened ${placeData.name || 'location'}`);
+
+        // Small delay to ensure map centers before info window opens
+        setTimeout(() => {
+          setSelectedGooglePlace(place);
+          setSelectedLVLocation(lvLocation || null);
+          setSelectedCity(null);
+          toast.success(`Opened ${placeData.name || 'location'}`);
+        }, 100);
       } catch (error) {
         console.error('❌ Error loading shared place:', error);
         toast.error('Failed to load shared location');
