@@ -1,0 +1,290 @@
+[Warning] 90 console messages are not shown.
+[Error] Failed to load user lists: – AbortError: Fetch is aborted
+AbortError: Fetch is aborted
+	(anonymous function) (index-BlBvEHNa.js:333:11851)
+	(anonymous function) (index-BlBvEHNa.js:335:3691)
+[Log] ✅ Using saved location for user: – Object (index-BlBvEHNa.js, line 335)
+Object
+[Log] 📍 Location permission enabled - requesting fresh location... (index-BlBvEHNa.js, line 335)
+[Log] === fetchWithAuth Debug === (index-BlBvEHNa.js, line 324)
+[Log] URL: – "https://vwikyikicmfefzntshsl.supabase.co/functions/v1/make-server-48182530/favorites" (index-BlBvEHNa.js, line 324)
+[Log] Has session: – true (index-BlBvEHNa.js, line 324)
+[Log] Has access_token: – true (index-BlBvEHNa.js, line 324)
+[Log] Token expires at: – 1776495836 (index-BlBvEHNa.js, line 324)
+[Log] Token (first 20 chars): – "eyJhbGciOiJFUzI1NiIs" (index-BlBvEHNa.js, line 324)
+[Log] Panning map to new center: – Object (index-BlBvEHNa.js, line 332)
+Object
+[Log] 🟢 ⚛️ [PERF] COMPONENT App - 99.00ms – Object (index-BlBvEHNa.js, line 333)
+Object
+[Log] 🟢 📡 [PERF] NETWORK favorites - 655.00ms – Object (index-BlBvEHNa.js, line 333)
+Object
+[Log] ✅ Favorites loaded: – Array (30) (index-BlBvEHNa.js, line 334)
+Array (30)
+[Log] ✅ Centered map on user location: – Object (index-BlBvEHNa.js, line 335)
+Object
+[Log] ✅ Saved location for future sessions (index-BlBvEHNa.js, line 335)
+[Log] ✅ Centered map on user location: – Object (index-BlBvEHNa.js, line 335)
+Object
+[Log] ✅ Saved location for future sessions (index-BlBvEHNa.js, line 335)
+[Log] 🟡 ⚛️ [PERF] COMPONENT SearchAutocomplete - 1693.00ms – Object (index-BlBvEHNa.js, line 333)
+Object
+[Warning] ⚠️ Slow component: SearchAutocomplete took 1693.00ms (index-BlBvEHNa.js, line 333)
+[Log] Panning map to new center: – Object (index-BlBvEHNa.js, line 332)
+Object
+[Log] 🟡 ⚛️ [PERF] COMPONENT App - 1671.00ms – Object (index-BlBvEHNa.js, line 333)
+Object
+[Warning] ⚠️ Slow component: App took 1671.00ms (index-BlBvEHNa.js, line 333)
+[Log] 🟢 ⚛️ [PERF] COMPONENT SearchAutocomplete - 147.00ms – Object (index-BlBvEHNa.js, line 333)
+Object
+[Log] 🟢 ⚛️ [PERF] COMPONENT App - 141.00ms – Object (index-BlBvEHNa.js, line 333)
+Object
+[Log] 🟡 ⚛️ [PERF] COMPONENT SearchAutocomplete - 1578.00ms – Object (index-BlBvEHNa.js, line 333)
+Object
+[Warning] ⚠️ Slow component: SearchAutocomplete took 1578.00ms (index-BlBvEHNa.js, line 333)
+[Log] 🟡 ⚛️ [PERF] COMPONENT App - 1581.00ms – Object (index-BlBvEHNa.js, line 333)
+Object
+[Warning] ⚠️ Slow component: App took 1581.00ms (index-BlBvEHNa.js, line 333)
+[Log] 🟢 ⚛️ [PERF] COMPONENT SearchAutocomplete - 223.00ms – Object (index-BlBvEHNa.js, line 333)
+Object
+[Log] 🟢 ⚛️ [PERF] COMPONENT App - 220.00ms – Object (index-BlBvEHNa.js, line 333)
+Object
+[Log] 🟢 ⚛️ [PERF] COMPONENT SearchAutocomplete - 286.00ms – Object (index-BlBvEHNa.js, line 333)
+Object
+[Log] 🟢 ⚛️ [PERF] COMPONENT App - 287.00ms – Object (index-BlBvEHNa.js, line 333)
+Object
+[Log] 🟢 ⚛️ [PERF] COMPONENT SearchAutocomplete - 157.00ms – Object (index-BlBvEHNa.js, line 333)
+Object
+[Log] 🟢 ⚛️ [PERF] COMPONENT App - 157.00ms – Object (index-BlBvEHNa.js, line 333)
+Object
+[Log] 🟢 ⚛️ [PERF] COMPONENT SearchAutocomplete - 776.00ms – Object (index-BlBvEHNa.js, line 333)
+Object
+[Log] 🟢 ⚛️ [PERF] COMPONENT App - 775.00ms – Object (index-BlBvEHNa.js, line 333)
+Object
+[Log] 🟢 ⚛️ [PERF] COMPONENT SearchAutocomplete - 474.00ms – Object (index-BlBvEHNa.js, line 333)
+Object
+[Log] 🟢 ⚛️ [PERF] COMPONENT App - 474.00ms – Object (index-BlBvEHNa.js, line 333)
+Object
+[Log] 🟢 ⚛️ [PERF] COMPONENT SearchAutocomplete - 222.00ms – Object (index-BlBvEHNa.js, line 333)
+Object
+[Log] 🟢 ⚛️ [PERF] COMPONENT App - 221.00ms – Object (index-BlBvEHNa.js, line 333)
+Object
+[Log] 🟢 ⚛️ [PERF] COMPONENT SearchAutocomplete - 870.00ms – Object (index-BlBvEHNa.js, line 333)
+Object
+[Log] 🟢 ⚛️ [PERF] COMPONENT App - 871.00ms – Object (index-BlBvEHNa.js, line 333)
+Object
+[Log] 🟢 ⚛️ [PERF] COMPONENT SearchAutocomplete - 294.00ms – Object (index-BlBvEHNa.js, line 333)
+Object
+[Log] 🟢 ⚛️ [PERF] COMPONENT App - 294.00ms – Object (index-BlBvEHNa.js, line 333)
+Object
+[Log] 🟡 ⚛️ [PERF] COMPONENT SearchAutocomplete - 3814.00ms – Object (index-BlBvEHNa.js, line 333)
+Object
+[Warning] ⚠️ Slow component: SearchAutocomplete took 3814.00ms (index-BlBvEHNa.js, line 333)
+[Log] 🟡 ⚛️ [PERF] COMPONENT App - 3816.00ms – Object (index-BlBvEHNa.js, line 333)
+Object
+[Warning] ⚠️ Slow component: App took 3816.00ms (index-BlBvEHNa.js, line 333)
+[Log] === fetchWithAuth Debug === (index-BlBvEHNa.js, line 324)
+[Log] URL: – "https://vwikyikicmfefzntshsl.supabase.co/functions/v1/make-server-48182530/admin/stats" (index-BlBvEHNa.js, line 324)
+[Log] Has session: – true (index-BlBvEHNa.js, line 324)
+[Log] Has access_token: – true (index-BlBvEHNa.js, line 324)
+[Log] Token expires at: – 1776495836 (index-BlBvEHNa.js, line 324)
+[Log] Token (first 20 chars): – "eyJhbGciOiJFUzI1NiIs" (index-BlBvEHNa.js, line 324)
+[Error] Failed to load resource: the server responded with a status of 404 () (stats, line 0)
+[Log] 🟢 📡 [PERF] NETWORK stats - 589.00ms – Object (index-BlBvEHNa.js, line 333)
+Object
+[Error] 🔴 [ERROR] ========================================
+	(anonymous function) (index-BlBvEHNa.js:333:11851)
+	logError (index-BlBvEHNa.js:333:13464)
+	(anonymous function) (index-BlBvEHNa.js:333:11667)
+	(anonymous function) (index-BlBvEHNa.js:324:46358)
+[Error] Type: error
+	(anonymous function) (index-BlBvEHNa.js:333:11851)
+	logError (index-BlBvEHNa.js:333:13533)
+	(anonymous function) (index-BlBvEHNa.js:333:11667)
+	(anonymous function) (index-BlBvEHNa.js:324:46358)
+[Error] Component: unknown
+	(anonymous function) (index-BlBvEHNa.js:333:11851)
+	logError (index-BlBvEHNa.js:333:13566)
+	(anonymous function) (index-BlBvEHNa.js:333:11667)
+	(anonymous function) (index-BlBvEHNa.js:324:46358)
+[Error] Time: 2026-04-18T06:04:09.707Z
+	(anonymous function) (index-BlBvEHNa.js:333:11851)
+	logError (index-BlBvEHNa.js:333:13620)
+	(anonymous function) (index-BlBvEHNa.js:333:11667)
+	(anonymous function) (index-BlBvEHNa.js:324:46358)
+[Error] User: anonymous
+	(anonymous function) (index-BlBvEHNa.js:333:11851)
+	logError (index-BlBvEHNa.js:333:13682)
+	(anonymous function) (index-BlBvEHNa.js:333:11667)
+	(anonymous function) (index-BlBvEHNa.js:324:46358)
+[Error] Message: ❌ fetchWithAuth error response:
+	(anonymous function) (index-BlBvEHNa.js:333:11851)
+	logError (index-BlBvEHNa.js:333:13730)
+	(anonymous function) (index-BlBvEHNa.js:333:11667)
+	(anonymous function) (index-BlBvEHNa.js:324:46358)
+[Error] ===============================================
+	(anonymous function) (index-BlBvEHNa.js:333:11851)
+	logError (index-BlBvEHNa.js:334:155)
+	(anonymous function) (index-BlBvEHNa.js:333:11667)
+	(anonymous function) (index-BlBvEHNa.js:324:46358)
+[Error] ❌ fetchWithAuth error response:
+	(anonymous function) (index-BlBvEHNa.js:333:11851)
+	(anonymous function) (index-BlBvEHNa.js:324:46358)
+[Error] 🔴 [ERROR] ========================================
+	(anonymous function) (index-BlBvEHNa.js:333:11851)
+	logError (index-BlBvEHNa.js:333:13464)
+	(anonymous function) (index-BlBvEHNa.js:333:11667)
+	(anonymous function) (index-BlBvEHNa.js:324:46407)
+[Error] Type: error
+	(anonymous function) (index-BlBvEHNa.js:333:11851)
+	logError (index-BlBvEHNa.js:333:13533)
+	(anonymous function) (index-BlBvEHNa.js:333:11667)
+	(anonymous function) (index-BlBvEHNa.js:324:46407)
+[Error] Component: unknown
+	(anonymous function) (index-BlBvEHNa.js:333:11851)
+	logError (index-BlBvEHNa.js:333:13566)
+	(anonymous function) (index-BlBvEHNa.js:333:11667)
+	(anonymous function) (index-BlBvEHNa.js:324:46407)
+[Error] Time: 2026-04-18T06:04:09.707Z
+	(anonymous function) (index-BlBvEHNa.js:333:11851)
+	logError (index-BlBvEHNa.js:333:13620)
+	(anonymous function) (index-BlBvEHNa.js:333:11667)
+	(anonymous function) (index-BlBvEHNa.js:324:46407)
+[Error] User: anonymous
+	(anonymous function) (index-BlBvEHNa.js:333:11851)
+	logError (index-BlBvEHNa.js:333:13682)
+	(anonymous function) (index-BlBvEHNa.js:333:11667)
+	(anonymous function) (index-BlBvEHNa.js:324:46407)
+[Error] Message:   Status: 404
+	(anonymous function) (index-BlBvEHNa.js:333:11851)
+	logError (index-BlBvEHNa.js:333:13730)
+	(anonymous function) (index-BlBvEHNa.js:333:11667)
+	(anonymous function) (index-BlBvEHNa.js:324:46407)
+[Error] ===============================================
+	(anonymous function) (index-BlBvEHNa.js:333:11851)
+	logError (index-BlBvEHNa.js:334:155)
+	(anonymous function) (index-BlBvEHNa.js:333:11667)
+	(anonymous function) (index-BlBvEHNa.js:324:46407)
+[Error]   Status: – 404
+	(anonymous function) (index-BlBvEHNa.js:333:11851)
+	(anonymous function) (index-BlBvEHNa.js:324:46407)
+[Error] 🔴 [ERROR] ========================================
+	(anonymous function) (index-BlBvEHNa.js:333:11851)
+	logError (index-BlBvEHNa.js:333:13464)
+	(anonymous function) (index-BlBvEHNa.js:333:11667)
+	(anonymous function) (index-BlBvEHNa.js:324:46443)
+[Error] Type: error
+	(anonymous function) (index-BlBvEHNa.js:333:11851)
+	logError (index-BlBvEHNa.js:333:13533)
+	(anonymous function) (index-BlBvEHNa.js:333:11667)
+	(anonymous function) (index-BlBvEHNa.js:324:46443)
+[Error] Component: unknown
+	(anonymous function) (index-BlBvEHNa.js:333:11851)
+	logError (index-BlBvEHNa.js:333:13566)
+	(anonymous function) (index-BlBvEHNa.js:333:11667)
+	(anonymous function) (index-BlBvEHNa.js:324:46443)
+[Error] Time: 2026-04-18T06:04:09.708Z
+	(anonymous function) (index-BlBvEHNa.js:333:11851)
+	logError (index-BlBvEHNa.js:333:13620)
+	(anonymous function) (index-BlBvEHNa.js:333:11667)
+	(anonymous function) (index-BlBvEHNa.js:324:46443)
+[Error] User: anonymous
+	(anonymous function) (index-BlBvEHNa.js:333:11851)
+	logError (index-BlBvEHNa.js:333:13682)
+	(anonymous function) (index-BlBvEHNa.js:333:11667)
+	(anonymous function) (index-BlBvEHNa.js:324:46443)
+[Error] Message:   Status text: 
+	(anonymous function) (index-BlBvEHNa.js:333:11851)
+	logError (index-BlBvEHNa.js:333:13730)
+	(anonymous function) (index-BlBvEHNa.js:333:11667)
+	(anonymous function) (index-BlBvEHNa.js:324:46443)
+[Error] ===============================================
+	(anonymous function) (index-BlBvEHNa.js:333:11851)
+	logError (index-BlBvEHNa.js:334:155)
+	(anonymous function) (index-BlBvEHNa.js:333:11667)
+	(anonymous function) (index-BlBvEHNa.js:324:46443)
+[Error]   Status text: – ""
+	(anonymous function) (index-BlBvEHNa.js:333:11851)
+	(anonymous function) (index-BlBvEHNa.js:324:46443)
+[Error] 🔴 [ERROR] ========================================
+	(anonymous function) (index-BlBvEHNa.js:333:11851)
+	logError (index-BlBvEHNa.js:333:13464)
+	(anonymous function) (index-BlBvEHNa.js:333:11667)
+	(anonymous function) (index-BlBvEHNa.js:324:46488)
+[Error] Type: error
+	(anonymous function) (index-BlBvEHNa.js:333:11851)
+	logError (index-BlBvEHNa.js:333:13533)
+	(anonymous function) (index-BlBvEHNa.js:333:11667)
+	(anonymous function) (index-BlBvEHNa.js:324:46488)
+[Error] Component: unknown
+	(anonymous function) (index-BlBvEHNa.js:333:11851)
+	logError (index-BlBvEHNa.js:333:13566)
+	(anonymous function) (index-BlBvEHNa.js:333:11667)
+	(anonymous function) (index-BlBvEHNa.js:324:46488)
+[Error] Time: 2026-04-18T06:04:09.709Z
+	(anonymous function) (index-BlBvEHNa.js:333:11851)
+	logError (index-BlBvEHNa.js:333:13620)
+	(anonymous function) (index-BlBvEHNa.js:333:11667)
+	(anonymous function) (index-BlBvEHNa.js:324:46488)
+[Error] User: anonymous
+	(anonymous function) (index-BlBvEHNa.js:333:11851)
+	logError (index-BlBvEHNa.js:333:13682)
+	(anonymous function) (index-BlBvEHNa.js:333:11667)
+	(anonymous function) (index-BlBvEHNa.js:324:46488)
+[Error] Message:   Response body: {"error":"Not Found"}
+	(anonymous function) (index-BlBvEHNa.js:333:11851)
+	logError (index-BlBvEHNa.js:333:13730)
+	(anonymous function) (index-BlBvEHNa.js:333:11667)
+	(anonymous function) (index-BlBvEHNa.js:324:46488)
+[Error] ===============================================
+	(anonymous function) (index-BlBvEHNa.js:333:11851)
+	logError (index-BlBvEHNa.js:334:155)
+	(anonymous function) (index-BlBvEHNa.js:333:11667)
+	(anonymous function) (index-BlBvEHNa.js:324:46488)
+[Error]   Response body: – "{\"error\":\"Not Found\"}"
+	(anonymous function) (index-BlBvEHNa.js:333:11851)
+	(anonymous function) (index-BlBvEHNa.js:324:46488)
+[Error] 🔴 [ERROR] ========================================
+	(anonymous function) (index-BlBvEHNa.js:333:11851)
+	logError (index-BlBvEHNa.js:333:13464)
+	(anonymous function) (index-BlBvEHNa.js:333:11667)
+	(anonymous function) (index-BlBvEHNa.js:334:51292)
+[Error] Type: error
+	(anonymous function) (index-BlBvEHNa.js:333:11851)
+	logError (index-BlBvEHNa.js:333:13533)
+	(anonymous function) (index-BlBvEHNa.js:333:11667)
+	(anonymous function) (index-BlBvEHNa.js:334:51292)
+[Error] Component: unknown
+	(anonymous function) (index-BlBvEHNa.js:333:11851)
+	logError (index-BlBvEHNa.js:333:13566)
+	(anonymous function) (index-BlBvEHNa.js:333:11667)
+	(anonymous function) (index-BlBvEHNa.js:334:51292)
+[Error] Time: 2026-04-18T06:04:09.709Z
+	(anonymous function) (index-BlBvEHNa.js:333:11851)
+	logError (index-BlBvEHNa.js:333:13620)
+	(anonymous function) (index-BlBvEHNa.js:333:11667)
+	(anonymous function) (index-BlBvEHNa.js:334:51292)
+[Error] User: anonymous
+	(anonymous function) (index-BlBvEHNa.js:333:11851)
+	logError (index-BlBvEHNa.js:333:13682)
+	(anonymous function) (index-BlBvEHNa.js:333:11667)
+	(anonymous function) (index-BlBvEHNa.js:334:51292)
+[Error] Message: Failed to load admin stats: {}
+	(anonymous function) (index-BlBvEHNa.js:333:11851)
+	logError (index-BlBvEHNa.js:333:13730)
+	(anonymous function) (index-BlBvEHNa.js:333:11667)
+	(anonymous function) (index-BlBvEHNa.js:334:51292)
+[Error] ===============================================
+	(anonymous function) (index-BlBvEHNa.js:333:11851)
+	logError (index-BlBvEHNa.js:334:155)
+	(anonymous function) (index-BlBvEHNa.js:333:11667)
+	(anonymous function) (index-BlBvEHNa.js:334:51292)
+[Error] Failed to load admin stats: – Error: Not Found
+Error: Not Found
+	(anonymous function) (index-BlBvEHNa.js:333:11851)
+	(anonymous function) (index-BlBvEHNa.js:334:51292)
+[Log] 🟡 ⚛️ [PERF] COMPONENT SearchAutocomplete - 13409.00ms – {renderCount: 19, dependencies: undefined} (index-BlBvEHNa.js, line 333)
+[Warning] ⚠️ Slow component: SearchAutocomplete took 13409.00ms (index-BlBvEHNa.js, line 333)
+[Log] 🟡 ⚛️ [PERF] COMPONENT App - 13415.00ms – {renderCount: 21, dependencies: undefined} (index-BlBvEHNa.js, line 333)
+[Warning] ⚠️ Slow component: App took 13415.00ms (index-BlBvEHNa.js, line 333)
+> Selected Element
+< <div class="flex items-center justify-between px-6 py-4">…</div>

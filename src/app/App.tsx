@@ -426,68 +426,54 @@ export default function App() {
           return;
         }
 
-        // Try to find the location in our database first
+        // Try to find the location in our database first (to get LV data)
         const lvLocation = locations.find(
           loc => loc.place_id === placeId || loc.googlePlaceId === placeId || loc.id === placeId
         );
 
-        if (lvLocation && lvLocation.lat && lvLocation.lng) {
-          console.log('✅ Found location in database:', lvLocation);
-          setMapCenter({ lat: lvLocation.lat, lng: lvLocation.lng });
-          setMapZoom(15);
-
-          const place: google.maps.places.PlaceResult = {
-            place_id: lvLocation.place_id || lvLocation.googlePlaceId,
-            name: lvLocation.name,
-            formatted_address: lvLocation.description,
-            geometry: {
-              location: { lat: lvLocation.lat, lng: lvLocation.lng } as google.maps.LatLng
+        // Always fetch full Google details (including photos) from Google Places API
+        console.log('📍 Fetching place from Google Places API...');
+        const response = await fetch(
+          `https://${projectId}.supabase.co/functions/v1/make-server-48182530/google-places/${placeId}/details`,
+          {
+            headers: {
+              'Authorization': `Bearer ${publicAnonKey}`,
             },
-            rating: lvLocation.googleRating ?? undefined,
-          };
+          }
+        );
 
-          setSelectedGooglePlace(place);
-          setSelectedLVLocation(lvLocation);
-          setSelectedCity(null);
-          toast.success(`Opened ${lvLocation.name}`);
+        if (!response.ok) throw new Error('Failed to fetch place details');
+
+        const placeData = await response.json();
+        console.log('✅ Fetched place from Google:', placeData);
+
+        const place: google.maps.places.PlaceResult = {
+          place_id: placeData.id,
+          name: placeData.displayName,
+          formatted_address: placeData.formattedAddress,
+          geometry: placeData.location ? {
+            location: placeData.location as google.maps.LatLng
+          } as google.maps.places.PlaceGeometry : undefined,
+          rating: placeData.rating,
+          user_ratings_total: placeData.userRatingCount,
+          types: placeData.types,
+          photos: placeData.photos,
+        };
+
+        const lat = placeData.location?.lat || 0;
+        const lng = placeData.location?.lng || 0;
+
+        setMapCenter({ lat, lng });
+        setMapZoom(15);
+        setSelectedGooglePlace(place);
+        setSelectedLVLocation(lvLocation || null); // Include LV data if we found it
+        setSelectedCity(null);
+
+        if (lvLocation) {
+          console.log('✅ Found LV location data:', lvLocation);
+          toast.success(`Opened ${placeData.displayName || 'location'}`);
         } else {
-          // Fetch from Google Places API
-          console.log('📍 Fetching place from Google Places API...');
-          const response = await fetch(
-            `https://${projectId}.supabase.co/functions/v1/make-server-48182530/google-places/${placeId}/details`,
-            {
-              headers: {
-                'Authorization': `Bearer ${publicAnonKey}`,
-              },
-            }
-          );
-
-          if (!response.ok) throw new Error('Failed to fetch place details');
-
-          const placeData = await response.json();
-          console.log('✅ Fetched place from Google:', placeData);
-
-          const place: google.maps.places.PlaceResult = {
-            place_id: placeData.id,
-            name: placeData.displayName,
-            formatted_address: placeData.formattedAddress,
-            geometry: placeData.location ? {
-              location: placeData.location as google.maps.LatLng
-            } as google.maps.places.PlaceGeometry : undefined,
-            rating: placeData.rating,
-            user_ratings_total: placeData.userRatingCount,
-            types: placeData.types,
-            photos: placeData.photos,
-          };
-
-          const lat = placeData.location?.lat || 0;
-          const lng = placeData.location?.lng || 0;
-
-          setMapCenter({ lat, lng });
-          setMapZoom(15);
-          setSelectedGooglePlace(place);
-          setSelectedLVLocation(null);
-          setSelectedCity(null);
+          console.log('ℹ️ No LV data for this location');
           toast.success(`Opened ${placeData.displayName || 'location'}`);
         }
       } catch (error) {
