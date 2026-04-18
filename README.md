@@ -2,6 +2,32 @@
 
 A luxury travel discovery app for jet setters that rates restaurants, hotels and other travel lifestyle venues.
 
+**Last Updated:** January 11, 2026 - Full code audit complete ✅
+
+## 🚀 Production Ready - Quick Start
+
+**New setup? Follow these 3 steps (10 minutes):**
+
+1. **Enable Places API (New)**: [Click here](https://console.developers.google.com/apis/api/places.googleapis.com/overview?project=402941121456) → Enable → Wait 5 min
+2. **Run Database Setup**: 
+   - **Production (no sample data)**: Use `/SUPABASE_SETUP_PRODUCTION.md` 
+   - **Development (with samples)**: Use `/SUPABASE_SETUP.md`
+3. **Deploy & Sign Up**: First user automatically becomes an editor!
+
+📖 **Complete guide**: See `/PRODUCTION_READY.md`
+
+---
+
+## ✨ What's New
+
+- ✅ **KV Store Removed** - Now uses proper Supabase tables
+- ✅ **Production Ready** - Clean code, no sample data clutter
+- ✅ **Google Places Fixed** - Updated to new Place API
+- ✅ **Rating System Fixed** - Correct 0-10 scale (0-11 for editors)
+- ✅ **Database Schema Optimized** - Added `user_metadata` table
+
+---
+
 ## Features
 
 - 🗺️ **Interactive Google Maps** with custom markers
