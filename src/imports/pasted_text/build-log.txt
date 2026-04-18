@@ -1,0 +1,109 @@
+17:56:13.798 Running build in Washington, D.C., USA (East) – iad1
+17:56:13.799 Build machine configuration: 2 cores, 8 GB
+17:56:13.911 Cloning github.com/gitxyzlabs/levoyageur (Branch: main, Commit: 4b7bd88)
+17:56:14.308 Cloning completed: 397.000ms
+17:56:14.736 Restored build cache from previous deployment (8qTsj8fLGuUUvzgLMLYtMXaMVDDe)
+17:56:14.916 Running "vercel build"
+17:56:15.568 Vercel CLI 51.6.1
+17:56:16.242 Running "install" command: `pnpm install`...
+17:56:16.810 (node:45) [DEP0169] DeprecationWarning: `url.parse()` behavior is not standardized and prone to errors that have security implications. Use the WHATWG URL API instead. CVEs are not issued for `url.parse()` vulnerabilities.
+17:56:16.811 (Use `node --trace-deprecation ...` to show where the warning was created)
+17:56:16.824  WARN  Moving @tailwindcss/vite that was installed by a different package manager to "node_modules/.ignored
+17:56:16.825  WARN  Moving @types/google.maps that was installed by a different package manager to "node_modules/.ignored
+17:56:16.826  WARN  Moving @types/react that was installed by a different package manager to "node_modules/.ignored
+17:56:16.827  WARN  Moving @types/react-dom that was installed by a different package manager to "node_modules/.ignored
+17:56:16.827  WARN  Moving @vitejs/plugin-react that was installed by a different package manager to "node_modules/.ignored
+17:56:16.829  WARN  Moving tailwindcss that was installed by a different package manager to "node_modules/.ignored
+17:56:16.829  WARN  Moving typescript that was installed by a different package manager to "node_modules/.ignored
+17:56:16.830  WARN  Moving vite that was installed by a different package manager to "node_modules/.ignored
+17:56:16.831  WARN  Moving @emotion/react that was installed by a different package manager to "node_modules/.ignored
+17:56:16.832  WARN  Moving @emotion/styled that was installed by a different package manager to "node_modules/.ignored
+17:56:16.832  WARN  Moving @mui/icons-material that was installed by a different package manager to "node_modules/.ignored
+17:56:16.834  WARN  Moving @mui/material that was installed by a different package manager to "node_modules/.ignored
+17:56:16.835  WARN  Moving @popperjs/core that was installed by a different package manager to "node_modules/.ignored
+17:56:16.835  WARN  Moving @radix-ui/react-accordion that was installed by a different package manager to "node_modules/.ignored
+17:56:16.836  WARN  Moving @radix-ui/react-alert-dialog that was installed by a different package manager to "node_modules/.ignored
+17:56:16.837  WARN  Moving @radix-ui/react-aspect-ratio that was installed by a different package manager to "node_modules/.ignored
+17:56:16.837  WARN  Moving @radix-ui/react-avatar that was installed by a different package manager to "node_modules/.ignored
+17:56:16.838  WARN  Moving @radix-ui/react-checkbox that was installed by a different package manager to "node_modules/.ignored
+17:56:16.839  WARN  Moving @radix-ui/react-collapsible that was installed by a different package manager to "node_modules/.ignored
+17:56:16.839  WARN  Moving @radix-ui/react-context-menu that was installed by a different package manager to "node_modules/.ignored
+17:56:16.840  WARN  Moving @radix-ui/react-dialog that was installed by a different package manager to "node_modules/.ignored
+17:56:16.841  WARN  Moving @radix-ui/react-dropdown-menu that was installed by a different package manager to "node_modules/.ignored
+17:56:16.841  WARN  Moving @radix-ui/react-hover-card that was installed by a different package manager to "node_modules/.ignored
+17:56:16.841  WARN  Moving @radix-ui/react-label that was installed by a different package manager to "node_modules/.ignored
+17:56:16.842  WARN  Moving @radix-ui/react-menubar that was installed by a different package manager to "node_modules/.ignored
+17:56:16.843  WARN  Moving @radix-ui/react-navigation-menu that was installed by a different package manager to "node_modules/.ignored
+17:56:16.843  WARN  Moving @radix-ui/react-popover that was installed by a different package manager to "node_modules/.ignored
+17:56:16.844  WARN  Moving @radix-ui/react-progress that was installed by a different package manager to "node_modules/.ignored
+17:56:16.844  WARN  Moving @radix-ui/react-radio-group that was installed by a different package manager to "node_modules/.ignored
+17:56:16.845  WARN  Moving @radix-ui/react-scroll-area that was installed by a different package manager to "node_modules/.ignored
+17:56:16.847  WARN  Moving @radix-ui/react-select that was installed by a different package manager to "node_modules/.ignored
+17:56:16.848  WARN  Moving @radix-ui/react-separator that was installed by a different package manager to "node_modules/.ignored
+17:56:16.849  WARN  Moving @radix-ui/react-slider that was installed by a different package manager to "node_modules/.ignored
+17:56:16.850  WARN  Moving @radix-ui/react-slot that was installed by a different package manager to "node_modules/.ignored
+17:56:16.850  WARN  Moving @radix-ui/react-switch that was installed by a different package manager to "node_modules/.ignored
+17:56:16.851  WARN  Moving @radix-ui/react-tabs that was installed by a different package manager to "node_modules/.ignored
+17:56:16.851  WARN  Moving @radix-ui/react-toggle that was installed by a different package manager to "node_modules/.ignored
+17:56:16.852  WARN  Moving @radix-ui/react-toggle-group that was installed by a different package manager to "node_modules/.ignored
+17:56:16.853  WARN  Moving @radix-ui/react-tooltip that was installed by a different package manager to "node_modules/.ignored
+17:56:16.853  WARN  Moving @supabase/supabase-js that was installed by a different package manager to "node_modules/.ignored
+17:56:16.854  WARN  Moving @vis.gl/react-google-maps that was installed by a different package manager to "node_modules/.ignored
+17:56:16.855  WARN  Moving class-variance-authority that was installed by a different package manager to "node_modules/.ignored
+17:56:16.856  WARN  Moving clsx that was installed by a different package manager to "node_modules/.ignored
+17:56:16.857  WARN  Moving cmdk that was installed by a different package manager to "node_modules/.ignored
+17:56:16.858  WARN  Moving date-fns that was installed by a different package manager to "node_modules/.ignored
+17:56:16.858  WARN  Moving embla-carousel-react that was installed by a different package manager to "node_modules/.ignored
+17:56:16.859  WARN  Moving input-otp that was installed by a different package manager to "node_modules/.ignored
+17:56:16.861  WARN  Moving lucide-react that was installed by a different package manager to "node_modules/.ignored
+17:56:16.866  WARN  Moving motion that was installed by a different package manager to "node_modules/.ignored
+17:56:16.866  WARN  Moving next-themes that was installed by a different package manager to "node_modules/.ignored
+17:56:16.866  WARN  Moving react that was installed by a different package manager to "node_modules/.ignored
+17:56:16.867  WARN  Moving react-day-picker that was installed by a different package manager to "node_modules/.ignored
+17:56:16.867  WARN  Moving react-dnd that was installed by a different package manager to "node_modules/.ignored
+17:56:16.867  WARN  Moving react-dnd-html5-backend that was installed by a different package manager to "node_modules/.ignored
+17:56:16.868  WARN  Moving react-dom that was installed by a different package manager to "node_modules/.ignored
+17:56:16.868  WARN  Moving react-hook-form that was installed by a different package manager to "node_modules/.ignored
+17:56:16.868  WARN  Moving react-popper that was installed by a different package manager to "node_modules/.ignored
+17:56:16.869  WARN  Moving react-resizable-panels that was installed by a different package manager to "node_modules/.ignored
+17:56:16.870  WARN  Moving react-responsive-masonry that was installed by a different package manager to "node_modules/.ignored
+17:56:16.870  WARN  Moving react-slick that was installed by a different package manager to "node_modules/.ignored
+17:56:16.872  WARN  Moving recharts that was installed by a different package manager to "node_modules/.ignored
+17:56:16.872  WARN  Moving sonner that was installed by a different package manager to "node_modules/.ignored
+17:56:16.872  WARN  Moving tailwind-merge that was installed by a different package manager to "node_modules/.ignored
+17:56:16.873  WARN  Moving tw-animate-css that was installed by a different package manager to "node_modules/.ignored
+17:56:16.873  WARN  Moving vaul that was installed by a different package manager to "node_modules/.ignored
+17:56:16.886  WARN  GET https://registry.npmjs.org/@types%2Fgoogle.maps error (ERR_INVALID_THIS). Will retry in 10 seconds. 2 retries left.
+17:56:16.887  WARN  GET https://registry.npmjs.org/@types%2Freact error (ERR_INVALID_THIS). Will retry in 10 seconds. 2 retries left.
+17:56:16.887  WARN  GET https://registry.npmjs.org/@types%2Freact-dom error (ERR_INVALID_THIS). Will retry in 10 seconds. 2 retries left.
+17:56:16.889  WARN  GET https://registry.npmjs.org/typescript error (ERR_INVALID_THIS). Will retry in 10 seconds. 2 retries left.
+17:56:16.893  WARN  GET https://registry.npmjs.org/@tailwindcss%2Fvite error (ERR_INVALID_THIS). Will retry in 10 seconds. 2 retries left.
+17:56:16.894  WARN  GET https://registry.npmjs.org/@vitejs%2Fplugin-react error (ERR_INVALID_THIS). Will retry in 10 seconds. 2 retries left.
+17:56:16.894  WARN  GET https://registry.npmjs.org/tailwindcss error (ERR_INVALID_THIS). Will retry in 10 seconds. 2 retries left.
+17:56:16.894  WARN  GET https://registry.npmjs.org/vite error (ERR_INVALID_THIS). Will retry in 10 seconds. 2 retries left.
+17:56:16.894  WARN  GET https://registry.npmjs.org/@emotion%2Freact error (ERR_INVALID_THIS). Will retry in 10 seconds. 2 retries left.
+17:56:16.894  WARN  GET https://registry.npmjs.org/@emotion%2Fstyled error (ERR_INVALID_THIS). Will retry in 10 seconds. 2 retries left.
+17:56:16.895  WARN  GET https://registry.npmjs.org/@mui%2Ficons-material error (ERR_INVALID_THIS). Will retry in 10 seconds. 2 retries left.
+17:56:16.895  WARN  GET https://registry.npmjs.org/@mui%2Fmaterial error (ERR_INVALID_THIS). Will retry in 10 seconds. 2 retries left.
+17:56:16.895  WARN  GET https://registry.npmjs.org/@popperjs%2Fcore error (ERR_INVALID_THIS). Will retry in 10 seconds. 2 retries left.
+17:56:16.895  WARN  GET https://registry.npmjs.org/@radix-ui%2Freact-accordion error (ERR_INVALID_THIS). Will retry in 10 seconds. 2 retries left.
+17:56:16.895  WARN  GET https://registry.npmjs.org/@radix-ui%2Freact-alert-dialog error (ERR_INVALID_THIS). Will retry in 10 seconds. 2 retries left.
+17:56:16.896  WARN  GET https://registry.npmjs.org/@radix-ui%2Freact-aspect-ratio error (ERR_INVALID_THIS). Will retry in 10 seconds. 2 retries left.
+17:56:26.889  WARN  GET https://registry.npmjs.org/@types%2Fgoogle.maps error (ERR_INVALID_THIS). Will retry in 1 minute. 1 retries left.
+17:56:26.890  WARN  GET https://registry.npmjs.org/@types%2Freact error (ERR_INVALID_THIS). Will retry in 1 minute. 1 retries left.
+17:56:26.890  WARN  GET https://registry.npmjs.org/@types%2Freact-dom error (ERR_INVALID_THIS). Will retry in 1 minute. 1 retries left.
+17:56:26.890  WARN  GET https://registry.npmjs.org/typescript error (ERR_INVALID_THIS). Will retry in 1 minute. 1 retries left.
+17:56:26.890  WARN  GET https://registry.npmjs.org/@tailwindcss%2Fvite error (ERR_INVALID_THIS). Will retry in 1 minute. 1 retries left.
+17:56:26.891  WARN  GET https://registry.npmjs.org/@vitejs%2Fplugin-react error (ERR_INVALID_THIS). Will retry in 1 minute. 1 retries left.
+17:56:26.891  WARN  GET https://registry.npmjs.org/tailwindcss error (ERR_INVALID_THIS). Will retry in 1 minute. 1 retries left.
+17:56:26.891  WARN  GET https://registry.npmjs.org/vite error (ERR_INVALID_THIS). Will retry in 1 minute. 1 retries left.
+17:56:26.892  WARN  GET https://registry.npmjs.org/@emotion%2Freact error (ERR_INVALID_THIS). Will retry in 1 minute. 1 retries left.
+17:56:26.892  WARN  GET https://registry.npmjs.org/@emotion%2Fstyled error (ERR_INVALID_THIS). Will retry in 1 minute. 1 retries left.
+17:56:26.893  WARN  GET https://registry.npmjs.org/@mui%2Ficons-material error (ERR_INVALID_THIS). Will retry in 1 minute. 1 retries left.
+17:56:26.894  WARN  GET https://registry.npmjs.org/@mui%2Fmaterial error (ERR_INVALID_THIS). Will retry in 1 minute. 1 retries left.
+17:56:26.895  WARN  GET https://registry.npmjs.org/@popperjs%2Fcore error (ERR_INVALID_THIS). Will retry in 1 minute. 1 retries left.
+17:56:26.895  WARN  GET https://registry.npmjs.org/@radix-ui%2Freact-accordion error (ERR_INVALID_THIS). Will retry in 1 minute. 1 retries left.
+17:56:26.896  WARN  GET https://registry.npmjs.org/@radix-ui%2Freact-alert-dialog error (ERR_INVALID_THIS). Will retry in 1 minute. 1 retries left.
+17:56:26.896  WARN  GET https://registry.npmjs.org/@radix-ui%2Freact-aspect-ratio error (ERR_INVALID_THIS). Will retry in 1 minute. 1 retries left.
+17:57:26.897  ERR_PNPM_META_FETCH_FAIL  GET https://registry.npmjs.org/@types%2Fgoogle.maps: Value of "this" must be of type URLSearchParams
+17:57:26.907 Error: Command "pnpm install" exited with 1
