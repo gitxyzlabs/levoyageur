@@ -185,7 +185,7 @@ app.get('/make-server-48182530/google-places/:placeId/details', async (c) => {
         'Content-Type': 'application/json',
         'X-Goog-Api-Key': googleMapsApiKey,
         // Request reviews and photos in the field mask
-        'X-Goog-FieldMask': 'id,displayName,formattedAddress,location,rating,userRatingCount,reviews,photos,websiteUri,nationalPhoneNumber,googleMapsUri',
+        'X-Goog-FieldMask': 'id,displayName,formattedAddress,location,rating,userRatingCount,reviews,photos,websiteUri,nationalPhoneNumber,googleMapsUri,currentOpeningHours',
       },
     });
 
@@ -216,11 +216,19 @@ app.get('/make-server-48182530/google-places/:placeId/details', async (c) => {
       place_id: placeData.id,
       name: placeData.displayName?.text,
       formatted_address: placeData.formattedAddress,
+      location: placeData.location ? {
+        lat: placeData.location.latitude,
+        lng: placeData.location.longitude,
+      } : null,
       rating: placeData.rating,
       user_ratings_total: placeData.userRatingCount,
       website: placeData.websiteUri,
       formatted_phone_number: placeData.nationalPhoneNumber,
       google_maps_url: placeData.googleMapsUri,
+      opening_hours: placeData.currentOpeningHours ? {
+        open_now: placeData.currentOpeningHours.openNow,
+        weekday_text: placeData.currentOpeningHours.weekdayDescriptions || [],
+      } : null,
       // Transform reviews (Google returns max 5 most relevant reviews)
       reviews: placeData.reviews?.map((review: any) => ({
         author_name: review.authorAttribution?.displayName || 'Anonymous',
@@ -640,6 +648,53 @@ app.post('/make-server-48182530/favorites/city-stats', async (c) => {
   } catch (error) {
     console.error('❌ Error in POST /favorites/city-stats:', error);
     return c.json({ error: 'Failed to fetch city favorites', details: error.message }, 500);
+  }
+});
+
+// Get place stats (favorites and want-to-go counts) - PUBLIC ENDPOINT
+app.get('/make-server-48182530/place-stats/:placeId', async (c) => {
+  console.log('📊 GET /place-stats/:placeId - Start (PUBLIC ENDPOINT - NO AUTH)');
+
+  try {
+    const placeId = c.req.param('placeId');
+    console.log('📊 Place ID:', placeId);
+
+    if (!placeId) {
+      console.log('❌ Missing placeId');
+      return c.json({ error: 'Missing placeId' }, 400);
+    }
+
+    const supabase = getSupabaseAdmin();
+    console.log('📊 Using admin client for query');
+
+    // Count favorites for this place
+    const { count: favoritesCount, error: favError } = await supabase
+      .from('favorites')
+      .select('*', { count: 'exact', head: true })
+      .eq('location_id', placeId);
+
+    if (favError) {
+      console.error('❌ Error fetching favorites count:', favError);
+    }
+
+    // Count want-to-go for this place
+    const { count: wantToGoCount, error: wantError } = await supabase
+      .from('want_to_go')
+      .select('*', { count: 'exact', head: true })
+      .eq('location_id', placeId);
+
+    if (wantError) {
+      console.error('❌ Error fetching want-to-go count:', wantError);
+    }
+
+    console.log(`✅ Place stats - Favorites: ${favoritesCount || 0}, Want to Go: ${wantToGoCount || 0}`);
+    return c.json({
+      favoritesCount: favoritesCount || 0,
+      wantToGoCount: wantToGoCount || 0
+    });
+  } catch (error) {
+    console.error('❌ Error in GET /place-stats/:placeId:', error);
+    return c.json({ error: 'Failed to fetch place stats', details: error.message }, 500);
   }
 });
 

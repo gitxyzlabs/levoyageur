@@ -475,6 +475,7 @@ export default function App() {
           user_ratings_total: placeData.user_ratings_total,
           website: placeData.website,
           formatted_phone_number: placeData.formatted_phone_number,
+          opening_hours: placeData.opening_hours,
           reviews: placeData.reviews,
           photos: photos,
         };

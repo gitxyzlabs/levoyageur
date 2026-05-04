@@ -317,6 +317,15 @@ export function Map({
       }
       
       if (markerType) {
+        // 📊 Debug: Log counts for locations with any favorites/want-to-go
+        if (location.favoritesCount || location.wantToGoCount) {
+          console.log('📊 Location with counts:', {
+            name: location.name,
+            favoritesCount: location.favoritesCount,
+            wantToGoCount: location.wantToGoCount
+          });
+        }
+
         markers.push({
           id: location.id,
           lat: location.lat,
@@ -668,7 +677,8 @@ export function Map({
           'types',
           'websiteURI',
           'nationalPhoneNumber',
-          'editorialSummary'
+          'editorialSummary',
+          'currentOpeningHours',
         ],
       });
 
@@ -690,6 +700,10 @@ export function Map({
         formatted_phone_number: place.nationalPhoneNumber,
         photos: place.photos,
         types: place.types,
+        opening_hours: place.currentOpeningHours ? {
+          open_now: place.currentOpeningHours.isOpen?.() ?? undefined,
+          weekday_text: place.currentOpeningHours.weekdayDescriptions || [],
+        } : undefined,
       };
 
       console.log('📤 Sending PlaceResult to parent:', {

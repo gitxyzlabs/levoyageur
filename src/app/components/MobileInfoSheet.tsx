@@ -311,11 +311,25 @@ export function MobileInfoSheet({
                     const url = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(place.formatted_address || '')}`;
                     window.open(url, '_blank');
                   }}
-                  className="text-sm text-blue-600 hover:text-blue-700 hover:underline flex items-center gap-1.5"
+                  className="text-sm text-blue-600 hover:text-blue-700 hover:underline flex items-center gap-1.5 mb-2"
                 >
                   <MapPin className="w-4 h-4" />
                   {place.formatted_address}
                 </button>
+              )}
+              {place.opening_hours?.weekday_text && place.opening_hours.weekday_text.length > 0 && (
+                <div className="text-sm text-gray-600 flex items-start gap-1.5">
+                  <Calendar className="w-4 h-4 mt-0.5 flex-shrink-0" />
+                  <div>
+                    {place.opening_hours.open_now !== undefined && (
+                      <span className={`font-medium ${place.opening_hours.open_now ? 'text-green-600' : 'text-red-600'}`}>
+                        {place.opening_hours.open_now ? 'Open' : 'Closed'}
+                      </span>
+                    )}
+                    {place.opening_hours.open_now !== undefined && ' · '}
+                    <span>{place.opening_hours.weekday_text[new Date().getDay()]}</span>
+                  </div>
+                </div>
               )}
             </div>
 

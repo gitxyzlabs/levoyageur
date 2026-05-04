@@ -47,9 +47,13 @@ export function GooglePlaceInfoWindow({
   const [showPhotoGallery, setShowPhotoGallery] = useState(false);
   const [placeDetails, setPlaceDetails] = useState<any>(null);
   const [loadingDetails, setLoadingDetails] = useState(false);
-  const [michelinData, setMichelinData] = useState<{ score: number | null; loading: boolean }>({ 
-    score: null, 
-    loading: true 
+  const [michelinData, setMichelinData] = useState<{ score: number | null; loading: boolean }>({
+    score: null,
+    loading: true
+  });
+  const [placeStats, setPlaceStats] = useState<{ favoritesCount: number; wantToGoCount: number }>({
+    favoritesCount: 0,
+    wantToGoCount: 0
   });
 
   // Fetch Michelin rating from database when place changes
@@ -80,6 +84,30 @@ export function GooglePlaceInfoWindow({
 
     fetchMichelinRating();
   }, [place.place_id, place.name, place.geometry?.location]);
+
+  // Function to fetch place stats
+  const fetchPlaceStats = async () => {
+    if (!place.place_id) {
+      console.log('⚠️ No place_id, skipping stats fetch');
+      setPlaceStats({ favoritesCount: 0, wantToGoCount: 0 });
+      return;
+    }
+
+    console.log('📊 Fetching place stats for:', place.place_id);
+    try {
+      const stats = await api.getPlaceStats(place.place_id);
+      console.log('✅ Place stats received:', stats);
+      setPlaceStats(stats);
+    } catch (error) {
+      console.error('❌ Error fetching place stats:', error);
+      setPlaceStats({ favoritesCount: 0, wantToGoCount: 0 });
+    }
+  };
+
+  // Fetch place stats on mount and when place_id changes
+  useEffect(() => {
+    fetchPlaceStats();
+  }, [place.place_id]);
 
   // Process photos from the place object (already fetched by Map component)
   const photos = useMemo(() => {
@@ -259,17 +287,53 @@ export function GooglePlaceInfoWindow({
         <div className="flex items-start justify-between mb-3 px-4 pt-4 sticky top-0 bg-white z-10">
           <div className="flex-1 min-w-0 pr-3">
             <h3 className="font-bold text-lg text-gray-900 mb-1">{place.name || 'Unknown Place'}</h3>
+
+            {/* Place Stats - Show if any count > 0 */}
+            {(() => {
+              console.log('📊 Rendering place stats:', placeStats);
+              return (placeStats.favoritesCount > 0 || placeStats.wantToGoCount > 0) && (
+                <div className="flex items-center gap-3 mb-1.5 text-xs">
+                  {placeStats.favoritesCount > 0 && (
+                    <div className="flex items-center gap-1">
+                      <Heart className="w-3.5 h-3.5 fill-red-500 stroke-red-500" />
+                      <span className="text-gray-600 font-medium">{placeStats.favoritesCount}</span>
+                    </div>
+                  )}
+                  {placeStats.wantToGoCount > 0 && (
+                    <div className="flex items-center gap-1">
+                      <Bookmark className="w-3.5 h-3.5 fill-amber-500 stroke-amber-500" />
+                      <span className="text-gray-600 font-medium">{placeStats.wantToGoCount}</span>
+                    </div>
+                  )}
+                </div>
+              );
+            })()}
+
             {place.formatted_address && (
               <button
                 onClick={() => {
                   const url = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(place.formatted_address || '')}`;
                   window.open(url, '_blank');
                 }}
-                className="text-xs text-blue-600 hover:text-blue-700 hover:underline cursor-pointer transition-colors text-left flex items-center gap-1"
+                className="text-xs text-blue-600 hover:text-blue-700 hover:underline cursor-pointer transition-colors text-left flex items-center gap-1 mb-1"
               >
                 <MapPin className="w-3 h-3" />
                 {place.formatted_address}
               </button>
+            )}
+            {place.opening_hours?.weekday_text && place.opening_hours.weekday_text.length > 0 && (
+              <div className="text-xs text-gray-600 flex items-start gap-1">
+                <Calendar className="w-3 h-3 mt-0.5 flex-shrink-0" />
+                <div>
+                  {place.opening_hours.open_now !== undefined && (
+                    <span className={`font-medium ${place.opening_hours.open_now ? 'text-green-600' : 'text-red-600'}`}>
+                      {place.opening_hours.open_now ? 'Open' : 'Closed'}
+                    </span>
+                  )}
+                  {place.opening_hours.open_now !== undefined && ' · '}
+                  <span>{place.opening_hours.weekday_text[new Date().getDay()]}</span>
+                </div>
+              </div>
             )}
           </div>
           
@@ -296,6 +360,8 @@ export function GooglePlaceInfoWindow({
                     formatted_address: place.formatted_address,
                     place_id: place.place_id
                   });
+                  // Refresh stats after toggling
+                  setTimeout(() => fetchPlaceStats(), 500);
                 }
               }}
               className={`p-2 rounded-full transition-all hover:scale-110 ${ 
@@ -344,6 +410,8 @@ export function GooglePlaceInfoWindow({
                     formatted_address: place.formatted_address,
                     place_id: place.place_id
                   });
+                  // Refresh stats after toggling
+                  setTimeout(() => fetchPlaceStats(), 500);
                 }
               }}
               className={`p-2 rounded-full transition-all hover:scale-110 ${
@@ -630,6 +698,8 @@ export function GooglePlaceInfoWindow({
                     formatted_address: place.formatted_address,
                     place_id: place.place_id
                   });
+                  // Refresh stats after toggling
+                  setTimeout(() => fetchPlaceStats(), 500);
                 }
               }}
               className={`flex items-center justify-center gap-1.5 px-3 py-2.5 border rounded-lg text-xs font-medium transition-all ${
@@ -656,11 +726,11 @@ export function GooglePlaceInfoWindow({
 
                 if (onWantToGoToggle) {
                   // Extract lat/lng from place
-                  const lat = place.geometry?.location?.lat ? 
+                  const lat = place.geometry?.location?.lat ?
                     (typeof place.geometry.location.lat === 'function' ? place.geometry.location.lat() : place.geometry.location.lat) : undefined;
-                  const lng = place.geometry?.location?.lng ? 
+                  const lng = place.geometry?.location?.lng ?
                     (typeof place.geometry.location.lng === 'function' ? place.geometry.location.lng() : place.geometry.location.lng) : undefined;
-                  
+
                   onWantToGoToggle(place.place_id, {
                     name: place.name,
                     lat,
@@ -668,6 +738,8 @@ export function GooglePlaceInfoWindow({
                     formatted_address: place.formatted_address,
                     place_id: place.place_id
                   });
+                  // Refresh stats after toggling
+                  setTimeout(() => fetchPlaceStats(), 500);
                 }
               }}
               className={`flex items-center justify-center gap-1.5 px-3 py-2.5 border rounded-lg text-xs font-medium transition-all ${

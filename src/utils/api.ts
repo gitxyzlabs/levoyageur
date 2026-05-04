@@ -476,6 +476,30 @@ export const api = {
     return result;
   },
 
+  // Get place stats (favorites and want-to-go counts) - PUBLIC ENDPOINT
+  getPlaceStats: async (placeId: string): Promise<{ favoritesCount: number; wantToGoCount: number }> => {
+    try {
+      const response = await fetch(`${API_BASE}/place-stats/${placeId}`, {
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (!response.ok) {
+        const error = await response.json().catch(() => ({ error: response.statusText }));
+        console.error('❌ getPlaceStats error:', error);
+        // Return 0 counts if endpoint fails instead of throwing
+        return { favoritesCount: 0, wantToGoCount: 0 };
+      }
+
+      return response.json();
+    } catch (error) {
+      console.error('❌ getPlaceStats network error:', error);
+      // Return 0 counts on network error
+      return { favoritesCount: 0, wantToGoCount: 0 };
+    }
+  },
+
   // Tags
   getTags: async (): Promise<{ tags: string[] }> => {
     // Public endpoint - doesn't require auth
