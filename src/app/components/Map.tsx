@@ -244,7 +244,8 @@ export function Map({
       hasLVRating: boolean,
       hasMichelinScore: boolean,
       isFavorite: boolean,
-      isWantToGo: boolean
+      isWantToGo: boolean,
+      wantToGoCount: number
     ): 'lv' | 'michelin' | 'favorite' | 'want-to-go' | null => {
       // Priority 1: LV Rating (if filter is ON and location has LV rating)
       if (showLVMarkers && hasLVRating) return 'lv';
@@ -254,9 +255,10 @@ export function Map({
       
       // Priority 3: Favorite (if user has favorited and no higher priority)
       if (isAuthenticated && isFavorite) return 'favorite';
-      
-      // Priority 4: Want to Go (if user has added to WTG and no higher priority)
-      if (isAuthenticated && isWantToGo) return 'want-to-go';
+
+      // Priority 4: Want to Go — show for any location with community interest (wantToGoCount > 0)
+      // or the logged-in user's own list, regardless of auth state
+      if (isWantToGo || wantToGoCount > 0) return 'want-to-go';
       
       return null;
     };
@@ -295,7 +297,7 @@ export function Map({
       const isFavorite = favoriteIds?.has(location.id) || favoriteIds?.has(location.place_id || '') || false;
       const isWantToGo = wantToGoIds?.has(location.id) || wantToGoIds?.has(location.place_id || '') || false;
 
-      const markerType = getBestMarkerType(hasLVRating, hasMichelinScore, isFavorite, isWantToGo);
+      const markerType = getBestMarkerType(hasLVRating, hasMichelinScore, isFavorite, isWantToGo, location.wantToGoCount || 0);
       
       // 🐛 DEBUG: Log Elcielo data
       if (location.name?.toLowerCase().includes('elcielo')) {
@@ -346,8 +348,8 @@ export function Map({
     // ❌ REMOVED: Step 2 - Michelin restaurant merging (no longer needed)
     // All Michelin data is now in the locations table!
 
-    // Step 3: Add want-to-go locations (only if not already in markers)
-    if (isAuthenticated && wantToGoLocations) {
+    // Step 3: Add personal want-to-go locations not already in markers (populated only when logged in)
+    if (wantToGoLocations && wantToGoLocations.length > 0) {
       wantToGoLocations.forEach(location => {
         const alreadyExists = markers.some(marker => 
           locationsMatch(marker, location)
@@ -362,7 +364,7 @@ export function Map({
             location.michelinScore // Keep backward compatibility
           );
           
-          const markerType = getBestMarkerType(hasLVRating, hasMichelinScore, false, true);
+          const markerType = getBestMarkerType(hasLVRating, hasMichelinScore, false, true, location.wantToGoCount || 0);
           
           if (markerType) {
             markers.push({

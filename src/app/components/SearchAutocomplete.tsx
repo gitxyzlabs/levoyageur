@@ -1,4 +1,4 @@
-import { useRef, useState, useEffect, useMemo } from 'react';
+import { useRef, useState, useEffect, useMemo, memo } from 'react';
 import { useMapsLibrary } from '@vis.gl/react-google-maps';
 import { Search, X, MapPin, Tag, Star, Heart, Bookmark } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
@@ -57,7 +57,7 @@ interface SearchAutocompleteProps {
   showSearchResults?: boolean;
 }
 
-export function SearchAutocomplete({ onPlaceSelect, onTagSelect, onClear, mapBounds, onGenericSearch, searchResults = [], showSearchResults = false }: SearchAutocompleteProps) {
+function SearchAutocompleteInner({ onPlaceSelect, onTagSelect, onClear, mapBounds, onGenericSearch, searchResults = [], showSearchResults = false }: SearchAutocompleteProps) {
   const [searchValue, setSearchValue] = useState('');
   const [showDropdown, setShowDropdown] = useState(false);
   const [googlePredictions, setGooglePredictions] = useState<any[]>([]); // Results within map bounds
@@ -699,7 +699,7 @@ export function SearchAutocomplete({ onPlaceSelect, onTagSelect, onClear, mapBou
   const hasResults = googlePredictions.length > 0 || googleTextSearchResults.length > 0 || supabaseTags.length > 0 || michelinLocations.length > 0 || lvLocations.length > 0;
 
   return (
-    <div className="relative">
+    <div className="relative" data-component="SearchAutocomplete">
       <div className="relative group">
         <div className="absolute inset-y-0 left-4 flex items-center pointer-events-none z-10">
           <Search className="h-5 w-5 text-gray-400 group-focus-within:text-amber-500 transition-colors duration-300" />
@@ -1128,3 +1128,20 @@ export function SearchAutocomplete({ onPlaceSelect, onTagSelect, onClear, mapBou
     </div>
   );
 }
+
+function boundsEqual(a: google.maps.LatLngBounds | null | undefined, b: google.maps.LatLngBounds | null | undefined) {
+  if (a === b) return true;
+  if (!a || !b) return false;
+  const an = a.getNorthEast(), as = a.getSouthWest();
+  const bn = b.getNorthEast(), bs = b.getSouthWest();
+  return an.lat() === bn.lat() && an.lng() === bn.lng() &&
+         as.lat() === bs.lat() && as.lng() === bs.lng();
+}
+
+export const SearchAutocomplete = memo(SearchAutocompleteInner, (prev, next) => {
+  // Only re-render when mapBounds semantically changes or search results change.
+  // Callbacks are excluded — they're recreated each render but semantically stable.
+  return boundsEqual(prev.mapBounds, next.mapBounds) &&
+    prev.showSearchResults === next.showSearchResults &&
+    prev.searchResults === next.searchResults;
+});

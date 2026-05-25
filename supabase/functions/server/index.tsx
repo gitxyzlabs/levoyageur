@@ -297,58 +297,29 @@ app.get('/make-server-48182530/locations', async (c) => {
     // Initialize count maps
     const favCountMap = new Map<string, number>();
     const wtgCountMap = new Map<string, number>();
-    
-    // Only query counts if we have locations (avoid Bad Request from empty .in() query)
-    if (locationIds.length > 0) {
-      console.log('📊 Querying counts for', locationIds.length, 'locations');
-      
-      // Optimize: Only query favorites/want-to-go for the locations we're returning
-      try {
-        const favResult = await supabase
-          .from('favorites')
-          .select('location_id')
-          .in('location_id', locationIds);
-        
-        console.log('📊 Favorites query:', { hasError: !!favResult.error, count: favResult.data?.length });
 
-        if (favResult.error) {
-          console.error('❌ Favorites count error:', favResult.error.message, favResult.error.code, favResult.error.details);
-          console.log('⚠️ Favorites table not accessible - counts will be 0');
-        } else if (favResult.data) {
-          // Create a map of location_id to favorites count
-          favResult.data.forEach(fav => {
-            const count = favCountMap.get(fav.location_id) || 0;
-            favCountMap.set(fav.location_id, count + 1);
-          });
-        }
-      } catch (e) {
-        // Silently skip exceptions
-      }
-      
-      // Optimize: Only query want-to-go for the locations we're returning
-      try {
-        const wtgResult = await supabase
-          .from('want_to_go')
-          .select('location_id')
-          .in('location_id', locationIds);
-        
-        console.log('📊 Want-to-go query:', { hasError: !!wtgResult.error, count: wtgResult.data?.length });
+    // Fetch all counts without .in() filter — avoids PostgREST URL length limit with 1000+ IDs
+    const [favResult, wtgResult] = await Promise.all([
+      supabase.from('favorites').select('location_id'),
+      supabase.from('want_to_go').select('location_id'),
+    ]);
 
-        if (wtgResult.error) {
-          console.error('❌ Want-to-go count error:', wtgResult.error.message, wtgResult.error.code, wtgResult.error.details);
-          console.log('⚠️ Want-to-go table not accessible - counts will be 0');
-        } else if (wtgResult.data) {
-          // Create a map of location_id to want-to-go count
-          wtgResult.data.forEach(wtg => {
-            const count = wtgCountMap.get(wtg.location_id) || 0;
-            wtgCountMap.set(wtg.location_id, count + 1);
-          });
-        }
-      } catch (e) {
-        // Silently skip exceptions
-      }
+    if (favResult.error) {
+      console.error('❌ Favorites count error:', favResult.error.message, favResult.error.code, favResult.error.details);
+    } else {
+      favResult.data?.forEach(fav => {
+        favCountMap.set(fav.location_id, (favCountMap.get(fav.location_id) || 0) + 1);
+      });
     }
-    
+
+    if (wtgResult.error) {
+      console.error('❌ Want-to-go count error:', wtgResult.error.message, wtgResult.error.code, wtgResult.error.details);
+    } else {
+      wtgResult.data?.forEach(wtg => {
+        wtgCountMap.set(wtg.location_id, (wtgCountMap.get(wtg.location_id) || 0) + 1);
+      });
+    }
+
     console.log('📊 Favorites count map entries:', favCountMap.size);
     console.log('📊 Want-to-go count map entries:', wtgCountMap.size);
     
@@ -392,47 +363,27 @@ app.get('/make-server-48182530/locations/tag/:tag', async (c) => {
     // Initialize count maps
     const favCountMap = new Map<string, number>();
     const wtgCountMap = new Map<string, number>();
-    
-    // Only query counts if we have locations
-    if (locationIds.length > 0) {
-      try {
-        // Get favorites count for each location
-        const { data: favoriteCounts, error: favCountError } = await supabase
-          .from('favorites')
-          .select('location_id')
-          .in('location_id', locationIds);
-        
-        if (favCountError) {
-          console.error('❌ Favorites count error (tag route):', favCountError.message, favCountError.code, favCountError.details);
-          console.log('⚠️ Favorites table not accessible (tag route) - counts will be 0');
-        } else {
-          favoriteCounts?.forEach(fav => {
-            const count = favCountMap.get(fav.location_id) || 0;
-            favCountMap.set(fav.location_id, count + 1);
-          });
-        }
-      } catch (e) {
-        console.error('❌ Exception in favorites count (tag route):', e);
-      }
 
-      try {
-        const { data: wantToGoCounts, error: wtgCountError } = await supabase
-          .from('want_to_go')
-          .select('location_id')
-          .in('location_id', locationIds);
+    // Fetch all counts without .in() filter — avoids PostgREST URL length limit
+    const [favResult, wtgResult] = await Promise.all([
+      supabase.from('favorites').select('location_id'),
+      supabase.from('want_to_go').select('location_id'),
+    ]);
 
-        if (wtgCountError) {
-          console.error('❌ Want-to-go count error (tag route):', wtgCountError.message, wtgCountError.code, wtgCountError.details);
-          console.log('⚠️ Want-to-go table not accessible (tag route) - counts will be 0');
-        } else {
-          wantToGoCounts?.forEach(wtg => {
-            const count = wtgCountMap.get(wtg.location_id) || 0;
-            wtgCountMap.set(wtg.location_id, count + 1);
-          });
-        }
-      } catch (e) {
-        console.error('❌ Exception in want-to-go count (tag route):', e);
-      }
+    if (favResult.error) {
+      console.error('❌ Favorites count error (tag route):', favResult.error.message, favResult.error.code);
+    } else {
+      favResult.data?.forEach(fav => {
+        favCountMap.set(fav.location_id, (favCountMap.get(fav.location_id) || 0) + 1);
+      });
+    }
+
+    if (wtgResult.error) {
+      console.error('❌ Want-to-go count error (tag route):', wtgResult.error.message, wtgResult.error.code);
+    } else {
+      wtgResult.data?.forEach(wtg => {
+        wtgCountMap.set(wtg.location_id, (wtgCountMap.get(wtg.location_id) || 0) + 1);
+      });
     }
     
     // Convert database format to API format using helper
@@ -2526,6 +2477,44 @@ app.post('/make-server-48182530/create-oauth-user', verifyAuth, async (c) => {
 // ============================================
 // ADMIN ROUTES
 // ============================================
+
+// Get admin stats
+app.get('/make-server-48182530/admin/stats', verifyAuth, verifyEditor, async (c) => {
+  console.log('📍 GET /admin/stats - Start');
+  try {
+    const supabase = getSupabaseAdmin();
+
+    const [
+      { count: totalLocations },
+      { count: totalFavorites },
+      { count: totalWantToGo },
+      { count: lvRatedLocations },
+      { count: michelinLocations },
+      { count: totalUsers },
+    ] = await Promise.all([
+      supabase.from('locations').select('*', { count: 'exact', head: true }),
+      supabase.from('favorites').select('*', { count: 'exact', head: true }),
+      supabase.from('want_to_go').select('*', { count: 'exact', head: true }),
+      supabase.from('locations').select('*', { count: 'exact', head: true }).not('lv_editor_score', 'is', null).gt('lv_editor_score', 0),
+      supabase.from('locations').select('*', { count: 'exact', head: true }).gt('michelin_score', 0),
+      supabase.from('user_metadata').select('*', { count: 'exact', head: true }),
+    ]);
+
+    return c.json({
+      stats: {
+        totalUsers: totalUsers || 0,
+        totalLocations: totalLocations || 0,
+        totalFavorites: totalFavorites || 0,
+        totalWantToGo: totalWantToGo || 0,
+        lvRatedLocations: lvRatedLocations || 0,
+        michelinLocations: michelinLocations || 0,
+      }
+    });
+  } catch (error) {
+    console.error('❌ Error in GET /admin/stats:', error);
+    return c.json({ error: 'Failed to fetch admin stats' }, 500);
+  }
+});
 
 // Get all users (admin/editors)
 app.get('/make-server-48182530/admin/users', verifyAuth, verifyEditor, async (c) => {
