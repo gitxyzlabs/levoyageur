@@ -1,0 +1,902 @@
+[
+  {
+    "event_message": "shutdown",
+    "event_type": "Shutdown",
+    "execution_id": "ba6c0ea4-ad00-4aba-b50e-9eca6d72cfeb",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "ce2f4558-4a8f-4db9-861f-bf769cf8dabe",
+    "level": "log",
+    "timestamp": 1779664530945000
+  },
+  {
+    "event_message": "shutdown",
+    "event_type": "Shutdown",
+    "execution_id": "ceecd8d3-c571-4ae4-afa1-3aa3705137a6",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "dc4230db-2fcf-42e4-892a-4967f65549be",
+    "level": "log",
+    "timestamp": 1779664530723000
+  },
+  {
+    "event_message": "shutdown",
+    "event_type": "Shutdown",
+    "execution_id": "101ce949-9490-4342-a44e-6de72a1a7782",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "f02ab22c-0dd8-44d1-b39c-cf94d4cae12d",
+    "level": "log",
+    "timestamp": 1779664525940000
+  },
+  {
+    "event_message": "shutdown",
+    "event_type": "Shutdown",
+    "execution_id": "4a06e998-4fe3-40e3-bc4f-e0b8f3f2e501",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "5f94574d-e0d8-4c77-8f96-c18d07e07055",
+    "level": "log",
+    "timestamp": 1779664525925000
+  },
+  {
+    "event_message": "shutdown",
+    "event_type": "Shutdown",
+    "execution_id": "96c3a814-6236-4be6-9a25-b7b0b104a584",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "7171ae7e-bb4d-4c5a-afdf-7e5dc12e6c6f",
+    "level": "log",
+    "timestamp": 1779664509432000
+  },
+  {
+    "event_message": "shutdown",
+    "event_type": "Shutdown",
+    "execution_id": "3eab7cf5-949a-4543-9aab-869fb6a883a7",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "a4bf4ee1-7d8c-4465-9105-1e3fa25518b5",
+    "level": "log",
+    "timestamp": 1779664508917000
+  },
+  {
+    "event_message": "shutdown",
+    "event_type": "Shutdown",
+    "execution_id": "828919f8-4d3e-440c-b9c7-75489bd6e371",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "8421f328-a2b3-4823-ad05-2dbd049eae58",
+    "level": "log",
+    "timestamp": 1779664508698000
+  },
+  {
+    "event_message": "shutdown",
+    "event_type": "Shutdown",
+    "execution_id": "7754ec03-dd0c-47ee-a4f6-8f6d777f0248",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "4189a660-c4ce-4595-b5c9-b4f78d78b041",
+    "level": "log",
+    "timestamp": 1779664508492000
+  },
+  {
+    "event_message": "shutdown",
+    "event_type": "Shutdown",
+    "execution_id": "7bf640ce-383d-448f-afca-66c7f8e7dfc6",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "150060d2-28e9-4cda-86b7-f8a49adfca60",
+    "level": "log",
+    "timestamp": 1779664508275000
+  },
+  {
+    "event_message": "shutdown",
+    "event_type": "Shutdown",
+    "execution_id": "02143f7e-fbe4-4d20-bffa-2cccbd2a110c",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "8da69abb-e3a9-42c6-a11f-081f3c0ee5be",
+    "level": "log",
+    "timestamp": 1779664508186000
+  },
+  {
+    "event_message": "shutdown",
+    "event_type": "Shutdown",
+    "execution_id": "1c30dc69-5c44-406e-8105-d66eed4d6807",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "3b57273a-4f0c-4e72-814f-d8dca6d78544",
+    "level": "log",
+    "timestamp": 1779664508062000
+  },
+  {
+    "event_message": "shutdown",
+    "event_type": "Shutdown",
+    "execution_id": "4f79fc62-c010-425b-b720-294d363b0c33",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "64e33c81-20ed-4b1b-8314-2064f72c3373",
+    "level": "log",
+    "timestamp": 1779664507992000
+  },
+  {
+    "event_message": "shutdown",
+    "event_type": "Shutdown",
+    "execution_id": "a1965d8c-6b91-487e-b83e-038091fb3c41",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "b49fde3a-949b-4bc1-b151-64841d4a8c8a",
+    "level": "log",
+    "timestamp": 1779664499639000
+  },
+  {
+    "event_message": "shutdown",
+    "event_type": "Shutdown",
+    "execution_id": "ab13a15e-5e93-43c5-9ba1-5417a3c423c3",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "636df681-235b-4ea4-867f-9be38edb5381",
+    "level": "log",
+    "timestamp": 1779664499132000
+  },
+  {
+    "event_message": "shutdown",
+    "event_type": "Shutdown",
+    "execution_id": "86bba9f9-fcef-47b2-86de-7d6895e6a253",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "2342817e-c461-43af-b6ff-d7d87c5cde86",
+    "level": "log",
+    "timestamp": 1779664498831000
+  },
+  {
+    "event_message": "🟢 [PERF] GET /make-server-48182530/tags - 133.03ms - 200\n",
+    "event_type": "Log",
+    "execution_id": "ba6c0ea4-ad00-4aba-b50e-9eca6d72cfeb",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "4d3886c6-39f0-4f03-909a-15c979d2d5fd",
+    "level": "info",
+    "timestamp": 1779664456094000
+  },
+  {
+    "event_message": "--> GET /make-server-48182530/tags 200 133ms\n",
+    "event_type": "Log",
+    "execution_id": "ba6c0ea4-ad00-4aba-b50e-9eca6d72cfeb",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "31a49530-6512-40eb-8d19-441f01dd8444",
+    "level": "info",
+    "timestamp": 1779664456094000
+  },
+  {
+    "event_message": "📍 [REQUEST END] GET /make-server-48182530/tags - 133.03ms - 200\n",
+    "event_type": "Log",
+    "execution_id": "ba6c0ea4-ad00-4aba-b50e-9eca6d72cfeb",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "c06dbdcf-3d67-4b85-a342-a19dfcbdf845",
+    "level": "info",
+    "timestamp": 1779664456094000
+  },
+  {
+    "event_message": "GET /tags - Found unique tags: 49\n",
+    "event_type": "Log",
+    "execution_id": "ba6c0ea4-ad00-4aba-b50e-9eca6d72cfeb",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "80733db0-c887-4292-948b-27a4d642e9cc",
+    "level": "info",
+    "timestamp": 1779664456093000
+  },
+  {
+    "event_message": "📍 GET /tags - Start\n",
+    "event_type": "Log",
+    "execution_id": "ba6c0ea4-ad00-4aba-b50e-9eca6d72cfeb",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "ad559bb5-aee6-4381-8720-1119dab5712a",
+    "level": "info",
+    "timestamp": 1779664455962000
+  },
+  {
+    "event_message": "📍 [REQUEST START] GET /make-server-48182530/tags - User: anonymous\n",
+    "event_type": "Log",
+    "execution_id": "ba6c0ea4-ad00-4aba-b50e-9eca6d72cfeb",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "9c84d2a1-fc7d-4198-92b1-c7e397333a38",
+    "level": "info",
+    "timestamp": 1779664455961000
+  },
+  {
+    "event_message": "<-- GET /make-server-48182530/tags\n",
+    "event_type": "Log",
+    "execution_id": "ba6c0ea4-ad00-4aba-b50e-9eca6d72cfeb",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "a5e3b49f-cea7-487a-9403-97792d7203aa",
+    "level": "info",
+    "timestamp": 1779664455961000
+  },
+  {
+    "event_message": "✅ Server is listening\n",
+    "event_type": "Log",
+    "execution_id": "ba6c0ea4-ad00-4aba-b50e-9eca6d72cfeb",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "9b887732-c551-4c10-97b4-53c0145b3c1b",
+    "level": "info",
+    "timestamp": 1779664455953000
+  },
+  {
+    "event_message": "🚀 Server starting...\n",
+    "event_type": "Log",
+    "execution_id": "ba6c0ea4-ad00-4aba-b50e-9eca6d72cfeb",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "f1f402ad-0d5f-45b6-8858-b520dde7fa29",
+    "level": "info",
+    "timestamp": 1779664455953000
+  },
+  {
+    "event_message": "booted (time: 35ms)",
+    "event_type": "Boot",
+    "execution_id": "ba6c0ea4-ad00-4aba-b50e-9eca6d72cfeb",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "e68985d0-84f5-41e2-b11e-496d5ff6aebc",
+    "level": "log",
+    "timestamp": 1779664455924000
+  },
+  {
+    "event_message": "--> OPTIONS /make-server-48182530/tags 204 1ms\n",
+    "event_type": "Log",
+    "execution_id": "ceecd8d3-c571-4ae4-afa1-3aa3705137a6",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "6bb73f15-ed2a-4ed0-8ea2-4d5150641129",
+    "level": "info",
+    "timestamp": 1779664455743000
+  },
+  {
+    "event_message": "🟢 [PERF] OPTIONS /make-server-48182530/tags - 2.51ms - 204\n",
+    "event_type": "Log",
+    "execution_id": "ceecd8d3-c571-4ae4-afa1-3aa3705137a6",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "5dc615a7-6d1e-4a7f-b7b8-e1e262a78cfc",
+    "level": "info",
+    "timestamp": 1779664455743000
+  },
+  {
+    "event_message": "📍 [REQUEST END] OPTIONS /make-server-48182530/tags - 2.51ms - 204\n",
+    "event_type": "Log",
+    "execution_id": "ceecd8d3-c571-4ae4-afa1-3aa3705137a6",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "21f42c09-5142-4826-8655-a95bf32de054",
+    "level": "info",
+    "timestamp": 1779664455743000
+  },
+  {
+    "event_message": "📍 [REQUEST START] OPTIONS /make-server-48182530/tags - User: anonymous\n",
+    "event_type": "Log",
+    "execution_id": "ceecd8d3-c571-4ae4-afa1-3aa3705137a6",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "e82186dc-0fad-42bd-90ad-74e64a2123c2",
+    "level": "info",
+    "timestamp": 1779664455741000
+  },
+  {
+    "event_message": "<-- OPTIONS /make-server-48182530/tags\n",
+    "event_type": "Log",
+    "execution_id": "ceecd8d3-c571-4ae4-afa1-3aa3705137a6",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "345e0896-125e-4f44-b737-0511ea9fba3d",
+    "level": "info",
+    "timestamp": 1779664455741000
+  },
+  {
+    "event_message": "✅ Server is listening\n",
+    "event_type": "Log",
+    "execution_id": "ceecd8d3-c571-4ae4-afa1-3aa3705137a6",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "7e7ada10-a84e-48af-88ec-346b0809154d",
+    "level": "info",
+    "timestamp": 1779664455732000
+  },
+  {
+    "event_message": "🚀 Server starting...\n",
+    "event_type": "Log",
+    "execution_id": "ceecd8d3-c571-4ae4-afa1-3aa3705137a6",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "902521dc-59ea-45a5-9660-312a76c87731",
+    "level": "info",
+    "timestamp": 1779664455731000
+  },
+  {
+    "event_message": "booted (time: 35ms)",
+    "event_type": "Boot",
+    "execution_id": "ceecd8d3-c571-4ae4-afa1-3aa3705137a6",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "4c66275d-f14e-429c-bfb0-01782d29880e",
+    "level": "log",
+    "timestamp": 1779664455703000
+  },
+  {
+    "event_message": "📍 [REQUEST END] GET /make-server-48182530/michelin/rating - 595.31ms - 200\n",
+    "event_type": "Log",
+    "execution_id": "4a06e998-4fe3-40e3-bc4f-e0b8f3f2e501",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "2e61c6e8-b604-4db5-baa1-383428d3bb29",
+    "level": "info",
+    "timestamp": 1779664451611000
+  },
+  {
+    "event_message": "--> GET /make-server-48182530/michelin/rating?lat=37.7834259&lng=-122.45930619999999&name=Arsicault+Bakery 200 595ms\n",
+    "event_type": "Log",
+    "execution_id": "4a06e998-4fe3-40e3-bc4f-e0b8f3f2e501",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "2286a506-ad6e-4298-a178-a8b355102494",
+    "level": "info",
+    "timestamp": 1779664451611000
+  },
+  {
+    "event_message": "🟢 [PERF] GET /make-server-48182530/michelin/rating - 595.31ms - 200\n",
+    "event_type": "Log",
+    "execution_id": "4a06e998-4fe3-40e3-bc4f-e0b8f3f2e501",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "9dc1e7d8-643b-4e2d-b87a-c13c6933cbd4",
+    "level": "info",
+    "timestamp": 1779664451611000
+  },
+  {
+    "event_message": "❌ No Michelin restaurant found within range\n",
+    "event_type": "Log",
+    "execution_id": "4a06e998-4fe3-40e3-bc4f-e0b8f3f2e501",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "5c80d463-3653-4fdb-86bf-9db432117e5e",
+    "level": "info",
+    "timestamp": 1779664451609000
+  },
+  {
+    "event_message": "📊 Searching 1000 Michelin restaurants\n",
+    "event_type": "Log",
+    "execution_id": "4a06e998-4fe3-40e3-bc4f-e0b8f3f2e501",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "fd5caedd-0515-46ee-ab74-6c81b65a45e6",
+    "level": "info",
+    "timestamp": 1779664451608000
+  },
+  {
+    "event_message": "shutdown",
+    "event_type": "Shutdown",
+    "execution_id": "8d2b94ef-6276-4c98-9691-0e225892b08c",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "f16a4e5b-1be7-4ee8-97c8-a26ce361d5b3",
+    "level": "log",
+    "timestamp": 1779664451585000
+  },
+  {
+    "event_message": "📍 [REQUEST END] GET /make-server-48182530/place-stats/ChIJJ09d9DmHhYARkrToDt9JCy8 - 2.64ms - 404\n",
+    "event_type": "Log",
+    "execution_id": "8d2b94ef-6276-4c98-9691-0e225892b08c",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "45f20a37-0c1e-449a-ae47-a64f78e90f4d",
+    "level": "info",
+    "timestamp": 1779664451189000
+  },
+  {
+    "event_message": "🟡 [PERF] GET /make-server-48182530/place-stats/ChIJJ09d9DmHhYARkrToDt9JCy8 - 2.64ms - 404\n",
+    "event_type": "Log",
+    "execution_id": "8d2b94ef-6276-4c98-9691-0e225892b08c",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "cf052379-169d-4074-8eab-86a0e8a9d03e",
+    "level": "info",
+    "timestamp": 1779664451189000
+  },
+  {
+    "event_message": "--> GET /make-server-48182530/place-stats/ChIJJ09d9DmHhYARkrToDt9JCy8 404 2ms\n",
+    "event_type": "Log",
+    "execution_id": "8d2b94ef-6276-4c98-9691-0e225892b08c",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "ff8b0c40-dd63-48f5-b5f1-bb4aad8200a0",
+    "level": "info",
+    "timestamp": 1779664451189000
+  },
+  {
+    "event_message": "❌ 404 - Route not found: http://vwikyikicmfefzntshsl.supabase.co/make-server-48182530/place-stats/ChIJJ09d9DmHhYARkrToDt9JCy8\n",
+    "event_type": "Log",
+    "execution_id": "8d2b94ef-6276-4c98-9691-0e225892b08c",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "963be163-1029-4518-bf52-6ca7782f4092",
+    "level": "info",
+    "timestamp": 1779664451187000
+  },
+  {
+    "event_message": "<-- GET /make-server-48182530/place-stats/ChIJJ09d9DmHhYARkrToDt9JCy8\n",
+    "event_type": "Log",
+    "execution_id": "8d2b94ef-6276-4c98-9691-0e225892b08c",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "62c14414-16e9-44f0-a31f-8c866eecc7ae",
+    "level": "info",
+    "timestamp": 1779664451186000
+  },
+  {
+    "event_message": "📍 [REQUEST START] GET /make-server-48182530/place-stats/ChIJJ09d9DmHhYARkrToDt9JCy8 - User: anonymous\n",
+    "event_type": "Log",
+    "execution_id": "8d2b94ef-6276-4c98-9691-0e225892b08c",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "8b9054cc-f442-4ba1-bb77-3a1b2973adf7",
+    "level": "info",
+    "timestamp": 1779664451186000
+  },
+  {
+    "event_message": "✅ Server is listening\n",
+    "event_type": "Log",
+    "execution_id": "8d2b94ef-6276-4c98-9691-0e225892b08c",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "6305cad4-7e3a-4dfb-9288-ae8c915840fa",
+    "level": "info",
+    "timestamp": 1779664451175000
+  },
+  {
+    "event_message": "🚀 Server starting...\n",
+    "event_type": "Log",
+    "execution_id": "8d2b94ef-6276-4c98-9691-0e225892b08c",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "379b8f9b-51e0-442d-81a0-75d9dae95ec6",
+    "level": "info",
+    "timestamp": 1779664451174000
+  },
+  {
+    "event_message": "booted (time: 47ms)",
+    "event_type": "Boot",
+    "execution_id": "8d2b94ef-6276-4c98-9691-0e225892b08c",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "406e0cc0-c19d-4959-9dd9-6feb0ebcaeac",
+    "level": "log",
+    "timestamp": 1779664451144000
+  },
+  {
+    "event_message": "🔍 Searching for Michelin rating near (37.7834259, -122.45930619999999) for \"Arsicault Bakery\"\n",
+    "event_type": "Log",
+    "execution_id": "4a06e998-4fe3-40e3-bc4f-e0b8f3f2e501",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "c2c32ecf-2a6f-4bd3-86e6-bf126f974fe2",
+    "level": "info",
+    "timestamp": 1779664451016000
+  },
+  {
+    "event_message": "📍 GET /michelin/rating - Start\n",
+    "event_type": "Log",
+    "execution_id": "4a06e998-4fe3-40e3-bc4f-e0b8f3f2e501",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "668a88d9-5e3f-4bbb-81ec-645a82d6bfa6",
+    "level": "info",
+    "timestamp": 1779664451016000
+  },
+  {
+    "event_message": "<-- GET /make-server-48182530/michelin/rating?lat=37.7834259&lng=-122.45930619999999&name=Arsicault+Bakery\n",
+    "event_type": "Log",
+    "execution_id": "4a06e998-4fe3-40e3-bc4f-e0b8f3f2e501",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "eaa21426-2a48-4242-b26c-490d86198eba",
+    "level": "info",
+    "timestamp": 1779664451015000
+  },
+  {
+    "event_message": "📍 [REQUEST START] GET /make-server-48182530/michelin/rating - User: anonymous\n",
+    "event_type": "Log",
+    "execution_id": "4a06e998-4fe3-40e3-bc4f-e0b8f3f2e501",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "abf79a92-e624-4a58-bdf5-dd457a81f9f1",
+    "level": "info",
+    "timestamp": 1779664451015000
+  },
+  {
+    "event_message": "📍 [REQUEST END] OPTIONS /make-server-48182530/place-stats/ChIJJ09d9DmHhYARkrToDt9JCy8 - 1.29ms - 204\n",
+    "event_type": "Log",
+    "execution_id": "101ce949-9490-4342-a44e-6de72a1a7782",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "39704756-f22a-4106-8882-5c870cb31c2f",
+    "level": "info",
+    "timestamp": 1779664450954000
+  },
+  {
+    "event_message": "--> OPTIONS /make-server-48182530/place-stats/ChIJJ09d9DmHhYARkrToDt9JCy8 204 1ms\n",
+    "event_type": "Log",
+    "execution_id": "101ce949-9490-4342-a44e-6de72a1a7782",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "1802d1f5-f1e8-480e-89fc-30b3b57c3958",
+    "level": "info",
+    "timestamp": 1779664450954000
+  },
+  {
+    "event_message": "🟢 [PERF] OPTIONS /make-server-48182530/place-stats/ChIJJ09d9DmHhYARkrToDt9JCy8 - 1.29ms - 204\n",
+    "event_type": "Log",
+    "execution_id": "101ce949-9490-4342-a44e-6de72a1a7782",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "135ff41a-1c9b-41e1-a3a9-ae97cf8a26f8",
+    "level": "info",
+    "timestamp": 1779664450954000
+  },
+  {
+    "event_message": "📍 [REQUEST START] OPTIONS /make-server-48182530/place-stats/ChIJJ09d9DmHhYARkrToDt9JCy8 - User: anonymous\n",
+    "event_type": "Log",
+    "execution_id": "101ce949-9490-4342-a44e-6de72a1a7782",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "1c9e5c8c-eafb-4389-be78-a50ac20420d8",
+    "level": "info",
+    "timestamp": 1779664450953000
+  },
+  {
+    "event_message": "<-- OPTIONS /make-server-48182530/place-stats/ChIJJ09d9DmHhYARkrToDt9JCy8\n",
+    "event_type": "Log",
+    "execution_id": "101ce949-9490-4342-a44e-6de72a1a7782",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "aa0193eb-65bf-4370-a608-8890a947babf",
+    "level": "info",
+    "timestamp": 1779664450953000
+  },
+  {
+    "event_message": "🟢 [PERF] OPTIONS /make-server-48182530/michelin/rating - 1.85ms - 204\n",
+    "event_type": "Log",
+    "execution_id": "4a06e998-4fe3-40e3-bc4f-e0b8f3f2e501",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "0d235a5a-b6ba-44d5-870a-2640665e244c",
+    "level": "info",
+    "timestamp": 1779664450951000
+  },
+  {
+    "event_message": "--> OPTIONS /make-server-48182530/michelin/rating?lat=37.7834259&lng=-122.45930619999999&name=Arsicault+Bakery 204 1ms\n",
+    "event_type": "Log",
+    "execution_id": "4a06e998-4fe3-40e3-bc4f-e0b8f3f2e501",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "a7e3fbf1-8ac2-4a05-ac9d-d838b50fa9ed",
+    "level": "info",
+    "timestamp": 1779664450951000
+  },
+  {
+    "event_message": "📍 [REQUEST END] OPTIONS /make-server-48182530/michelin/rating - 1.85ms - 204\n",
+    "event_type": "Log",
+    "execution_id": "4a06e998-4fe3-40e3-bc4f-e0b8f3f2e501",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "f024ec9b-3384-4861-9085-f2e175a9d3d2",
+    "level": "info",
+    "timestamp": 1779664450951000
+  },
+  {
+    "event_message": "<-- OPTIONS /make-server-48182530/michelin/rating?lat=37.7834259&lng=-122.45930619999999&name=Arsicault+Bakery\n",
+    "event_type": "Log",
+    "execution_id": "4a06e998-4fe3-40e3-bc4f-e0b8f3f2e501",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "a5760673-44a1-4c35-b1a1-e1ffe31bb681",
+    "level": "info",
+    "timestamp": 1779664450950000
+  },
+  {
+    "event_message": "📍 [REQUEST START] OPTIONS /make-server-48182530/michelin/rating - User: anonymous\n",
+    "event_type": "Log",
+    "execution_id": "4a06e998-4fe3-40e3-bc4f-e0b8f3f2e501",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "1d304513-6a38-4c48-91ac-b2d5a0db330a",
+    "level": "info",
+    "timestamp": 1779664450950000
+  },
+  {
+    "event_message": "✅ Server is listening\n",
+    "event_type": "Log",
+    "execution_id": "101ce949-9490-4342-a44e-6de72a1a7782",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "18aa598d-c74d-41ff-8321-460f7dd1fdfc",
+    "level": "info",
+    "timestamp": 1779664450947000
+  },
+  {
+    "event_message": "🚀 Server starting...\n",
+    "event_type": "Log",
+    "execution_id": "101ce949-9490-4342-a44e-6de72a1a7782",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "e9b3004c-cbfd-41bd-80a5-7823c11f4b05",
+    "level": "info",
+    "timestamp": 1779664450946000
+  },
+  {
+    "event_message": "✅ Server is listening\n",
+    "event_type": "Log",
+    "execution_id": "4a06e998-4fe3-40e3-bc4f-e0b8f3f2e501",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "8c7ae4ed-3ec5-497b-96c5-b19481045bb0",
+    "level": "info",
+    "timestamp": 1779664450941000
+  },
+  {
+    "event_message": "🚀 Server starting...\n",
+    "event_type": "Log",
+    "execution_id": "4a06e998-4fe3-40e3-bc4f-e0b8f3f2e501",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "27d23004-9fa3-4f4e-8e4e-5e031e275dde",
+    "level": "info",
+    "timestamp": 1779664450941000
+  },
+  {
+    "event_message": "booted (time: 30ms)",
+    "event_type": "Boot",
+    "execution_id": "101ce949-9490-4342-a44e-6de72a1a7782",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "8727c830-8d61-4427-be66-dddd6cafefcc",
+    "level": "log",
+    "timestamp": 1779664450925000
+  },
+  {
+    "event_message": "booted (time: 38ms)",
+    "event_type": "Boot",
+    "execution_id": "4a06e998-4fe3-40e3-bc4f-e0b8f3f2e501",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "f535ad37-d491-4451-9e82-368b82a91233",
+    "level": "log",
+    "timestamp": 1779664450910000
+  },
+  {
+    "event_message": "📍 [REQUEST END] GET /make-server-48182530/favorites - 402.43ms - 200\n",
+    "event_type": "Log",
+    "execution_id": "96c3a814-6236-4be6-9a25-b7b0b104a584",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "b5802a3c-2732-499e-8ea4-c6994d5b3fd7",
+    "level": "info",
+    "timestamp": 1779664434846000
+  },
+  {
+    "event_message": "--> GET /make-server-48182530/favorites 200 402ms\n",
+    "event_type": "Log",
+    "execution_id": "96c3a814-6236-4be6-9a25-b7b0b104a584",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "9ff543ba-c4f0-45b6-9006-4b3e77286407",
+    "level": "info",
+    "timestamp": 1779664434846000
+  },
+  {
+    "event_message": "🟢 [PERF] GET /make-server-48182530/favorites - 402.43ms - 200\n",
+    "event_type": "Log",
+    "execution_id": "96c3a814-6236-4be6-9a25-b7b0b104a584",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "c22349f3-853c-4084-b42a-98a913664eb0",
+    "level": "info",
+    "timestamp": 1779664434846000
+  },
+  {
+    "event_message": "GET /favorites - Found favorites: 33\n",
+    "event_type": "Log",
+    "execution_id": "96c3a814-6236-4be6-9a25-b7b0b104a584",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "a5f593ed-836b-4ee2-b040-29299358cc9d",
+    "level": "info",
+    "timestamp": 1779664434665000
+  },
+  {
+    "event_message": "📍 GET /favorites - Start\n",
+    "event_type": "Log",
+    "execution_id": "96c3a814-6236-4be6-9a25-b7b0b104a584",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "414371ee-dc0d-4220-83b0-28f75449a7ff",
+    "level": "info",
+    "timestamp": 1779664434563000
+  },
+  {
+    "event_message": "✅ User verified successfully: c5a7bcab-894a-4349-b71b-d5bd43fc0374\n",
+    "event_type": "Log",
+    "execution_id": "96c3a814-6236-4be6-9a25-b7b0b104a584",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "d1640b8c-e0c8-4401-a8e4-4baa534ddbac",
+    "level": "info",
+    "timestamp": 1779664434563000
+  },
+  {
+    "event_message": "✅ User email: hursab@gmail.com\n",
+    "event_type": "Log",
+    "execution_id": "96c3a814-6236-4be6-9a25-b7b0b104a584",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "d0b449ba-89bd-4de0-b772-7b5f5d561c08",
+    "level": "info",
+    "timestamp": 1779664434563000
+  },
+  {
+    "event_message": "📍 Calling supabase.auth.getUser() with token\n",
+    "event_type": "Log",
+    "execution_id": "96c3a814-6236-4be6-9a25-b7b0b104a584",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "d6507e89-fb3c-46b2-83a4-dcf7e38a52c2",
+    "level": "info",
+    "timestamp": 1779664434447000
+  },
+  {
+    "event_message": "📍 verifyAuth middleware called\n",
+    "event_type": "Log",
+    "execution_id": "96c3a814-6236-4be6-9a25-b7b0b104a584",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "6295c2ee-5e61-42ee-8cce-6fd9c08bb7f2",
+    "level": "info",
+    "timestamp": 1779664434445000
+  },
+  {
+    "event_message": "📍 Authorization header present: true\n",
+    "event_type": "Log",
+    "execution_id": "96c3a814-6236-4be6-9a25-b7b0b104a584",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "202fe05f-42d3-43be-aca6-41ed7c1458ef",
+    "level": "info",
+    "timestamp": 1779664434445000
+  },
+  {
+    "event_message": "📍 Token extracted (first 20 chars): eyJhbGciOiJFUzI1NiIs\n",
+    "event_type": "Log",
+    "execution_id": "96c3a814-6236-4be6-9a25-b7b0b104a584",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "1204f011-e5fe-4b32-a33d-2828c4b04788",
+    "level": "info",
+    "timestamp": 1779664434445000
+  },
+  {
+    "event_message": "<-- GET /make-server-48182530/favorites\n",
+    "event_type": "Log",
+    "execution_id": "96c3a814-6236-4be6-9a25-b7b0b104a584",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "ef81fb25-1798-46d8-b3c1-f8e441f08b1d",
+    "level": "info",
+    "timestamp": 1779664434444000
+  },
+  {
+    "event_message": "📍 [REQUEST START] GET /make-server-48182530/favorites - User: anonymous\n",
+    "event_type": "Log",
+    "execution_id": "96c3a814-6236-4be6-9a25-b7b0b104a584",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "d9948d21-2a5b-4e8f-a7fc-60d867b1a5a1",
+    "level": "info",
+    "timestamp": 1779664434444000
+  },
+  {
+    "event_message": "🚀 Server starting...\n",
+    "event_type": "Log",
+    "execution_id": "96c3a814-6236-4be6-9a25-b7b0b104a584",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "6893b1bf-0810-476f-a8b9-c83dd464dc3c",
+    "level": "info",
+    "timestamp": 1779664434438000
+  },
+  {
+    "event_message": "✅ Server is listening\n",
+    "event_type": "Log",
+    "execution_id": "96c3a814-6236-4be6-9a25-b7b0b104a584",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "ba9515a8-f5be-43eb-b5df-26d5b498c528",
+    "level": "info",
+    "timestamp": 1779664434438000
+  },
+  {
+    "event_message": "booted (time: 41ms)",
+    "event_type": "Boot",
+    "execution_id": "96c3a814-6236-4be6-9a25-b7b0b104a584",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "71f35a32-0b4c-468c-9c16-51995325cdd1",
+    "level": "log",
+    "timestamp": 1779664434418000
+  },
+  {
+    "event_message": "🟢 [PERF] GET /make-server-48182530/favorites - 424.40ms - 200\n",
+    "event_type": "Log",
+    "execution_id": "3eab7cf5-949a-4543-9aab-869fb6a883a7",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "947371c7-9ed8-426d-80f3-94d95b806378",
+    "level": "info",
+    "timestamp": 1779664434363000
+  },
+  {
+    "event_message": "--> GET /make-server-48182530/favorites 200 423ms\n",
+    "event_type": "Log",
+    "execution_id": "3eab7cf5-949a-4543-9aab-869fb6a883a7",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "33d020a4-0411-418e-81a8-cb601a778e8d",
+    "level": "info",
+    "timestamp": 1779664434363000
+  },
+  {
+    "event_message": "📍 [REQUEST END] GET /make-server-48182530/favorites - 424.40ms - 200\n",
+    "event_type": "Log",
+    "execution_id": "3eab7cf5-949a-4543-9aab-869fb6a883a7",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "d88445f7-e84e-4d55-b981-5e7b9e7cffe5",
+    "level": "info",
+    "timestamp": 1779664434363000
+  },
+  {
+    "event_message": "GET /favorites - Found favorites: 33\n",
+    "event_type": "Log",
+    "execution_id": "3eab7cf5-949a-4543-9aab-869fb6a883a7",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "011f7c5c-24a4-4774-a4f1-7192e5a7224c",
+    "level": "info",
+    "timestamp": 1779664434214000
+  },
+  {
+    "event_message": "🟢 [PERF] GET /make-server-48182530/locations - 590.41ms - 200\n",
+    "event_type": "Log",
+    "execution_id": "7754ec03-dd0c-47ee-a4f6-8f6d777f0248",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "523973c6-327f-4006-922e-61d4956fe95a",
+    "level": "info",
+    "timestamp": 1779664434101000
+  },
+  {
+    "event_message": "📍 [REQUEST END] GET /make-server-48182530/locations - 590.41ms - 200\n",
+    "event_type": "Log",
+    "execution_id": "7754ec03-dd0c-47ee-a4f6-8f6d777f0248",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "9f0e3fdd-08fd-40ba-a0ff-5e2cb128e50c",
+    "level": "info",
+    "timestamp": 1779664434101000
+  },
+  {
+    "event_message": "--> GET /make-server-48182530/locations 200 590ms\n",
+    "event_type": "Log",
+    "execution_id": "7754ec03-dd0c-47ee-a4f6-8f6d777f0248",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "d4cb7512-058e-4f93-91f2-f529447430a4",
+    "level": "info",
+    "timestamp": 1779664434101000
+  },
+  {
+    "event_message": "📊 Favorites count map entries: 0\n",
+    "event_type": "Log",
+    "execution_id": "7754ec03-dd0c-47ee-a4f6-8f6d777f0248",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "74d3c631-d49e-4f44-bd07-7e173eee8e31",
+    "level": "info",
+    "timestamp": 1779664434094000
+  },
+  {
+    "event_message": "📊 Want-to-go query: { hasError: true, count: undefined }\n",
+    "event_type": "Log",
+    "execution_id": "7754ec03-dd0c-47ee-a4f6-8f6d777f0248",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "91b6ef09-c8ba-4c8d-b55c-4293362014f9",
+    "level": "info",
+    "timestamp": 1779664434094000
+  },
+  {
+    "event_message": "📊 Want-to-go count map entries: 0\n",
+    "event_type": "Log",
+    "execution_id": "7754ec03-dd0c-47ee-a4f6-8f6d777f0248",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "77fdd9e6-dc58-4da9-9700-87e0efde437b",
+    "level": "info",
+    "timestamp": 1779664434094000
+  },
+  {
+    "event_message": "⚠️ Want-to-go table not accessible - counts will be 0\n",
+    "event_type": "Log",
+    "execution_id": "7754ec03-dd0c-47ee-a4f6-8f6d777f0248",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "5ebb3a0e-0e43-42c1-ae02-21c1c27ba2d8",
+    "level": "info",
+    "timestamp": 1779664434094000
+  },
+  {
+    "event_message": "✅ User email: hursab@gmail.com\n",
+    "event_type": "Log",
+    "execution_id": "3eab7cf5-949a-4543-9aab-869fb6a883a7",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "ea6f0b29-3feb-4f62-ae86-c7f4c80717a2",
+    "level": "info",
+    "timestamp": 1779664434070000
+  },
+  {
+    "event_message": "📍 GET /favorites - Start\n",
+    "event_type": "Log",
+    "execution_id": "3eab7cf5-949a-4543-9aab-869fb6a883a7",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "d0f8c3f3-7208-4334-87af-64bfaf9b1375",
+    "level": "info",
+    "timestamp": 1779664434070000
+  },
+  {
+    "event_message": "✅ User verified successfully: c5a7bcab-894a-4349-b71b-d5bd43fc0374\n",
+    "event_type": "Log",
+    "execution_id": "3eab7cf5-949a-4543-9aab-869fb6a883a7",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "ef4e97df-28fb-4302-81ca-dd63ab930f30",
+    "level": "info",
+    "timestamp": 1779664434069000
+  },
+  {
+    "event_message": "⚠️ Favorites table not accessible - counts will be 0\n",
+    "event_type": "Log",
+    "execution_id": "7754ec03-dd0c-47ee-a4f6-8f6d777f0248",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "792bf87d-ebe9-442a-8868-88b82d3fae16",
+    "level": "info",
+    "timestamp": 1779664434020000
+  },
+  {
+    "event_message": "📊 Favorites query: { hasError: true, count: undefined }\n",
+    "event_type": "Log",
+    "execution_id": "7754ec03-dd0c-47ee-a4f6-8f6d777f0248",
+    "function_id": "351a9fcc-2dc4-40ac-b916-630b8c5a1526",
+    "id": "71c110d5-a944-40f2-ad05-33b967f6bde5",
+    "level": "info",
+    "timestamp": 1779664434020000
+  }
+]

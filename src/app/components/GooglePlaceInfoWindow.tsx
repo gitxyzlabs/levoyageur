@@ -27,8 +27,8 @@ interface GooglePlaceInfoWindowProps {
   onRefresh?: () => void;
 }
 
-export function GooglePlaceInfoWindow({ 
-  place, 
+export function GooglePlaceInfoWindow({
+  place,
   onClose,
   user,
   isAuthenticated,
@@ -51,10 +51,10 @@ export function GooglePlaceInfoWindow({
     score: null,
     loading: true
   });
-  const [placeStats, setPlaceStats] = useState<{ favoritesCount: number; wantToGoCount: number }>({
-    favoritesCount: 0,
-    wantToGoCount: 0
-  });
+
+  // Get place stats from lvLocation if available
+  const favoritesCount = lvLocation?.favoritesCount || 0;
+  const wantToGoCount = lvLocation?.wantToGoCount || 0;
 
   // Fetch Michelin rating from database when place changes
   useEffect(() => {
@@ -85,29 +85,6 @@ export function GooglePlaceInfoWindow({
     fetchMichelinRating();
   }, [place.place_id, place.name, place.geometry?.location]);
 
-  // Function to fetch place stats
-  const fetchPlaceStats = async () => {
-    if (!place.place_id) {
-      console.log('⚠️ No place_id, skipping stats fetch');
-      setPlaceStats({ favoritesCount: 0, wantToGoCount: 0 });
-      return;
-    }
-
-    console.log('📊 Fetching place stats for:', place.place_id);
-    try {
-      const stats = await api.getPlaceStats(place.place_id);
-      console.log('✅ Place stats received:', stats);
-      setPlaceStats(stats);
-    } catch (error) {
-      console.error('❌ Error fetching place stats:', error);
-      setPlaceStats({ favoritesCount: 0, wantToGoCount: 0 });
-    }
-  };
-
-  // Fetch place stats on mount and when place_id changes
-  useEffect(() => {
-    fetchPlaceStats();
-  }, [place.place_id]);
 
   // Process photos from the place object (already fetched by Map component)
   const photos = useMemo(() => {
@@ -288,26 +265,18 @@ export function GooglePlaceInfoWindow({
           <div className="flex-1 min-w-0 pr-3">
             <h3 className="font-bold text-lg text-gray-900 mb-1">{place.name || 'Unknown Place'}</h3>
 
-            {/* Place Stats - Show if any count > 0 */}
-            {(() => {
-              console.log('📊 Rendering place stats:', placeStats);
-              return (placeStats.favoritesCount > 0 || placeStats.wantToGoCount > 0) && (
-                <div className="flex items-center gap-3 mb-1.5 text-xs">
-                  {placeStats.favoritesCount > 0 && (
-                    <div className="flex items-center gap-1">
-                      <Heart className="w-3.5 h-3.5 fill-red-500 stroke-red-500" />
-                      <span className="text-gray-600 font-medium">{placeStats.favoritesCount}</span>
-                    </div>
-                  )}
-                  {placeStats.wantToGoCount > 0 && (
-                    <div className="flex items-center gap-1">
-                      <Bookmark className="w-3.5 h-3.5 fill-amber-500 stroke-amber-500" />
-                      <span className="text-gray-600 font-medium">{placeStats.wantToGoCount}</span>
-                    </div>
-                  )}
-                </div>
-              );
-            })()}
+            {/* DEBUG: Always show to confirm new code is loaded */}
+            <div className="flex items-center gap-3 mb-1.5 text-xs bg-green-100 border border-green-300 p-1 rounded">
+              <div className="flex items-center gap-1">
+                <Heart className="w-3.5 h-3.5 fill-red-500 stroke-red-500" />
+                <span className="text-gray-600 font-medium">{favoritesCount}</span>
+              </div>
+              <div className="flex items-center gap-1">
+                <Bookmark className="w-3.5 h-3.5 fill-amber-500 stroke-amber-500" />
+                <span className="text-gray-600 font-medium">{wantToGoCount}</span>
+              </div>
+              <span className="text-xs text-green-700 font-bold">NEW CODE LOADED ✓</span>
+            </div>
 
             {place.formatted_address && (
               <button
@@ -360,8 +329,6 @@ export function GooglePlaceInfoWindow({
                     formatted_address: place.formatted_address,
                     place_id: place.place_id
                   });
-                  // Refresh stats after toggling
-                  setTimeout(() => fetchPlaceStats(), 500);
                 }
               }}
               className={`p-2 rounded-full transition-all hover:scale-110 ${ 
@@ -410,8 +377,6 @@ export function GooglePlaceInfoWindow({
                     formatted_address: place.formatted_address,
                     place_id: place.place_id
                   });
-                  // Refresh stats after toggling
-                  setTimeout(() => fetchPlaceStats(), 500);
                 }
               }}
               className={`p-2 rounded-full transition-all hover:scale-110 ${
@@ -698,8 +663,6 @@ export function GooglePlaceInfoWindow({
                     formatted_address: place.formatted_address,
                     place_id: place.place_id
                   });
-                  // Refresh stats after toggling
-                  setTimeout(() => fetchPlaceStats(), 500);
                 }
               }}
               className={`flex items-center justify-center gap-1.5 px-3 py-2.5 border rounded-lg text-xs font-medium transition-all ${
@@ -738,8 +701,6 @@ export function GooglePlaceInfoWindow({
                     formatted_address: place.formatted_address,
                     place_id: place.place_id
                   });
-                  // Refresh stats after toggling
-                  setTimeout(() => fetchPlaceStats(), 500);
                 }
               }}
               className={`flex items-center justify-center gap-1.5 px-3 py-2.5 border rounded-lg text-xs font-medium transition-all ${

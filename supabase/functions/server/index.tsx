@@ -310,9 +310,9 @@ app.get('/make-server-48182530/locations', async (c) => {
           .in('location_id', locationIds);
         
         console.log('📊 Favorites query:', { hasError: !!favResult.error, count: favResult.data?.length });
-        
+
         if (favResult.error) {
-          // Silently skip if table doesn't exist - run /CREATE_MISSING_TABLES.sql to fix
+          console.error('❌ Favorites count error:', favResult.error.message, favResult.error.code, favResult.error.details);
           console.log('⚠️ Favorites table not accessible - counts will be 0');
         } else if (favResult.data) {
           // Create a map of location_id to favorites count
@@ -333,9 +333,9 @@ app.get('/make-server-48182530/locations', async (c) => {
           .in('location_id', locationIds);
         
         console.log('📊 Want-to-go query:', { hasError: !!wtgResult.error, count: wtgResult.data?.length });
-        
+
         if (wtgResult.error) {
-          // Silently skip if table doesn't exist - run /CREATE_MISSING_TABLES.sql to fix
+          console.error('❌ Want-to-go count error:', wtgResult.error.message, wtgResult.error.code, wtgResult.error.details);
           console.log('⚠️ Want-to-go table not accessible - counts will be 0');
         } else if (wtgResult.data) {
           // Create a map of location_id to want-to-go count
@@ -403,38 +403,35 @@ app.get('/make-server-48182530/locations/tag/:tag', async (c) => {
           .in('location_id', locationIds);
         
         if (favCountError) {
-          // Silently skip if table doesn't exist - run /CREATE_MISSING_TABLES.sql to fix
+          console.error('❌ Favorites count error (tag route):', favCountError.message, favCountError.code, favCountError.details);
           console.log('⚠️ Favorites table not accessible (tag route) - counts will be 0');
         } else {
-          // Create a map of location_id to favorites count
           favoriteCounts?.forEach(fav => {
             const count = favCountMap.get(fav.location_id) || 0;
             favCountMap.set(fav.location_id, count + 1);
           });
         }
       } catch (e) {
-        // Silently skip exceptions
+        console.error('❌ Exception in favorites count (tag route):', e);
       }
-      
+
       try {
-        // Get want-to-go count for each location
         const { data: wantToGoCounts, error: wtgCountError } = await supabase
           .from('want_to_go')
           .select('location_id')
           .in('location_id', locationIds);
-        
+
         if (wtgCountError) {
-          // Silently skip if table doesn't exist - run /CREATE_MISSING_TABLES.sql to fix
+          console.error('❌ Want-to-go count error (tag route):', wtgCountError.message, wtgCountError.code, wtgCountError.details);
           console.log('⚠️ Want-to-go table not accessible (tag route) - counts will be 0');
         } else {
-          // Create a map of location_id to want-to-go count
           wantToGoCounts?.forEach(wtg => {
             const count = wtgCountMap.get(wtg.location_id) || 0;
             wtgCountMap.set(wtg.location_id, count + 1);
           });
         }
       } catch (e) {
-        // Silently skip exceptions
+        console.error('❌ Exception in want-to-go count (tag route):', e);
       }
     }
     
@@ -747,9 +744,13 @@ app.get('/make-server-48182530/favorites', verifyAuth, async (c) => {
     });
     
     // Extract and format location data using helper
-    const formattedFavorites = favorites?.map(fav => {
+    const formattedFavorites = favorites?.flatMap(fav => {
       const loc = fav.locations as any;
-      return formatLocationForAPI(loc as LocationRow, favCountMap.get(loc.id), wtgCountMap.get(loc.id));
+      if (!loc) {
+        console.warn('⚠️ Favorite entry has null location, skipping:', fav.id);
+        return [];
+      }
+      return [formatLocationForAPI(loc as LocationRow, favCountMap.get(loc.id), wtgCountMap.get(loc.id))];
     }) || [];
     
     return c.json({ favorites: formattedFavorites });
@@ -956,9 +957,13 @@ app.get('/make-server-48182530/want-to-go', verifyAuth, async (c) => {
     });
     
     // Extract and format location data using helper
-    const formattedWantToGo = wantToGo?.map(wtg => {
+    const formattedWantToGo = wantToGo?.flatMap(wtg => {
       const loc = wtg.locations as any;
-      return formatLocationForAPI(loc as LocationRow, favCountMap.get(loc.id), wtgCountMap.get(loc.id));
+      if (!loc) {
+        console.warn('⚠️ Want-to-go entry has null location, skipping:', wtg.id);
+        return [];
+      }
+      return [formatLocationForAPI(loc as LocationRow, favCountMap.get(loc.id), wtgCountMap.get(loc.id))];
     }) || [];
     
     return c.json({ wantToGo: formattedWantToGo });
