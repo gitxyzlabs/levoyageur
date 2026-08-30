@@ -33,7 +33,6 @@ export class Cache<T = any> {
       return null;
     }
 
-    console.log(`✅ Cache hit: ${key}`);
     return cached.data;
   }
 
@@ -45,7 +44,6 @@ export class Cache<T = any> {
       data,
       timestamp: Date.now(),
     });
-    console.log(`💾 Cached: ${key}`);
   }
 
   /**
@@ -54,10 +52,8 @@ export class Cache<T = any> {
   invalidate(key?: string): void {
     if (key) {
       this.cache.delete(key);
-      console.log(`🗑️ Invalidated cache: ${key}`);
     } else {
       this.cache.clear();
-      console.log('🗑️ Cleared all cache');
     }
   }
 
@@ -88,7 +84,6 @@ export class Cache<T = any> {
       return cached;
     }
 
-    console.log(`🔄 Cache miss, fetching: ${key}`);
     const data = await fetcher();
     this.set(key, data);
     return data;
@@ -107,5 +102,4 @@ export const clearAllCaches = () => {
   placeDetailsCache.invalidate();
   michelinCache.invalidate();
   userCache.invalidate();
-  console.log('🗑️ All caches cleared');
 };

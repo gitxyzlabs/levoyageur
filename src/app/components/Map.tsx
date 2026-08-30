@@ -298,35 +298,8 @@ export function Map({
       const isWantToGo = wantToGoIds?.has(location.id) || wantToGoIds?.has(location.place_id || '') || false;
 
       const markerType = getBestMarkerType(hasLVRating, hasMichelinScore, isFavorite, isWantToGo, location.wantToGoCount || 0);
-      
-      // 🐛 DEBUG: Log Elcielo data
-      if (location.name?.toLowerCase().includes('elcielo')) {
-        console.log('🐛 DEBUG: Elcielo Location Data:', {
-          name: location.name,
-          id: location.id,
-          lvEditorScore: location.lvEditorScore,
-          lvAvgUserScore: location.lvAvgUserScore,
-          lvEditorsScore: location.lvEditorsScore,
-          lvCrowdsourceScore: location.lvCrowdsourceScore,
-          michelinScore: location.michelinScore,
-          michelinStars: location.michelinStars,
-          michelinDistinction: location.michelinDistinction,
-          hasLVRating,
-          hasMichelinScore,
-          markerType,
-          googlePlaceId: location.googlePlaceId || location.placeId || location.place_id,
-        });
-      }
-      
+
       if (markerType) {
-        // 📊 Debug: Log counts for locations with any favorites/want-to-go
-        if (location.favoritesCount || location.wantToGoCount) {
-          console.log('📊 Location with counts:', {
-            name: location.name,
-            favoritesCount: location.favoritesCount,
-            wantToGoCount: location.wantToGoCount
-          });
-        }
 
         markers.push({
           id: location.id,
@@ -625,24 +598,11 @@ export function Map({
 
   const handleMarkerClick = async (location: Location) => {
     try {
-      console.log('\n🎯 === LV MARKER CLICKED ===');
-      console.log('📍 Location:', location.name);
-      console.log('🆔 Place ID (place_id):', location.place_id);
-      console.log('🆔 Place ID (placeId):', location.placeId);
-      console.log('⭐ LV Editors Score:', location.lvEditorsScore);
-      console.log('👥 LV Crowd Score:', location.lvCrowdsourceScore);
-      console.log('🌟 Michelin Score:', location.michelinScore);
-      
       // Support both placeId (camelCase from backend) and place_id (snake_case)
       const placeId = location.placeId || location.place_id;
-      
-      // ❌ REMOVED: Special Michelin validation flow - no longer needed
-      // All Michelin data is now in locations table with proper Place IDs
-      
+
       // If no place_id, create a minimal PlaceResult from LV data
       if (!placeId) {
-        console.log('⚠️ No place_id - showing LV-only InfoWindow');
-        
         const minimalPlaceResult: google.maps.places.PlaceResult = {
           place_id: location.id, // Use LV location ID as fallback
           name: location.name,
@@ -652,9 +612,7 @@ export function Map({
           },
           // No Google photos, ratings, or other data
         };
-        
-        console.log('📤 Sending minimal PlaceResult (LV only)');
-        
+
         if (onPOIClick) {
           onPOIClick(minimalPlaceResult, location);
         }
@@ -684,10 +642,6 @@ export function Map({
         ],
       });
 
-      console.log('📸 Photos fetched:', place.photos?.length || 0);
-      console.log('⭐ Google rating:', place.rating);
-      console.log('👤 Rating count:', place.userRatingCount);
-
       // Convert to PlaceResult format
       const placeResult: google.maps.places.PlaceResult = {
         place_id: placeId,
@@ -708,13 +662,6 @@ export function Map({
         } : undefined,
       };
 
-      console.log('📤 Sending PlaceResult to parent:', {
-        name: placeResult.name,
-        photoCount: placeResult.photos?.length || 0,
-        rating: placeResult.rating,
-        hasLVData: true
-      });
-      
       // Notify parent to show InfoWindow with both Google and LV data
       if (onPOIClick) {
         onPOIClick(placeResult, location);

@@ -533,10 +533,12 @@ export const api = {
     },
     michelinId?: number
   ) => {
-    return fetchWithAuth(`${API_BASE}/locations/${locationId}/rating`, {
+    const result = await fetchWithAuth(`${API_BASE}/locations/${locationId}/rating`, {
       method: 'PUT',
       body: JSON.stringify({ lvEditorsScore, michelinScore, tags, placeData, michelinId }),
     });
+    locationCache.invalidate('all-locations');
+    return result;
   },
 
   // User Ratings
@@ -545,10 +547,12 @@ export const api = {
   },
 
   setUserRating: async (locationId: string, rating: number) => {
-    return fetchWithAuth(`${API_BASE}/ratings/${locationId}`, {
+    const result = await fetchWithAuth(`${API_BASE}/ratings/${locationId}`, {
       method: 'POST',
       body: JSON.stringify({ rating }),
     });
+    locationCache.invalidate('all-locations');
+    return result;
   },
 
   getCommunityRatingCount: async (locationId: string): Promise<{ count: number }> => {
@@ -574,13 +578,15 @@ export const api = {
 
   // Michelin Data
   syncMichelinData: async (offset: number = 0, limit: number = 500): Promise<{ success: boolean; added: number; message: string; totalAvailable?: number; imported?: number }> => {
-    return fetchWithAuth(`${API_BASE}/michelin/sync`, {
+    const result = await fetchWithAuth(`${API_BASE}/michelin/sync`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({ offset, limit }),
     });
+    locationCache.invalidate('all-locations');
+    return result;
   },
 
   discoverMichelinPlaceIds: async (offset: number = 0, limit: number = 50): Promise<{ success: boolean; processed: number; discovered: number; message: string }> => {

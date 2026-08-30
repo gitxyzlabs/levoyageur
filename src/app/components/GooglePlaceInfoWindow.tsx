@@ -265,8 +265,7 @@ export function GooglePlaceInfoWindow({
           <div className="flex-1 min-w-0 pr-3">
             <h3 className="font-bold text-lg text-gray-900 mb-1">{place.name || 'Unknown Place'}</h3>
 
-            {/* DEBUG: Always show to confirm new code is loaded */}
-            <div className="flex items-center gap-3 mb-1.5 text-xs bg-green-100 border border-green-300 p-1 rounded">
+            <div className="flex items-center gap-3 mb-1.5 text-xs">
               <div className="flex items-center gap-1">
                 <Heart className="w-3.5 h-3.5 fill-red-500 stroke-red-500" />
                 <span className="text-gray-600 font-medium">{favoritesCount}</span>
@@ -275,7 +274,6 @@ export function GooglePlaceInfoWindow({
                 <Bookmark className="w-3.5 h-3.5 fill-amber-500 stroke-amber-500" />
                 <span className="text-gray-600 font-medium">{wantToGoCount}</span>
               </div>
-              <span className="text-xs text-green-700 font-bold">NEW CODE LOADED ✓</span>
             </div>
 
             {place.formatted_address && (
