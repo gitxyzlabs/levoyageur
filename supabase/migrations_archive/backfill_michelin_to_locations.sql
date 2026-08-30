@@ -1,6 +1,16 @@
 -- ============================================
 -- Michelin Data Backfill to Locations Table
 -- ============================================
+-- ARCHIVED (2026-08-30): moved out of supabase/migrations/ because it was
+-- never run through the CLI - its filename didn't match the required
+-- "<timestamp>_name.sql" pattern, so `supabase migration list` shows no
+-- record of it ever being applied, and every CLI command skipped it with a
+-- warning. Not deleted since the Michelin feature may still need it, but
+-- not renamed into an active migration either: the Michelin feature is
+-- currently deprioritized, and this file's actual applied/unapplied status
+-- against the live database was never verified. Before reviving it, confirm
+-- against the live schema whether this already ran manually via the SQL
+-- editor at some point.
 -- This migration syncs all Michelin restaurants to the locations table
 -- Only links Place IDs when name and address match to avoid data errors
 
