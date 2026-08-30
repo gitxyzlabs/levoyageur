@@ -1,22 +1,17 @@
-import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { APIProvider } from '@vis.gl/react-google-maps';
 import { toast, Toaster } from 'sonner';
-import { 
-  MapPin, 
-  Flame,
-  Sparkles,
+import {
+  MapPin,
   ChevronLeft,
   ChevronRight,
   X,
   LogIn,
   LogOut,
   User,
-  Home,
   Heart,
   Bookmark,
-  Settings,
-  Menu,
   Filter,
   Layers
 } from 'lucide-react';
@@ -27,28 +22,22 @@ import { Profile } from './components/Profile';
 import { Favorites } from './components/Favorites';
 import { WantToGo } from './components/WantToGo';
 import { MonitoringDashboard } from './components/MonitoringDashboard';
+import { MobileNav } from './components/MobileNav';
 
 import { Button } from './components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from './components/ui/card';
 
-import { api, supabase } from '../utils/api';
-import type { Location as APILocation, User as APIUser } from '../utils/api';
+import { api } from '../utils/api';
 import { projectId, publicAnonKey } from '/utils/supabase/info.tsx';
-import { monitor, trackApiCall, trackAction, logError, trackInteraction } from '../utils/monitoring';
+import { trackApiCall, trackAction, logError, trackInteraction } from '../utils/monitoring';
 import { usePerformanceMonitor, useErrorHandler } from './hooks/usePerformanceMonitor';
+import { useAuth } from './hooks/useAuth';
+import { useLocations, type Location } from './hooks/useLocations';
+import { filterWithinRadiusKm, haversineDistanceMeters } from '../utils/geo';
 
-// Use types from API
-type Location = APILocation & {
-  place_id?: string;
-  image?: string;
-  cuisine?: string;
-  area?: string;
-};
+const FALLBACK_LOCATION = { lat: 32.7157, lng: -117.1611 }; // San Diego
 
 export default function App() {
-  const [locations, setLocations] = useState<Location[]>([]);
-  const [heatMapLocations, setHeatMapLocations] = useState<Location[]>([]);
-  const loadingRef = useRef(false); // 🛡️ Prevent duplicate API calls
   const [searchQuery, setSearchQuery] = useState("");
   const [showHeatMap, setShowHeatMap] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -58,14 +47,12 @@ export default function App() {
   const [mapZoom, setMapZoom] = useState(14);
   const [selectedGooglePlace, setSelectedGooglePlace] = useState<google.maps.places.PlaceResult | null>(null);
   const [selectedLVLocation, setSelectedLVLocation] = useState<Location | null>(null);
-  const [user, setUser] = useState<APIUser | null>(null);
   const [sidebarView, setSidebarView] = useState<'favorites' | 'wantToGo' | 'profile'>('favorites');
   const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
   const [favoriteIds, setFavoriteIds] = useState<Set<string>>(new Set());
   const [wantToGoIds, setWantToGoIds] = useState<Set<string>>(new Set());
   const [wantToGoPlaceIds, setWantToGoPlaceIds] = useState<Set<string>>(new Set()); // Google Place IDs for info windows
   const [wantToGoLocations, setWantToGoLocations] = useState<Location[]>([]); // Full location objects for map display
-  const [locationPermissionGranted, setLocationPermissionGranted] = useState(false);
   const [locationPermissionEnabled, setLocationPermissionEnabled] = useState(false);
   const [mapBounds, setMapBounds] = useState<google.maps.LatLngBounds | null>(null);
   const [searchResults, setSearchResults] = useState<google.maps.places.PlaceResult[]>([]);
@@ -82,41 +69,157 @@ export default function App() {
   usePerformanceMonitor('App');
   const { catchError } = useErrorHandler('App');
 
+  const { locations, setLocations, heatMapLocations, setHeatMapLocations, loadLocations, filteredLocations } = useLocations();
+
+  // Restore map center/zoom saved to localStorage before an OAuth redirect
+  const restoreMapStateAfterLogin = useCallback(() => {
+    const savedMapCenter = localStorage.getItem('lv_map_center');
+    const savedMapZoom = localStorage.getItem('lv_map_zoom');
+
+    if (savedMapCenter && savedMapZoom) {
+      try {
+        setMapCenter(JSON.parse(savedMapCenter));
+        setMapZoom(parseInt(savedMapZoom, 10));
+      } catch (error) {
+        console.error('Failed to parse saved map state:', error);
+      }
+    }
+  }, []);
+
+  const requestGeolocation = useCallback((userId?: string) => {
+    if (!navigator.geolocation) return;
+
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        const userPos = {
+          lat: position.coords.latitude,
+          lng: position.coords.longitude,
+        };
+        setMapCenter(userPos);
+        setMapZoom(13);
+        setUserLocation(userPos);
+
+        localStorage.removeItem('lv_location_denied');
+
+        if (userId) {
+          try {
+            localStorage.setItem(`lv_location_${userId}`, JSON.stringify(userPos));
+          } catch (error) {
+            console.error('Failed to save location:', error);
+          }
+        }
+      },
+      (error) => {
+        if (error.code === error.PERMISSION_DENIED) {
+          localStorage.setItem('lv_location_denied', 'true');
+        }
+        setMapCenter(FALLBACK_LOCATION);
+      }
+    );
+  }, []);
+
+  const loadSavedLocation = useCallback((userId: string) => {
+    try {
+      const permissionPref = localStorage.getItem(`lv_location_perm_${userId}`);
+      const locationEnabled = permissionPref === 'true';
+      setLocationPermissionEnabled(locationEnabled);
+
+      const savedLocation = localStorage.getItem(`lv_location_${userId}`);
+      if (savedLocation) {
+        const userPos = JSON.parse(savedLocation);
+        setMapCenter(userPos);
+        setMapZoom(13);
+        setUserLocation(userPos);
+      }
+
+      // Only request a fresh location if the user has opted in
+      if (locationEnabled) {
+        requestGeolocation(userId);
+      }
+    } catch (error) {
+      console.error('Failed to load saved location:', error);
+      const permissionPref = localStorage.getItem(`lv_location_perm_${userId}`);
+      if (permissionPref === 'true') {
+        requestGeolocation(userId);
+      }
+    }
+  }, [requestGeolocation]);
+
+  const loadUserLists = useCallback(async () => {
+    try {
+      const { favorites } = await api.getFavorites();
+      setFavoriteIds(new Set(favorites.map(loc => loc.id)));
+
+      const { wantToGo } = await api.getWantToGo();
+      setWantToGoIds(new Set(wantToGo.map(loc => loc.id)));
+      setWantToGoLocations(wantToGo);
+
+      const placeIds = wantToGo
+        .filter(loc => loc.placeId || loc.googlePlaceId)
+        .map(loc => loc.placeId || loc.googlePlaceId!);
+      setWantToGoPlaceIds(new Set(placeIds));
+    } catch (error) {
+      console.error('Failed to load user lists:', error);
+    }
+  }, []);
+
+  // Fallback when there's no logged-in session: fall back to geolocation
+  // (or the last-denied fallback location), and clear any stale user state.
+  const handleSignedOut = useCallback(() => {
+    setFavoriteIds(new Set());
+    setWantToGoIds(new Set());
+    setWantToGoPlaceIds(new Set());
+
+    const hasExplicitlyDeniedLocation = localStorage.getItem('lv_location_denied') === 'true';
+    if (!hasExplicitlyDeniedLocation) {
+      requestGeolocation();
+    } else {
+      setMapCenter(FALLBACK_LOCATION);
+    }
+  }, [requestGeolocation]);
+
+  const { user, login, logout } = useAuth({
+    onUserSession: loadSavedLocation,
+    onProfileLoaded: loadUserLists,
+    onSignedIn: restoreMapStateAfterLogin,
+    onSignedOut: handleSignedOut,
+  });
+
+  const handleLogin = useCallback(async () => {
+    // Save map position so it survives the OAuth redirect
+    if (mapCenter) {
+      try {
+        localStorage.setItem('lv_map_center', JSON.stringify(mapCenter));
+        localStorage.setItem('lv_map_zoom', mapZoom.toString());
+      } catch (error) {
+        console.error('Failed to save map state:', error);
+      }
+    }
+    await login();
+  }, [login, mapCenter, mapZoom]);
+
   // Calculate city stats when a city is selected - memoized for performance
   const calculateCityStats = useCallback(async (cityCenter: google.maps.LatLng | google.maps.LatLngLiteral) => {
     const lat = typeof cityCenter.lat === 'function' ? cityCenter.lat() : cityCenter.lat;
     const lng = typeof cityCenter.lng === 'function' ? cityCenter.lng() : cityCenter.lng;
-    
-    // Calculate locations within ~50km radius of city center
+
     const CITY_RADIUS_KM = 50;
-    const locationsInCity = locations.filter(location => {
-      const distance = calculateDistance(lat, lng, location.lat, location.lng);
-      return distance <= CITY_RADIUS_KM;
-    });
-    
-    console.log('📊 City Stats:', {
-      totalLocations: locationsInCity.length,
-      cityCenter: { lat, lng },
-      radius: CITY_RADIUS_KM
-    });
-    
-    // Count LV rated venues (locations with editor scores)
-    const lvRatedCount = locationsInCity.filter(loc => 
+    const locationsInCity = filterWithinRadiusKm(locations, { lat, lng }, CITY_RADIUS_KM);
+
+    const lvRatedCount = locationsInCity.filter(loc =>
       loc.lvEditorsScore !== null && loc.lvEditorsScore !== undefined && loc.lvEditorsScore > 0
     ).length;
-    
-    // Fetch total favorites count from backend for locations in this city
+
     try {
       const locationIds = locationsInCity.map(loc => loc.id);
       const { totalFavorites } = await api.getCityFavorites(locationIds);
-      
+
       setCityStats({
         totalLVRatings: lvRatedCount,
         totalFavorites: totalFavorites
       });
     } catch (error) {
       console.error('Error fetching city favorites:', error);
-      // Fallback: just show LV ratings count
       setCityStats({
         totalLVRatings: lvRatedCount,
         totalFavorites: 0
@@ -130,201 +233,19 @@ export default function App() {
     }
   }, [selectedCity, calculateCityStats]);
 
-  // Haversine formula to calculate distance between two coordinates
-  const calculateDistance = (lat1: number, lng1: number, lat2: number, lng2: number): number => {
-    const R = 6371; // Earth's radius in km
-    const dLat = (lat2 - lat1) * Math.PI / 180;
-    const dLng = (lng2 - lng1) * Math.PI / 180;
-    const a = 
-      Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-      Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
-      Math.sin(dLng / 2) * Math.sin(dLng / 2);
-    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-    return R * c;
-  };
-
-  useEffect(() => {
-    // 📊 Track app initialization
-    trackAction('app_initialized');
-    
-    // Initialize the app and auth
-    const init = async () => {
-      // First, initialize the app (load API key and locations)
-      initializeApp();
-      
-      // Restore map state after OAuth redirect
-      restoreMapStateAfterLogin();
-      
-      // Wait a moment for Supabase to parse the URL hash after OAuth redirect
-      // This ensures the session is available when we check
-      await new Promise(resolve => setTimeout(resolve, 100));
-      
-      // Now check for existing session
-      await checkExistingSession();
-    };
-    
-    init();
-    
-    // 🎹 Keyboard shortcut for monitoring dashboard (Ctrl+Shift+M)
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.ctrlKey && e.shiftKey && e.key === 'M') {
-        e.preventDefault();
-        setMonitoringDashboardOpen(prev => !prev);
-        trackAction('monitoring_dashboard_toggled');
-      }
-    };
-    window.addEventListener('keydown', handleKeyDown);
-    
-    // Listen for auth state changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-      console.log('🔐 Auth state changed:', event);
-      console.log('🔍 Session details:', {
-        hasSession: !!session,
-        hasUser: !!session?.user,
-        hasAccessToken: !!session?.access_token,
-        tokenLength: session?.access_token?.length,
-        tokenExpiry: session?.expires_at,
-        now: Math.floor(Date.now() / 1000),
-        isExpired: session?.expires_at ? (session.expires_at < Math.floor(Date.now() / 1000)) : 'N/A',
-      });
-      
-      if (session?.user) {
-        // User is logged in - fetch full user profile from backend
-        // Update monitoring with user ID
-        monitor.setUserId(session.user.id);
-        trackAction('user_logged_in', 'App', { userId: session.user.id });
-        
-        try {
-          const { user: userProfile } = await trackApiCall('getCurrentUser', () => api.getCurrentUser());
-          setUser(userProfile);
-          console.log('✅ User profile loaded:', userProfile);
-          
-          // Load user's favorites and want-to-go lists
-          await loadUserLists();
-        } catch (error) {
-          console.error('Failed to fetch user profile:', error);
-          catchError(error, { context: 'user_profile_load' });
-          // Fallback to basic user data
-          setUser({
-            id: session.user.id,
-            email: session.user.email || '',
-            name: session.user.user_metadata?.name || session.user.email || 'User',
-            role: 'user', // Default role
-          });
-        }
-        
-        // Load saved location for logged-in user (this will check permission preference)
-        loadSavedLocation(session.user.id);
-        
-        if (event === 'SIGNED_IN') {
-          toast.success('Welcome to Le Voyageur!');
-          // Restore map state after successful login
-          restoreMapStateAfterLogin();
-        }
-      } else {
-        // User is logged out
-        monitor.setUserId(undefined);
-        trackAction('user_logged_out');
-        
-        setUser(null);
-        setFavoriteIds(new Set());
-        setWantToGoIds(new Set());
-        setWantToGoPlaceIds(new Set());
-        setLocationPermissionGranted(false);
-        
-        // When logged out, check if browser has saved permission before requesting
-        // Only request location if user hasn't explicitly denied it
-        const hasExplicitlyDeniedLocation = localStorage.getItem('lv_location_denied') === 'true';
-        if (!hasExplicitlyDeniedLocation) {
-          requestGeolocation();
-        } else {
-          // Use fallback location if user previously denied
-          const fallbackLocation = { lat: 32.7157, lng: -117.1611 };
-          setMapCenter(fallbackLocation);
-          console.log('⚠️ Using fallback location (San Diego) - user previously denied');
-        }
-      }
-    });
-    
-    // Cleanup subscription and keyboard listener
-    return () => {
-      window.removeEventListener('keydown', handleKeyDown);
-      subscription.unsubscribe();
-    };
-  }, []);
-
-  // Check for existing session on app load
-  const checkExistingSession = async () => {
-    try {
-      const { data: { session } } = await supabase.auth.getSession();
-      console.log('🔍 Checking for existing session on load:', {
-        hasSession: !!session,
-        hasUser: !!session?.user,
-        userId: session?.user?.id,
-        email: session?.user?.email,
-        accessToken: session?.access_token?.substring(0, 20) + '...',
-      });
-      
-      if (session?.user) {
-        console.log('✅ Session found! User:', session.user.email);
-        
-        // Don't load user profile here - let onAuthStateChange handle it
-        // This avoids race conditions and duplicate API calls
-        // Just update the monitoring with user ID
-        monitor.setUserId(session.user.id);
-        
-        // Set a basic user object temporarily
-        setUser({
-          id: session.user.id,
-          email: session.user.email || '',
-          name: session.user.user_metadata?.name || session.user.email || 'User',
-          role: 'user',
-        });
-        
-        console.log('⏳ Waiting for onAuthStateChange to load full profile...');
-      } else {
-        console.log('❌ No session found');
-        // No session - only request location if user hasn't explicitly denied it
-        const hasExplicitlyDeniedLocation = localStorage.getItem('lv_location_denied') === 'true';
-        if (!hasExplicitlyDeniedLocation) {
-          requestGeolocation();
-        } else {
-          // Use fallback location if user previously denied
-          const fallbackLocation = { lat: 32.7157, lng: -117.1611 };
-          setMapCenter(fallbackLocation);
-          console.log('⚠️ Using fallback location (San Diego) - user previously denied');
-        }
-      }
-    } catch (error) {
-      console.error('❌ Error checking existing session:', error);
-      // Continue app initialization even if session check fails
-      const hasExplicitlyDeniedLocation = localStorage.getItem('lv_location_denied') === 'true';
-      if (!hasExplicitlyDeniedLocation) {
-        requestGeolocation();
-      } else {
-        const fallbackLocation = { lat: 32.7157, lng: -117.1611 };
-        setMapCenter(fallbackLocation);
-        console.log('⚠️ Using fallback location (San Diego) - user previously denied');
-      }
-    }
-  };
-
-  const initializeApp = async () => {
+  const initializeApp = useCallback(async () => {
     const endTracking = trackInteraction('app_initialization');
-    
+
     try {
       // First try to load API key from .env.local (Vite environment variable)
       const envApiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
-      
+
       if (envApiKey) {
         setGoogleMapsApiKey(envApiKey);
         (window as any).GOOGLE_MAPS_API_KEY = envApiKey;
-        console.log("API Key loaded from .env.local");
       } else {
-        // Fallback: Fetch from server
-        console.log("No API key in .env.local, fetching from server...");
-        
-        const response = await trackApiCall('getGoogleMapsApiKey', () => 
+        // Fallback: fetch from server
+        const response = await trackApiCall('getGoogleMapsApiKey', () =>
           fetch(
             `https://${projectId}.supabase.co/functions/v1/make-server-48182530/config/google-maps-key`,
             {
@@ -334,19 +255,17 @@ export default function App() {
             }
           )
         );
-        
+
         if (response.ok) {
           const { apiKey } = await response.json();
           setGoogleMapsApiKey(apiKey);
           (window as any).GOOGLE_MAPS_API_KEY = apiKey;
-          console.log("API Key loaded from server");
         } else {
           console.error("Failed to load Google Maps API key");
           logError('Failed to load Google Maps API key', 'App', { status: response.status });
         }
       }
-      
-      // Load locations
+
       await loadLocations();
     } catch (error) {
       console.error("Error during initialization:", error);
@@ -355,51 +274,28 @@ export default function App() {
       setLoading(false);
       endTracking();
     }
-  };
+  }, [loadLocations, catchError]);
 
-  const loadLocations = useCallback(async () => {
-    // 🛡️ Prevent duplicate requests
-    if (loadingRef.current) {
-      console.log('🚫 Already loading locations, skipping duplicate request');
-      return;
-    }
-    
-    loadingRef.current = true;
-    
-    try {
-      console.log('🔄 Loading locations...');
-      
-      // 🗑️ TEMPORARY: Clear cache to force fresh data from server
-      // This ensures we get the latest data with increased limit
-      const { locationCache } = await import('../utils/cache');
-      locationCache.invalidate('all-locations');
-      console.log('🗑️ Cache cleared - fetching fresh data');
-      
-      const { locations: data } = await trackApiCall('getLocations', () => api.getLocations());
-      console.log('✅ Loaded locations:', data.length);
-      
-      // 🐛 DEBUG: Check if Elcielo is in the data
-      const elcielo = data.find(loc => loc.name?.toLowerCase().includes('elcielo'));
-      console.log('🐛 DEBUG: Elcielo in loaded locations:', elcielo ? {
-        id: elcielo.id,
-        name: elcielo.name,
-        lvEditorScore: elcielo.lvEditorScore,
-        lvEditorsScore: elcielo.lvEditorsScore,
-        michelinStars: elcielo.michelinStars,
-        michelinScore: elcielo.michelinScore,
-        googlePlaceId: elcielo.googlePlaceId,
-        place_id: elcielo.place_id,
-        lat: elcielo.lat,
-        lng: elcielo.lng,
-      } : 'NOT FOUND');
-      
-      setLocations(data);
-    } catch (error: any) {
-      console.error("❌ Failed to load locations:", error);
-      toast.error('Failed to load locations');
-    } finally {
-      loadingRef.current = false;
-    }
+  useEffect(() => {
+    trackAction('app_initialized');
+
+    initializeApp();
+    restoreMapStateAfterLogin();
+
+    // 🎹 Keyboard shortcut for monitoring dashboard (Ctrl+Shift+M)
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.ctrlKey && e.shiftKey && e.key === 'M') {
+        e.preventDefault();
+        setMonitoringDashboardOpen(prev => !prev);
+        trackAction('monitoring_dashboard_toggled');
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Handle shared place from URL parameter
@@ -410,7 +306,6 @@ export default function App() {
 
       if (!placeId || !googleMapsApiKey || locations.length === 0) return;
 
-      console.log('🔗 Shared place detected:', placeId);
       trackAction('shared_place_opened', 'App', { placeId });
 
       try {
@@ -419,7 +314,6 @@ export default function App() {
         if (coordMatch) {
           const lat = parseFloat(coordMatch[1]);
           const lng = parseFloat(coordMatch[2]);
-          console.log('📍 Coordinates detected:', { lat, lng });
           setMapCenter({ lat, lng });
           setMapZoom(15);
           toast.info('Centered on shared location');
@@ -431,12 +325,7 @@ export default function App() {
           loc => loc.place_id === placeId || loc.googlePlaceId === placeId || loc.id === placeId
         );
 
-        if (lvLocation) {
-          console.log('✅ Found LV location data:', lvLocation);
-        }
-
         // ALWAYS fetch from Google Places API to get photos and complete data
-        console.log('📍 Fetching place from Google Places API...');
         const response = await fetch(
           `https://${projectId}.supabase.co/functions/v1/make-server-48182530/google-places/${placeId}/details`,
           {
@@ -449,8 +338,6 @@ export default function App() {
         if (!response.ok) throw new Error('Failed to fetch place details');
 
         const placeData = await response.json();
-        console.log('✅ Fetched place from Google:', placeData);
-        console.log('📸 Photos:', placeData.photos?.length || 0);
 
         // Convert photos to the format the InfoWindow expects
         const photos = placeData.photos?.map((photo: any) => ({
@@ -461,8 +348,6 @@ export default function App() {
 
         const lat = placeData.location?.lat || lvLocation?.lat || 0;
         const lng = placeData.location?.lng || lvLocation?.lng || 0;
-
-        console.log('📍 Setting map center to:', { lat, lng });
 
         const place: google.maps.places.PlaceResult = {
           place_id: placeData.place_id,
@@ -492,7 +377,7 @@ export default function App() {
           toast.success(`Opened ${placeData.name || 'location'}`);
         }, 100);
       } catch (error) {
-        console.error('❌ Error loading shared place:', error);
+        console.error('Error loading shared place:', error);
         toast.error('Failed to load shared location');
       }
     };
@@ -522,14 +407,9 @@ export default function App() {
   // Auto-zoom to encompass all heat map locations when heat map is enabled
   useEffect(() => {
     if (showHeatMap && heatMapLocations.length > 0) {
-      // Calculate bounds to fit all heat map locations
-      const validLocations = heatMapLocations.filter(
-        loc => loc.lat && loc.lng
-      );
-
+      const validLocations = heatMapLocations.filter(loc => loc.lat && loc.lng);
       if (validLocations.length === 0) return;
 
-      // Find the bounds of all locations
       let minLat = validLocations[0].lat!;
       let maxLat = validLocations[0].lat!;
       let minLng = validLocations[0].lng!;
@@ -551,12 +431,10 @@ export default function App() {
       minLng -= lngPadding;
       maxLng += lngPadding;
 
-      // Calculate center point
       const centerLat = (minLat + maxLat) / 2;
       const centerLng = (minLng + maxLng) / 2;
 
-      // Calculate appropriate zoom level
-      // Based on latitude span (roughly 111km per degree)
+      // Calculate appropriate zoom level (roughly 111km per degree of latitude)
       const latSpan = maxLat - minLat;
       const lngSpan = maxLng - minLng;
       const maxSpan = Math.max(latSpan, lngSpan);
@@ -572,80 +450,58 @@ export default function App() {
       else if (maxSpan > 0.05) zoom = 12;
       else if (maxSpan > 0.02) zoom = 13;
 
-      console.log('🗺️ Auto-zooming to heat map bounds:', {
-        center: { lat: centerLat, lng: centerLng },
-        zoom,
-        locationsCount: validLocations.length,
-        bounds: { minLat, maxLat, minLng, maxLng }
-      });
-
       setMapCenter({ lat: centerLat, lng: centerLng });
       setMapZoom(zoom);
     }
+    // Only run when showHeatMap changes, not heatMapLocations
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [showHeatMap]); // Only run when showHeatMap changes, not heatMapLocations
-
-  // Filter main locations when heat map search is active
-  const filteredLocations = React.useMemo(() => {
-    // If we have heat map locations from a tag search, only show those
-    if (heatMapLocations.length > 0) {
-      return heatMapLocations;
-    }
-    // Otherwise show all locations
-    return locations;
-  }, [locations, heatMapLocations]);
+  }, [showHeatMap]);
 
   // Filter want-to-go locations based on active search query
   const filteredWantToGoLocations = React.useMemo(() => {
     if (!searchQuery) {
       return wantToGoLocations;
     }
-    
-    // Filter to only show want-to-go locations that have the search tag
-    return wantToGoLocations.filter(location => 
-      location.tags?.some(tag => 
+    return wantToGoLocations.filter(location =>
+      location.tags?.some(tag =>
         tag.toLowerCase().includes(searchQuery.toLowerCase())
       )
     );
   }, [wantToGoLocations, searchQuery]);
 
   const handlePlaceSelect = (place: google.maps.places.PlaceResult, location?: Location) => {
-    console.log('🏙️ Place selected:', place.name, 'Types:', place.types);
-    
     // Check if this is a city/region (not a specific establishment)
     const cityTypes = ['locality', 'administrative_area_level_1', 'administrative_area_level_2', 'political', 'sublocality'];
-    const isCity = place.types?.some(type => cityTypes.includes(type)) && 
+    const isCity = place.types?.some(type => cityTypes.includes(type)) &&
                    !place.types?.some(type => ['restaurant', 'cafe', 'bar', 'establishment', 'point_of_interest'].includes(type));
-    
+
     if (isCity) {
-      console.log('✅ Detected as city/region - showing city info window');
       setSelectedCity(place);
       setSelectedGooglePlace(null);
       setSelectedLVLocation(null);
-      
+
       // Pan and zoom out to show the city area
       if (place.geometry?.location) {
-        const location = place.geometry.location;
-        const lat = typeof location.lat === 'function' ? location.lat() : location.lat;
-        const lng = typeof location.lng === 'function' ? location.lng() : location.lng;
-        
+        const loc = place.geometry.location;
+        const lat = typeof loc.lat === 'function' ? loc.lat() : loc.lat;
+        const lng = typeof loc.lng === 'function' ? loc.lng() : loc.lng;
+
         setMapCenter({ lat, lng });
         setMapZoom(13); // Zoom out more for cities
       }
     } else {
-      console.log('✅ Detected as specific place - showing place info window');
       // Store the selected Google place to show in Map
       setSelectedGooglePlace(place);
       // If location data was passed (e.g., from Michelin search), use it
       setSelectedLVLocation(location || null);
       setSelectedCity(null);
-      
+
       // Pan map to the selected place location
       if (place.geometry?.location) {
-        const location = place.geometry.location;
-        const lat = typeof location.lat === 'function' ? location.lat() : location.lat;
-        const lng = typeof location.lng === 'function' ? location.lng() : location.lng;
-        
+        const loc = place.geometry.location;
+        const lat = typeof loc.lat === 'function' ? loc.lat() : loc.lat;
+        const lng = typeof loc.lng === 'function' ? loc.lng() : loc.lng;
+
         setMapCenter({ lat, lng });
         setMapZoom(15);
       }
@@ -654,46 +510,18 @@ export default function App() {
 
   const handlePOIClick = (place: google.maps.places.PlaceResult, lvLocation?: Location) => {
     // Called when ANY POI/marker is clicked (Google POI, LV marker, or search result)
-    console.log('\n🎯 === APP.TSX: POI CLICK HANDLER ===');
-    console.log('📍 Place:', place.name);
-    console.log('🆔 Place ID:', place.place_id);
-    console.log('📸 Photos in place object:', place.photos?.length || 0);
-    console.log('⭐ Google rating:', place.rating);
-    console.log('🏷️ Has LV data passed?', !!lvLocation);
-    
     setSelectedGooglePlace(place);
-    
+
     // If lvLocation was passed (from LV marker click), use it
     if (lvLocation) {
-      console.log('✅ Using passed LV location:', {
-        name: lvLocation.name,
-        lvEditorsScore: lvLocation.lvEditorsScore,
-        lvCrowdScore: lvLocation.lvCrowdsourceScore
-      });
       setSelectedLVLocation(lvLocation);
     } else if (place.place_id) {
       // Otherwise, search our locations array for matching place_id
       const matchingLocation = locations.find(loc => loc.place_id === place.place_id);
-      if (matchingLocation) {
-        console.log('✅ Found matching LV location for Google POI:', {
-          name: matchingLocation.name,
-          lvEditorsScore: matchingLocation.lvEditorsScore,
-          lvCrowdScore: matchingLocation.lvCrowdsourceScore
-        });
-        setSelectedLVLocation(matchingLocation);
-      } else {
-        console.log('⚠️ No LV location found for this Google POI');
-        setSelectedLVLocation(null);
-      }
+      setSelectedLVLocation(matchingLocation || null);
     } else {
       setSelectedLVLocation(null);
     }
-    
-    console.log('📊 Final state being set:', {
-      googlePlace: place.name,
-      hasPhotos: !!(place.photos?.length),
-      hasLVLocation: !!(lvLocation || locations.find(loc => loc.place_id === place.place_id))
-    });
   };
 
   const handleSearchClear = () => {
@@ -713,51 +541,32 @@ export default function App() {
     setSearchQuery(query);
     setShowSearchResults(false);
     setSearchResults([]);
-    
+
     try {
       toast.info(`Searching for "${query}"...`);
-      
+
       // Also search for LV locations with matching tags
       try {
         const { locations: taggedLocations } = await api.getLocationsByTag(query);
-        if (taggedLocations.length > 0) {
-          console.log(`📍 Found ${taggedLocations.length} LV locations tagged with "${query}"`);
-          setHeatMapLocations(taggedLocations);
-          // Default heat map to OFF when searching - only show when user toggles it
-          setShowHeatMap(false);
-        } else {
-          setHeatMapLocations([]);
-          setShowHeatMap(false);
-        }
+        setHeatMapLocations(taggedLocations.length > 0 ? taggedLocations : []);
+        // Default heat map to OFF when searching - only show when user toggles it
+        setShowHeatMap(false);
       } catch (tagError) {
-        console.log('No LV locations found for this tag');
         setHeatMapLocations([]);
         setShowHeatMap(false);
       }
-      
+
       // Get center and radius from map bounds
       const center = mapBounds.getCenter();
       const ne = mapBounds.getNorthEast();
-      
-      // Calculate radius using Haversine formula
-      const R = 6371000; // Earth radius in meters
-      const dLat = (ne.lat() - center.lat()) * Math.PI / 180;
-      const dLng = (ne.lng() - center.lng()) * Math.PI / 180;
-      const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-              Math.cos(center.lat() * Math.PI / 180) * Math.cos(ne.lat() * Math.PI / 180) *
-              Math.sin(dLng / 2) * Math.sin(dLng / 2);
-      const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-      const radius = Math.min(Math.round(R * c), 50000); // Max 50km
-      
-      console.log('🔍 Searching with params:', {
-        query,
-        center: { lat: center.lat(), lng: center.lng() },
-        radius
-      });
-      
+      const radius = Math.min(
+        Math.round(haversineDistanceMeters(center.lat(), center.lng(), ne.lat(), ne.lng())),
+        50000 // Max 50km
+      );
+
       // Use the Places library correctly
       const { Place } = await google.maps.importLibrary("places") as google.maps.PlacesLibrary;
-      
+
       const request = {
         textQuery: query,
         locationBias: {
@@ -768,28 +577,24 @@ export default function App() {
         maxResultCount: 20,
         language: 'en-US',
       };
-      
+
       const { places } = await Place.searchByText(request);
-      
+
       if (places && places.length > 0) {
-        console.log('✅ Found places:', places.length);
-        
         // Convert to PlaceResult format - places already have the fields we requested
-        const results: google.maps.places.PlaceResult[] = places.map((place) => {
-          return {
-            place_id: place.id,
-            name: place.displayName,
-            formatted_address: place.formattedAddress,
-            geometry: place.location ? {
-              location: place.location
-            } as google.maps.places.PlaceGeometry : undefined,
-            rating: place.rating,
-            user_ratings_total: place.userRatingCount,
-            types: place.types,
-            photos: place.photos // Add photos to the result
-          };
-        });
-        
+        const results: google.maps.places.PlaceResult[] = places.map((place) => ({
+          place_id: place.id,
+          name: place.displayName,
+          formatted_address: place.formattedAddress,
+          geometry: place.location ? {
+            location: place.location
+          } as google.maps.places.PlaceGeometry : undefined,
+          rating: place.rating,
+          user_ratings_total: place.userRatingCount,
+          types: place.types,
+          photos: place.photos
+        }));
+
         setSearchResults(results);
         setShowSearchResults(true);
         toast.success(`Found ${results.length} places for "${query}"`);
@@ -797,100 +602,10 @@ export default function App() {
         toast.info(`No results found for "${query}"`);
       }
     } catch (error) {
-      console.error('❌ Generic search error:', error);
+      console.error('Generic search error:', error);
       toast.error('Search failed. Please try again.');
     }
   };
-
-  const handleSeedDatabase = async () => {
-    try {
-      const response = await fetch(
-        `https://${projectId}.supabase.co/functions/v1/make-server-48182530/seed`,
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${publicAnonKey}`,
-          },
-        }
-      );
-      
-      const data = await response.json();
-      
-      if (data.success) {
-        toast.success(`Successfully added ${data.locations.length} sample locations!`);
-        await loadLocations();
-      } else {
-        toast.error('Failed to seed database');
-      }
-    } catch (error) {
-      console.error('Seed error:', error);
-      toast.error('Failed to seed database');
-    }
-  };
-
-  const handleLogin = async () => {
-    try {
-      // Save current map state before OAuth redirect
-      if (mapCenter) {
-        try {
-          localStorage.setItem('lv_map_center', JSON.stringify(mapCenter));
-          localStorage.setItem('lv_map_zoom', mapZoom.toString());
-          console.log('💾 Saved map state before login:', mapCenter, mapZoom);
-        } catch (error) {
-          console.error('Failed to save map state:', error);
-        }
-      }
-      
-      console.log('🔐 Starting Google OAuth login...');
-      await api.signInWithOAuth('google');
-      // Note: This will redirect the user, so code after this won't execute
-    } catch (error: any) {
-      console.error('❌ Login error:', error);
-      toast.error(error.message || 'Login failed');
-    }
-  };
-
-  const handleLogout = async () => {
-    const { error } = await supabase.auth.signOut();
-    if (error) {
-      toast.error('Logout failed');
-      console.error(error);
-    } else {
-      toast.success('Logged out successfully');
-      setUser(null);
-    }
-  };
-
-  const loadUserLists = useCallback(async () => {
-    try {
-      // Load favorites
-      const { favorites } = await api.getFavorites();
-      setFavoriteIds(new Set(favorites.map(loc => loc.id)));
-      
-      // Load want to go
-      const { wantToGo } = await api.getWantToGo();
-      setWantToGoIds(new Set(wantToGo.map(loc => loc.id)));
-      setWantToGoLocations(wantToGo); // Store full location objects for map display
-      
-      // Build place_id Set for info window checks
-      console.log('🔍 Building wantToGoPlaceIds Set...');
-      console.log('wantToGo array:', wantToGo);
-      wantToGo.forEach((loc, index) => {
-        console.log(`  [${index}] id=${loc.id}, placeId=${loc.placeId}, googlePlaceId=${loc.googlePlaceId}`);
-      });
-      
-      const placeIds = wantToGo
-        .filter(loc => loc.placeId || loc.googlePlaceId)
-        .map(loc => loc.placeId || loc.googlePlaceId!);
-      setWantToGoPlaceIds(new Set(placeIds));
-      
-      console.log('✅ User lists loaded:', favorites.length, 'favorites,', wantToGo.length, 'want to go');
-      console.log('✅ Want to Go Place IDs Set:', Array.from(placeIds));
-    } catch (error) {
-      console.error('Failed to load user lists:', error);
-    }
-  }, []);
 
   const handleToggleFavorite = useCallback(async (locationId: string, placeData?: { name?: string; lat?: number; lng?: number; formatted_address?: string; place_id?: string }) => {
     if (!user) {
@@ -898,15 +613,14 @@ export default function App() {
       trackAction('favorite_toggle_failed_no_auth', 'App', { locationId });
       return;
     }
-    
+
     const isFavorite = favoriteIds.has(locationId);
-    
-    // 📊 Track favorite toggle
-    trackAction(isFavorite ? 'favorite_removed' : 'favorite_added', 'App', { 
-      locationId, 
-      placeName: placeData?.name 
+
+    trackAction(isFavorite ? 'favorite_removed' : 'favorite_added', 'App', {
+      locationId,
+      placeName: placeData?.name
     });
-    
+
     // ✅ OPTIMISTIC UPDATE - Update UI immediately
     setFavoriteIds(prev => {
       const newSet = new Set(prev);
@@ -917,33 +631,26 @@ export default function App() {
       }
       return newSet;
     });
-    
-    // ✅ Update favoritesCount in locations array
-    setLocations(prev => prev.map(loc => 
-      loc.id === locationId 
-        ? { 
-            ...loc, 
-            favoritesCount: (loc.favoritesCount || 0) + (isFavorite ? -1 : 1) 
-          }
+
+    setLocations(prev => prev.map(loc =>
+      loc.id === locationId
+        ? { ...loc, favoritesCount: (loc.favoritesCount || 0) + (isFavorite ? -1 : 1) }
         : loc
     ));
-    
+
     try {
       if (isFavorite) {
-        // Remove from favorites
         await trackApiCall('removeFavorite', () => api.removeFavorite(locationId));
         toast.success('Removed from favorites');
       } else {
-        // Add to favorites
-        console.log('💾 Saving favorite with place_id:', placeData?.place_id);
         await trackApiCall('addFavorite', () => api.addFavorite(locationId, placeData));
         toast.success('Added to favorites!');
       }
-      // ✅ NO MORE loadLocations() - we updated state optimistically!
+      // No loadLocations() needed - state was already updated optimistically above
     } catch (error: any) {
-      console.error('❌ Error toggling favorite:', error);
+      console.error('Error toggling favorite:', error);
       catchError(error, { context: 'favorite_toggle', locationId });
-      
+
       // ❌ ROLLBACK optimistic update on error
       setFavoriteIds(prev => {
         const newSet = new Set(prev);
@@ -954,19 +661,16 @@ export default function App() {
         }
         return newSet;
       });
-      
-      setLocations(prev => prev.map(loc => 
-        loc.id === locationId 
-          ? { 
-              ...loc, 
-              favoritesCount: (loc.favoritesCount || 0) + (isFavorite ? 1 : -1) 
-            }
+
+      setLocations(prev => prev.map(loc =>
+        loc.id === locationId
+          ? { ...loc, favoritesCount: (loc.favoritesCount || 0) + (isFavorite ? 1 : -1) }
           : loc
       ));
-      
+
       toast.error('Failed to update favorites');
     }
-  }, [user, favoriteIds]);
+  }, [user, favoriteIds, setLocations, catchError]);
 
   const handleToggleWantToGo = useCallback(async (locationId: string, placeData?: { name?: string; lat?: number; lng?: number; formatted_address?: string; place_id?: string }) => {
     if (!user) {
@@ -974,23 +678,19 @@ export default function App() {
       trackAction('want_to_go_toggle_failed_no_auth', 'App', { locationId });
       return;
     }
-    
+
     // Check if this is a place_id (Google place) or a location id (LV location)
     const isPlaceId = placeData?.place_id === locationId;
     const isWantToGo = isPlaceId ? wantToGoPlaceIds.has(locationId) : wantToGoIds.has(locationId);
-    
-    // 📊 Track want to go toggle
-    trackAction(isWantToGo ? 'want_to_go_removed' : 'want_to_go_added', 'App', { 
-      locationId, 
+
+    trackAction(isWantToGo ? 'want_to_go_removed' : 'want_to_go_added', 'App', {
+      locationId,
       placeName: placeData?.name,
-      isPlaceId 
+      isPlaceId
     });
-    
-    console.log('🔍 Toggle Want to Go:', { locationId, isPlaceId, isWantToGo, placeData });
-    
+
     // ✅ OPTIMISTIC UPDATE - Update UI immediately
     if (isPlaceId && placeData?.place_id) {
-      // Update place_id set for Google places
       setWantToGoPlaceIds(prev => {
         const newSet = new Set(prev);
         if (isWantToGo) {
@@ -1001,7 +701,6 @@ export default function App() {
         return newSet;
       });
     } else {
-      // Update location id set for LV locations
       setWantToGoIds(prev => {
         const newSet = new Set(prev);
         if (isWantToGo) {
@@ -1012,26 +711,23 @@ export default function App() {
         return newSet;
       });
     }
-    
-    // ✅ Update wantToGoLocations array
+
     if (isWantToGo) {
-      // Remove from list
-      setWantToGoLocations(prev => prev.filter(loc => 
-        isPlaceId 
+      setWantToGoLocations(prev => prev.filter(loc =>
+        isPlaceId
           ? (loc.placeId !== locationId && loc.googlePlaceId !== locationId)
           : loc.id !== locationId
       ));
     } else {
-      // Add to list - find the location data
-      const location = locations.find(loc => 
-        isPlaceId 
+      const location = locations.find(loc =>
+        isPlaceId
           ? (loc.placeId === locationId || loc.googlePlaceId === locationId)
           : loc.id === locationId
       );
       if (location) {
         setWantToGoLocations(prev => [...prev, location]);
       } else if (placeData) {
-        // Create a temporary location object for Google places not yet in LV database
+        // Create a temporary location object for Google places not yet in the LV database
         const tempLocation: Location = {
           id: locationId, // Use place_id as temporary id
           name: placeData.name || 'Unknown',
@@ -1045,25 +741,20 @@ export default function App() {
         setWantToGoLocations(prev => [...prev, tempLocation]);
       }
     }
-    
+
     try {
       if (isWantToGo) {
-        // Remove from Want to Go
-        // ✅ Server now handles both UUIDs and place_ids, so we can pass locationId directly
-        console.log('🗑️ Removing from Want to Go:', locationId);
         await api.removeWantToGo(locationId);
         toast.success('Removed from Want to Go');
       } else {
-        // Add to Want to Go
-        console.log('💾 Saving want to go with place_id:', placeData?.place_id);
         await api.addWantToGo(locationId, placeData);
         toast.success('Added to Want to Go!');
       }
-      // ✅ Reload user lists to get the actual location data from the server
+      // Reload user lists to get the actual location data from the server
       await loadUserLists();
     } catch (error) {
-      console.error('❌ Error toggling Want to Go:', error);
-      
+      console.error('Error toggling Want to Go:', error);
+
       // ❌ ROLLBACK optimistic update on error
       if (isPlaceId && placeData?.place_id) {
         setWantToGoPlaceIds(prev => {
@@ -1086,121 +777,35 @@ export default function App() {
           return newSet;
         });
       }
-      
+
       if (isWantToGo) {
-        // Re-add to list
-        const location = locations.find(loc => 
+        const location = locations.find(loc =>
           isPlaceId ? loc.place_id === locationId : loc.id === locationId
         );
         if (location) {
           setWantToGoLocations(prev => [...prev, location]);
         }
       } else {
-        // Remove from list
-        setWantToGoLocations(prev => prev.filter(loc => 
+        setWantToGoLocations(prev => prev.filter(loc =>
           isPlaceId ? loc.place_id !== locationId : loc.id !== locationId
         ));
       }
-      
+
       toast.error('Failed to update Want to Go');
     }
   }, [user, wantToGoIds, wantToGoPlaceIds, locations, loadUserLists]);
 
-  const loadSavedLocation = async (userId: string) => {
-    try {
-      // Load location permission preference
-      const permissionPref = localStorage.getItem(`lv_location_perm_${userId}`);
-      const locationEnabled = permissionPref === 'true';
-      setLocationPermissionEnabled(locationEnabled);
-      
-      const savedLocation = localStorage.getItem(`lv_location_${userId}`);
-      
-      if (savedLocation) {
-        const userPos = JSON.parse(savedLocation);
-        setMapCenter(userPos);
-        setMapZoom(13);
-        setUserLocation(userPos);
-        setLocationPermissionGranted(true);
-        console.log('✅ Using saved location for user:', userPos);
-      }
-      
-      // Only request fresh location if user has enabled location permission
-      if (locationEnabled) {
-        console.log('📍 Location permission enabled - requesting fresh location...');
-        requestGeolocation(userId);
-      } else {
-        console.log('📍 Location permission disabled - using saved location only');
-      }
-    } catch (error) {
-      console.error('Failed to load saved location:', error);
-      // Only auto-request on error if permission is enabled
-      const permissionPref = localStorage.getItem(`lv_location_perm_${userId}`);
-      if (permissionPref === 'true') {
-        requestGeolocation(userId);
-      }
-    }
-  };
-
-  const requestGeolocation = (userId?: string) => {
-    if (navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(
-        (position) => {
-          const userPos = {
-            lat: position.coords.latitude,
-            lng: position.coords.longitude,
-          };
-          setMapCenter(userPos);
-          setMapZoom(13);
-          setUserLocation(userPos);
-          setLocationPermissionGranted(true);
-          console.log('✅ Centered map on user location:', userPos);
-          
-          // Clear any previous denial flag
-          localStorage.removeItem('lv_location_denied');
-          
-          // Save location for logged-in users
-          if (userId) {
-            try {
-              localStorage.setItem(`lv_location_${userId}`, JSON.stringify(userPos));
-              console.log('✅ Saved location for future sessions');
-            } catch (error) {
-              console.error('Failed to save location:', error);
-            }
-          }
-        },
-        (error) => {
-          console.log('Geolocation error:', error);
-          
-          // Save denial preference so we don't keep asking
-          if (error.code === error.PERMISSION_DENIED) {
-            localStorage.setItem('lv_location_denied', 'true');
-            console.log('📍 User denied location access - saved preference');
-          }
-          
-          // Fallback to San Diego if geolocation is denied
-          const fallbackLocation = { lat: 32.7157, lng: -117.1611 };
-          setMapCenter(fallbackLocation);
-          console.log('⚠️ Using fallback location (San Diego)');
-        }
-      );
-    }
-  };
-
   const handleLocationPermissionToggle = async (enabled: boolean) => {
     if (!user) return;
-    
+
     setLocationPermissionEnabled(enabled);
-    
-    // Save preference to localStorage
+
     try {
       localStorage.setItem(`lv_location_perm_${user.id}`, enabled.toString());
-      console.log('✅ Location permission preference saved:', enabled);
-      
+
       if (enabled) {
-        // Clear any denial flag when user explicitly enables
+        // Clear any denial flag when the user explicitly enables it
         localStorage.removeItem('lv_location_denied');
-        
-        // Request location immediately when enabled
         toast.info('Requesting your location...');
         requestGeolocation(user.id);
       } else {
@@ -1209,25 +814,6 @@ export default function App() {
     } catch (error) {
       console.error('Failed to save location permission preference:', error);
       toast.error('Failed to save preference');
-    }
-  };
-
-  const restoreMapStateAfterLogin = () => {
-    // Restore map center and zoom from localStorage if available
-    const savedMapCenter = localStorage.getItem('lv_map_center');
-    const savedMapZoom = localStorage.getItem('lv_map_zoom');
-    
-    if (savedMapCenter && savedMapZoom) {
-      try {
-        const center = JSON.parse(savedMapCenter);
-        const zoom = parseInt(savedMapZoom, 10);
-        
-        setMapCenter(center);
-        setMapZoom(zoom);
-        console.log('✅ Restored map state after login:', center, zoom);
-      } catch (error) {
-        console.error('Failed to parse saved map state:', error);
-      }
     }
   };
 
@@ -1260,11 +846,11 @@ export default function App() {
   return (
     <div className="size-full flex flex-col bg-white">
       <Toaster position="top-center" richColors />
-      
+
       {/* Monitoring Dashboard (Ctrl+Shift+M to toggle) */}
-      <MonitoringDashboard 
-        isOpen={monitoringDashboardOpen} 
-        onClose={() => setMonitoringDashboardOpen(false)} 
+      <MonitoringDashboard
+        isOpen={monitoringDashboardOpen}
+        onClose={() => setMonitoringDashboardOpen(false)}
       />
 
       {/* Header - Hidden on mobile, visible on desktop */}
@@ -1284,7 +870,7 @@ export default function App() {
                   <span className="text-sm font-medium text-gray-700">{user.name}</span>
                 </button>
                 <Button
-                  onClick={handleLogout}
+                  onClick={logout}
                   variant="outline"
                   className="gap-2"
                 >
@@ -1428,9 +1014,9 @@ export default function App() {
               <>
                 {/* Logged in: Show selected view content */}
                 {sidebarView === 'favorites' && (
-                  <Favorites 
+                  <Favorites
                     key={favoriteIds.size} // Force reload when favorites change
-                    user={user} 
+                    user={user}
                     userLocation={userLocation}
                     onLocationClick={(location) => {
                       setMapCenter({ lat: location.lat, lng: location.lng });
@@ -1440,9 +1026,9 @@ export default function App() {
                 )}
 
                 {sidebarView === 'wantToGo' && (
-                  <WantToGo 
+                  <WantToGo
                     key={wantToGoIds.size} // Force reload when want to go list changes
-                    user={user} 
+                    user={user}
                     userLocation={userLocation}
                     onLocationClick={(location) => {
                       setMapCenter({ lat: location.lat, lng: location.lng });
@@ -1452,7 +1038,7 @@ export default function App() {
                 )}
 
                 {sidebarView === 'profile' && (
-                  <Profile 
+                  <Profile
                     user={user}
                     locationPermissionEnabled={locationPermissionEnabled}
                     onLocationPermissionToggle={handleLocationPermissionToggle}
@@ -1481,7 +1067,7 @@ export default function App() {
                     onClick={() => setFilterMenuOpen(false)}
                     className="md:hidden fixed inset-0 bg-black/20 z-40"
                   />
-                  
+
                   {/* Filter Menu */}
                   <motion.div
                     initial={{ opacity: 0, y: 20 }}
@@ -1494,7 +1080,7 @@ export default function App() {
                       <div className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
                         Show Markers
                       </div>
-                      
+
                       {/* LV Markers Toggle */}
                       <button
                         onClick={() => setShowLVMarkers(!showLVMarkers)}
@@ -1529,14 +1115,14 @@ export default function App() {
                 </>
               )}
             </AnimatePresence>
-            
+
             {/* Floating Search Bar */}
             <motion.div
               initial={{ opacity: 0, y: -20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.4 }}
               className="absolute top-6 md:top-6 top-20 left-1/2 -translate-x-1/2 z-10 w-full px-4 sm:px-6"
-              style={{ 
+              style={{
                 maxWidth: 'min(640px, calc(100vw - 32px))',
               }}
             >
@@ -1562,8 +1148,8 @@ export default function App() {
                         setShowHeatMap(!showHeatMap);
                       }}
                       className={`flex items-center gap-2 px-3 py-1.5 rounded-lg transition-all ${
-                        showHeatMap 
-                          ? 'bg-gradient-to-r from-orange-500 to-red-500 text-white shadow-md' 
+                        showHeatMap
+                          ? 'bg-gradient-to-r from-orange-500 to-red-500 text-white shadow-md'
                           : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
                       }`}
                       title={showHeatMap ? 'Hide heat map' : 'Show heat map'}
@@ -1643,7 +1229,7 @@ export default function App() {
                         <div className="text-xs font-semibold text-gray-500 uppercase tracking-wider px-2 py-1">
                           Show Markers
                         </div>
-                        
+
                         {/* LV Markers Toggle */}
                         <button
                           onClick={() => setShowLVMarkers(!showLVMarkers)}
@@ -1727,255 +1313,31 @@ export default function App() {
           </APIProvider>
         </div>
 
-        {/* Mobile Header - Only visible on mobile */}
-        <div className="md:hidden absolute top-0 left-0 right-0 z-30 bg-white/95 backdrop-blur-lg border-b border-slate-200 shadow-sm">
-          <div className="flex items-center justify-between px-4 py-3">
-            <h1 className="text-lg font-light tracking-wider">LE VOYAGEUR</h1>
-            {!user ? (
-              <Button
-                onClick={handleLogin}
-                size="sm"
-                className="gap-1.5 bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700"
-              >
-                <LogIn className="h-3.5 w-3.5" />
-                Sign in
-              </Button>
-            ) : (
-              <div className="flex items-center gap-2">
-                {/* Menu Button */}
-                <button
-                  onClick={() => setMobileDrawerOpen(true)}
-                  className="p-2 hover:bg-slate-100 rounded-lg transition-colors"
-                >
-                  <Menu className="h-5 w-5 text-gray-700" />
-                </button>
-              </div>
-            )}
-          </div>
-          
-        </div>
-
-        {/* Mobile Slide-Up Drawer */}
-        <AnimatePresence>
-          {mobileDrawerOpen && (
-            <>
-              {/* Backdrop */}
-              <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                onClick={() => setMobileDrawerOpen(false)}
-                className="md:hidden fixed inset-0 bg-black/40 z-40"
-              />
-              
-              {/* Drawer */}
-              <motion.div
-                initial={{ y: '100%' }}
-                animate={{ y: 0 }}
-                exit={{ y: '100%' }}
-                transition={{ type: 'spring', damping: 30, stiffness: 300 }}
-                className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-white rounded-t-3xl shadow-2xl max-h-[85vh] overflow-hidden flex flex-col"
-              >
-                {/* Drawer Handle */}
-                <div className="flex justify-center pt-3 pb-2">
-                  <div className="w-12 h-1.5 bg-slate-300 rounded-full" />
-                </div>
-
-                {/* Drawer Header */}
-                <div className="px-6 py-4 border-b border-slate-200">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center">
-                        <User className="h-5 w-5 text-white" />
-                      </div>
-                      <div>
-                        <p className="text-sm font-medium text-gray-900">{user?.name}</p>
-                        <p className="text-xs text-gray-500">{user?.email}</p>
-                      </div>
-                    </div>
-                    <Button
-                      onClick={() => setMobileDrawerOpen(false)}
-                      variant="ghost"
-                      size="sm"
-                      className="h-8 w-8 p-0"
-                    >
-                      <X className="h-5 w-5" />
-                    </Button>
-                  </div>
-                </div>
-
-                {/* Navigation Tabs */}
-                <div className="flex gap-2 p-4 border-b border-slate-100">
-                  <button
-                    onClick={() => setSidebarView('favorites')}
-                    className={`flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-xl text-sm font-medium transition-all ${
-                      sidebarView === 'favorites'
-                        ? 'bg-slate-900 text-white shadow-lg'
-                        : 'bg-slate-50 text-gray-600 hover:bg-slate-100'
-                    }`}
-                  >
-                    <Heart className="h-4 w-4" />
-                    Favorites
-                  </button>
-                  <button
-                    onClick={() => setSidebarView('wantToGo')}
-                    className={`flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-xl text-sm font-medium transition-all ${
-                      sidebarView === 'wantToGo'
-                        ? 'bg-slate-900 text-white shadow-lg'
-                        : 'bg-slate-50 text-gray-600 hover:bg-slate-100'
-                    }`}
-                  >
-                    <Bookmark className="h-4 w-4" />
-                    Want to Go
-                  </button>
-                  <button
-                    onClick={() => setSidebarView('profile')}
-                    className={`flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-xl text-sm font-medium transition-all ${
-                      sidebarView === 'profile'
-                        ? 'bg-slate-900 text-white shadow-lg'
-                        : 'bg-slate-50 text-gray-600 hover:bg-slate-100'
-                    }`}
-                  >
-                    <Settings className="h-4 w-4" />
-                    Profile
-                  </button>
-                </div>
-
-                {/* Drawer Content */}
-                <div className="flex-1 overflow-y-auto px-4 py-2">
-                  {sidebarView === 'favorites' && (
-                    <Favorites 
-                      key={favoriteIds.size}
-                      user={user!} 
-                      userLocation={userLocation}
-                      onLocationClick={(location) => {
-                        setMapCenter({ lat: location.lat, lng: location.lng });
-                        setMapZoom(15);
-                        setMobileDrawerOpen(false);
-                      }}
-                    />
-                  )}
-
-                  {sidebarView === 'wantToGo' && (
-                    <WantToGo 
-                      key={wantToGoIds.size}
-                      user={user!} 
-                      userLocation={userLocation}
-                      onLocationClick={(location) => {
-                        setMapCenter({ lat: location.lat, lng: location.lng });
-                        setMapZoom(15);
-                        setMobileDrawerOpen(false);
-                      }}
-                    />
-                  )}
-
-                  {sidebarView === 'profile' && (
-                    <Profile 
-                      user={user!}
-                      locationPermissionEnabled={locationPermissionEnabled}
-                      onLocationPermissionToggle={handleLocationPermissionToggle}
-                      favoritesCount={favoriteIds.size}
-                      wantToGoCount={wantToGoIds.size}
-                      onMichelinSyncComplete={loadLocations}
-                    />
-                  )}
-                </div>
-
-                {/* Logout Button */}
-                <div className="p-4 border-t border-slate-200 bg-slate-50">
-                  <Button
-                    onClick={() => {
-                      handleLogout();
-                      setMobileDrawerOpen(false);
-                    }}
-                    variant="outline"
-                    className="w-full gap-2"
-                  >
-                    <LogOut className="h-4 w-4" />
-                    Logout
-                  </Button>
-                </div>
-              </motion.div>
-            </>
-          )}
-        </AnimatePresence>
-
-        {/* Mobile Bottom Navigation - Only visible when logged in */}
-        {user && (
-          <div className="md:hidden fixed bottom-0 left-0 right-0 z-30 bg-white/95 backdrop-blur-lg border-t border-slate-200 shadow-lg">
-            <div className="flex items-center justify-around px-2 py-3 safe-area-inset-bottom">
-              <button
-                onClick={() => {
-                  setSidebarView('favorites');
-                  setMobileDrawerOpen(true);
-                }}
-                className={`relative flex flex-col items-center gap-1 px-4 py-2 rounded-lg transition-all ${
-                  sidebarView === 'favorites' && mobileDrawerOpen
-                    ? 'bg-slate-100'
-                    : 'hover:bg-slate-50'
-                }`}
-              >
-                <Heart className={`h-5 w-5 ${sidebarView === 'favorites' && mobileDrawerOpen ? 'text-red-500' : 'text-gray-600'}`} />
-                <span className="text-xs font-medium text-gray-700">Favorites</span>
-                {favoriteIds.size > 0 && (
-                  <div className="absolute -top-1 right-2 min-w-[18px] h-[18px] bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center px-1">
-                    {favoriteIds.size}
-                  </div>
-                )}
-              </button>
-
-              <button
-                onClick={() => {
-                  // Center on user location if available
-                  if (userLocation) {
-                    setMapCenter(userLocation);
-                    setMapZoom(13);
-                  }
-                  setMobileDrawerOpen(false);
-                }}
-                className="flex flex-col items-center gap-1 px-4 py-2 rounded-lg hover:bg-slate-50 transition-all"
-              >
-                <MapPin className="h-5 w-5 text-blue-500" />
-                <span className="text-xs font-medium text-gray-700">Map</span>
-              </button>
-
-              <button
-                onClick={() => {
-                  setSidebarView('wantToGo');
-                  setMobileDrawerOpen(true);
-                }}
-                className={`relative flex flex-col items-center gap-1 px-4 py-2 rounded-lg transition-all ${
-                  sidebarView === 'wantToGo' && mobileDrawerOpen
-                    ? 'bg-slate-100'
-                    : 'hover:bg-slate-50'
-                }`}
-              >
-                <Bookmark className={`h-5 w-5 ${sidebarView === 'wantToGo' && mobileDrawerOpen ? 'text-blue-500' : 'text-gray-600'}`} />
-                <span className="text-xs font-medium text-gray-700">Want to Go</span>
-                {wantToGoIds.size > 0 && (
-                  <div className="absolute -top-1 left-0 min-w-[18px] h-[18px] bg-blue-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center px-1">
-                    {wantToGoIds.size}
-                  </div>
-                )}
-              </button>
-
-              <button
-                onClick={() => {
-                  setSidebarView('profile');
-                  setMobileDrawerOpen(true);
-                }}
-                className={`flex flex-col items-center gap-1 px-4 py-2 rounded-lg transition-all ${
-                  sidebarView === 'profile' && mobileDrawerOpen
-                    ? 'bg-slate-100'
-                    : 'hover:bg-slate-50'
-                }`}
-              >
-                <Settings className={`h-5 w-5 ${sidebarView === 'profile' && mobileDrawerOpen ? 'text-gray-900' : 'text-gray-600'}`} />
-                <span className="text-xs font-medium text-gray-700">Profile</span>
-              </button>
-            </div>
-          </div>
-        )}
+        <MobileNav
+          user={user}
+          sidebarView={sidebarView}
+          onSidebarViewChange={setSidebarView}
+          drawerOpen={mobileDrawerOpen}
+          onDrawerOpenChange={setMobileDrawerOpen}
+          userLocation={userLocation}
+          locationPermissionEnabled={locationPermissionEnabled}
+          onLocationPermissionToggle={handleLocationPermissionToggle}
+          favoritesCount={favoriteIds.size}
+          wantToGoCount={wantToGoIds.size}
+          onMichelinSyncComplete={loadLocations}
+          onLogin={handleLogin}
+          onLogout={logout}
+          onLocationSelect={(location) => {
+            setMapCenter({ lat: location.lat, lng: location.lng });
+            setMapZoom(15);
+          }}
+          onCenterOnUser={() => {
+            if (userLocation) {
+              setMapCenter(userLocation);
+              setMapZoom(13);
+            }
+          }}
+        />
       </div>
     </div>
   );
