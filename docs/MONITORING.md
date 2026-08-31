@@ -261,7 +261,7 @@ Operations exceeding these thresholds are highlighted in yellow/red in the dashb
 
 ## Integration with Backend Monitoring
 
-The backend has a similar monitoring system at `/supabase/functions/server/monitoring.tsx`. Together they provide full-stack observability:
+The backend has a similar monitoring system at `/supabase/functions/make-server-48182530/monitoring.tsx`. Together they provide full-stack observability:
 
 - Frontend: User interactions, client-side performance, rendering
 - Backend: API performance, database queries, server errors

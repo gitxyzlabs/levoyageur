@@ -1,5 +1,5 @@
 [project]
 ref = "vwikyikicmfefzntshsl"
 
-[functions.server]
+[functions.make-server-48182530]
 verify_jwt = false
