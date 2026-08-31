@@ -40,26 +40,15 @@ export function useAuth(callbacks: UseAuthCallbacks) {
   callbacksRef.current = callbacks;
 
   useEffect(() => {
-    const checkExistingSession = async () => {
-      try {
-        const { data: { session } } = await supabase.auth.getSession();
-
-        if (session?.user) {
-          // Don't load the full profile here - onAuthStateChange's
-          // INITIAL_SESSION event handles that, to avoid duplicate fetches.
-          monitor.setUserId(session.user.id);
-          setUser(basicUserFromSession(session.user));
-        } else {
-          callbacksRef.current.onSignedOut();
-        }
-      } catch (error) {
-        console.error('Error checking existing session:', error);
-        callbacksRef.current.onSignedOut();
-      }
-    };
-
-    checkExistingSession();
-
+    // onAuthStateChange fires an INITIAL_SESSION event on subscribe with
+    // whatever session is currently persisted - that's the only session
+    // check this hook needs. It used to run alongside a separate explicit
+    // getSession() call (checkExistingSession) that set a placeholder user
+    // independently; the two were two competing writers to the same state
+    // with no ordering guarantee between them, and could disagree about
+    // whether a session existed on a given page load - the likely cause of
+    // "refresh sometimes logs me out" despite a perfectly valid stored
+    // session, since whichever one ran last simply won.
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
       if (session?.user) {
         monitor.setUserId(session.user.id);
