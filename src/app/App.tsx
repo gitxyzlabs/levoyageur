@@ -266,7 +266,10 @@ export default function App() {
         }
       }
 
-      await loadLocations();
+      // Don't block the map from rendering on the locations fetch - it
+      // populates the `locations` state (and re-renders the Map) whenever
+      // it resolves, and handles its own errors internally.
+      loadLocations();
     } catch (error) {
       console.error("Error during initialization:", error);
       catchError(error, { context: 'app_initialization' });
@@ -1134,6 +1137,7 @@ export default function App() {
                 onGenericSearch={handleGenericSearch}
                 searchResults={searchResults}
                 showSearchResults={showSearchResults}
+                locations={locations}
               />
               {heatMapLocations.length > 0 && (
                 <motion.div

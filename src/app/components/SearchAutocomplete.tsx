@@ -3,7 +3,7 @@ import { useMapsLibrary } from '@vis.gl/react-google-maps';
 import { Search, X, MapPin, Tag, Star, Heart, Bookmark } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { LVIcon } from './LVIcon';
-import { api, Location } from '../../utils/api';
+import { Location } from '../../utils/api';
 import { MichelinFlower, MichelinStar, MichelinKey } from '@/app/components/MichelinIcons';
 import { trackAction, trackApiCall, logError, trackInteraction } from '../../utils/monitoring';
 import { usePerformanceMonitor, useErrorHandler } from '../hooks/usePerformanceMonitor';
@@ -55,9 +55,10 @@ interface SearchAutocompleteProps {
   onGenericSearch?: (query: string) => void;
   searchResults?: google.maps.places.PlaceResult[];
   showSearchResults?: boolean;
+  locations: Location[];
 }
 
-function SearchAutocompleteInner({ onPlaceSelect, onTagSelect, onClear, mapBounds, onGenericSearch, searchResults = [], showSearchResults = false }: SearchAutocompleteProps) {
+function SearchAutocompleteInner({ onPlaceSelect, onTagSelect, onClear, mapBounds, onGenericSearch, searchResults = [], showSearchResults = false, locations: allLocationsCache }: SearchAutocompleteProps) {
   const [searchValue, setSearchValue] = useState('');
   const [showDropdown, setShowDropdown] = useState(false);
   const [googlePredictions, setGooglePredictions] = useState<any[]>([]); // Results within map bounds
@@ -73,31 +74,9 @@ function SearchAutocompleteInner({ onPlaceSelect, onTagSelect, onClear, mapBound
   const dropdownRef = useRef<HTMLDivElement>(null);
   const places = useMapsLibrary('places');
   
-  // 🚀 Cache all locations to avoid fetching 3x per search
-  const [allLocationsCache, setAllLocationsCache] = useState<Location[]>([]);
-  const locationsLoadedRef = useRef(false);
-  
   // 📊 Performance monitoring
   usePerformanceMonitor('SearchAutocomplete');
   const { catchError } = useErrorHandler('SearchAutocomplete');
-
-  // 🚀 Load locations cache once on mount
-  useEffect(() => {
-    if (!locationsLoadedRef.current) {
-      locationsLoadedRef.current = true;
-      const loadLocations = async () => {
-        try {
-          const { locations } = await api.getLocations();
-          setAllLocationsCache(locations);
-          console.log('✅ Loaded locations cache for search:', locations.length);
-        } catch (error) {
-          console.error('❌ Error loading locations cache:', error);
-          catchError(error, { context: 'load_locations_cache' });
-        }
-      };
-      loadLocations();
-    }
-  }, []);
 
   // Fetch suggestions when search value changes
   useEffect(() => {
@@ -1139,9 +1118,12 @@ function boundsEqual(a: google.maps.LatLngBounds | null | undefined, b: google.m
 }
 
 export const SearchAutocomplete = memo(SearchAutocompleteInner, (prev, next) => {
-  // Only re-render when mapBounds semantically changes or search results change.
-  // Callbacks are excluded — they're recreated each render but semantically stable.
+  // Only re-render when mapBounds semantically changes, search results change,
+  // or the shared locations list is replaced (e.g. once the initial fetch
+  // resolves, or after a refresh). Callbacks are excluded — they're recreated
+  // each render but semantically stable.
   return boundsEqual(prev.mapBounds, next.mapBounds) &&
     prev.showSearchResults === next.showSearchResults &&
-    prev.searchResults === next.searchResults;
+    prev.searchResults === next.searchResults &&
+    prev.locations === next.locations;
 });
