@@ -48,8 +48,9 @@ For security, restrict your API key:
    ```
    VITE_GOOGLE_MAPS_API_KEY=your_api_key_here
    ```
+   No quotes, no spaces around the `=`, and the variable name must keep the `VITE_` prefix (that's what tells Vite to expose it to the frontend).
 
-3. Restart your development server
+3. Restart your development server - Vite only reads `.env.local` on startup, so changes won't take effect until you restart `npm run dev`.
 
 ### For Figma Make / Supabase Deployment
 The app is already configured to use the `GOOGLE_MAPS_API_KEY` environment variable that you've set in Supabase secrets.

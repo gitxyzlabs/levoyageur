@@ -102,7 +102,7 @@ The project includes a `vercel.json` file that configures:
 
 The app uses Supabase for:
 - **Authentication**: Email/password + social login
-- **Database**: Key-value store for location data
+- **Database**: Postgres tables for locations, ratings, favorites, and more (see `supabase/README.md` for the migration workflow)
 - **User roles**: Normal users and editors
 
 Environment variables for Supabase are already configured in the deployment.
