@@ -28,7 +28,7 @@ import { Button } from './components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from './components/ui/card';
 
 import { api } from '../utils/api';
-import { projectId, publicAnonKey } from '/utils/supabase/info.tsx';
+import { projectId, publicAnonKey } from '@/utils/supabase/info';
 import { trackApiCall, trackAction, logError, trackInteraction } from '../utils/monitoring';
 import { usePerformanceMonitor, useErrorHandler } from './hooks/usePerformanceMonitor';
 import { useAuth } from './hooks/useAuth';

@@ -7,7 +7,7 @@ import { api, type Location } from '../../utils/api';
 import { MichelinFlower, MichelinStar, MichelinBib, MichelinPlate, MichelinGreenStar } from '@/app/components/MichelinIcons';
 import { GoogleReviewsModal } from './GoogleReviewsModal';
 import { PhotoGalleryModal } from './PhotoGalleryModal';
-import { projectId, publicAnonKey } from '/utils/supabase/info';
+import { projectId, publicAnonKey } from '@/utils/supabase/info';
 
 interface MobileInfoSheetProps {
   place: google.maps.places.PlaceResult;

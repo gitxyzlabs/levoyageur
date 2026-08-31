@@ -9,7 +9,7 @@ import { toast } from 'sonner';
 import { MichelinFlower, MichelinStar, MichelinBib, MichelinPlate, MichelinGreenStar } from '@/app/components/MichelinIcons';
 import { GoogleReviewsModal } from './GoogleReviewsModal';
 import { PhotoGalleryModal } from './PhotoGalleryModal';
-import { projectId, publicAnonKey } from '/utils/supabase/info';
+import { projectId, publicAnonKey } from '@/utils/supabase/info';
 
 // GooglePlaceInfoWindow - Displays detailed information about a selected place
 interface GooglePlaceInfoWindowProps {
