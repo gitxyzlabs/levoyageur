@@ -49,7 +49,30 @@ export function useAuth(callbacks: UseAuthCallbacks) {
     // whether a session existed on a given page load - the likely cause of
     // "refresh sometimes logs me out" despite a perfectly valid stored
     // session, since whichever one ran last simply won.
+    // TEMPORARY DIAGNOSTIC - remove once the close/reopen logout is found.
+    // Compares what's actually sitting in storage against what the SDK
+    // reports for it, since they've disagreed in ways not yet explained.
+    try {
+      const raw = localStorage.getItem('lv-auth-token');
+      const parsed = raw ? JSON.parse(raw) : null;
+      console.log('🔍 [AUTH DIAGNOSTIC] raw lv-auth-token on mount:', {
+        present: !!raw,
+        expires_at: parsed?.expires_at,
+        expires_at_readable: parsed?.expires_at ? new Date(parsed.expires_at * 1000).toISOString() : null,
+        now_readable: new Date().toISOString(),
+        has_refresh_token: !!parsed?.refresh_token,
+      });
+    } catch (e) {
+      console.log('🔍 [AUTH DIAGNOSTIC] error reading raw lv-auth-token:', e);
+    }
+
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      console.log('🔍 [AUTH DIAGNOSTIC] onAuthStateChange fired:', {
+        event,
+        sessionPresent: !!session,
+        expires_at: session?.expires_at,
+      });
+
       if (session?.user) {
         monitor.setUserId(session.user.id);
         trackAction('user_logged_in', 'App', { userId: session.user.id });
