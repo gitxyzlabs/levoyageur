@@ -110,33 +110,39 @@ const fetchWithAuth = async (url: string, options: RequestInit = {}) => {
   activeControllers.set(url, controller);
 
   try {
-    // Just get the current session without refreshing
-    // Supabase will auto-refresh tokens when needed thanks to autoRefreshToken: true
     const { data: { session } } = await supabase.auth.getSession();
-    
-    console.log('=== fetchWithAuth Debug ===');
-    console.log('URL:', url);
-    console.log('Has session:', !!session);
-    console.log('Has access_token:', !!session?.access_token);
-    console.log('Token expires at:', session?.expires_at);
-    console.log('Token (first 20 chars):', session?.access_token?.substring(0, 20) || 'N/A');
-    
+
     if (!session?.access_token) {
       console.error('❌ No access token available');
       throw new Error('Not authenticated - please sign in again');
     }
-    
-    const headers = {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${session.access_token}`,
-      ...options.headers,
-    };
 
-    const response = await fetch(url, {
+    const doFetch = (accessToken: string) => fetch(url, {
       ...options,
-      headers,
-      signal: controller.signal, // ✅ Add abort signal
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${accessToken}`,
+        ...options.headers,
+      },
+      signal: controller.signal,
     });
+
+    let response = await doFetch(session.access_token);
+
+    if (response.status === 401) {
+      // getSession() can return a stale access token if the browser was
+      // closed long enough that it expired before Supabase's background
+      // auto-refresh had a chance to run. Try an explicit refresh and retry
+      // once before concluding the session is actually invalid - signing
+      // out here on a merely-stale token destroys an otherwise-good
+      // refresh token and forces a real re-login for no reason.
+      console.log('🔄 Got 401, attempting token refresh before giving up');
+      const { data: refreshData, error: refreshError } = await supabase.auth.refreshSession();
+
+      if (!refreshError && refreshData.session?.access_token) {
+        response = await doFetch(refreshData.session.access_token);
+      }
+    }
 
     if (!response.ok) {
       const errorText = await response.text();
@@ -144,21 +150,21 @@ const fetchWithAuth = async (url: string, options: RequestInit = {}) => {
       console.error('  Status:', response.status);
       console.error('  Status text:', response.statusText);
       console.error('  Response body:', errorText);
-      
+
       let error;
       try {
         error = JSON.parse(errorText);
       } catch {
         error = { error: errorText || response.statusText };
       }
-      
-      // If we get a 401, the session might be invalid - force sign out
+
+      // Still 401 after a refresh attempt - the session is genuinely dead
       if (response.status === 401) {
-        console.error('❌ 401 Unauthorized - session invalid, signing out');
+        console.error('❌ 401 Unauthorized even after refresh - signing out');
         await supabase.auth.signOut();
         throw new Error('Session expired - please sign in again');
       }
-      
+
       throw new Error(error.error || `HTTP error! status: ${response.status}`);
     }
 
