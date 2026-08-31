@@ -29,6 +29,16 @@ import {
 
 const app = new Hono();
 
+// Michelin ratings feature is disabled pending a full rebuild - the security
+// audit surfaced several real bugs specific to these routes (an editor-vote
+// threshold left at its "for testing" value, a bulk-write route missing its
+// editor check). Rather than patch code that's getting replaced, every
+// Michelin route below returns this immediately. The original logic is left
+// in place, unreachable, for reference when the rebuild happens.
+function michelinDisabled(c: any) {
+  return c.json({ error: 'The Michelin ratings feature is temporarily disabled while it is rebuilt.' }, 503);
+}
+
 // Enable error handler (must be first)
 app.use('*', errorHandlerMiddleware());
 
@@ -1387,6 +1397,7 @@ app.put('/make-server-48182530/locations/:id/rating', verifyAuth, verifyEditor, 
 
 // Link a Michelin restaurant to a Google Place ID (editors only)
 app.put('/make-server-48182530/michelin/:michelinId/link-place', verifyAuth, verifyEditor, async (c) => {
+  return michelinDisabled(c);
   console.log('📍 PUT /michelin/:michelinId/link-place - Start');
   const michelinId = parseInt(c.req.param('michelinId'));
   const { googlePlaceId } = await c.req.json();
@@ -1427,6 +1438,7 @@ app.put('/make-server-48182530/michelin/:michelinId/link-place', verifyAuth, ver
 
 // Find Michelin restaurant by name (to get michelin_id for linking)
 app.get('/make-server-48182530/michelin/search', async (c) => {
+  return michelinDisabled(c);
   console.log('📍 GET /michelin/search - Start');
   const name = c.req.query('name');
 
@@ -1463,6 +1475,7 @@ app.get('/make-server-48182530/michelin/search', async (c) => {
 
 // Get Michelin rating for a specific location (public endpoint)
 app.get('/make-server-48182530/michelin/rating', async (c) => {
+  return michelinDisabled(c);
   console.log('📍 GET /michelin/rating - Start');
   
   const lat = parseFloat(c.req.query('lat') || '0');
@@ -1488,6 +1501,7 @@ app.get('/make-server-48182530/michelin/rating', async (c) => {
 
 // Get Michelin restaurants within a viewport (public endpoint)
 app.get('/make-server-48182530/michelin/restaurants', async (c) => {
+  return michelinDisabled(c);
   console.log('📍 GET /michelin/restaurants - Start');
   
   const north = parseFloat(c.req.query('north') || '0');
@@ -1542,6 +1556,7 @@ app.get('/make-server-48182530/michelin/restaurants', async (c) => {
 
 // Discover Google Place IDs for Michelin restaurants (requires auth + Google Maps API key)
 app.post('/make-server-48182530/michelin/discover-place-ids', verifyAuth, async (c) => {
+  return michelinDisabled(c);
   console.log('📍 POST /michelin/discover-place-ids - Start');
   
   const { offset = 0, limit = 50 } = await c.req.json();
@@ -1675,6 +1690,7 @@ app.post('/make-server-48182530/michelin/discover-place-ids', verifyAuth, async 
 
 // Suggest a Google Place for a Michelin restaurant (public endpoint)
 app.get('/make-server-48182530/michelin/:michelinId/suggest-place', async (c) => {
+  return michelinDisabled(c);
   console.log('📍 GET /michelin/:michelinId/suggest-place - Start');
   const michelinId = parseInt(c.req.param('michelinId'));
 
@@ -1851,6 +1867,7 @@ app.get('/make-server-48182530/michelin/:michelinId/suggest-place', async (c) =>
 
 // Validate a suggested Place ID for a Michelin restaurant (authenticated)
 app.post('/make-server-48182530/michelin/:michelinId/validate-place', verifyAuth, async (c) => {
+  return michelinDisabled(c);
   console.log('📍 POST /michelin/:michelinId/validate-place - Start');
   const michelinId = parseInt(c.req.param('michelinId'));
   const userId = c.get('userId');
@@ -2090,6 +2107,7 @@ app.post('/make-server-48182530/michelin/:michelinId/validate-place', verifyAuth
 
 // Backfill Michelin data to existing locations (one-time migration endpoint)
 app.post('/make-server-48182530/michelin/backfill-locations', verifyAuth, async (c) => {
+  return michelinDisabled(c);
   console.log('📍 POST /michelin/backfill-locations - Start');
   const userId = c.get('userId');
   

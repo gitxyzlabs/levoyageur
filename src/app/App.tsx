@@ -1047,7 +1047,6 @@ export default function App() {
                     onLocationPermissionToggle={handleLocationPermissionToggle}
                     favoritesCount={favoriteIds.size}
                     wantToGoCount={wantToGoIds.size}
-                    onMichelinSyncComplete={loadLocations}
                   />
                 )}
               </>
@@ -1328,7 +1327,6 @@ export default function App() {
           onLocationPermissionToggle={handleLocationPermissionToggle}
           favoritesCount={favoriteIds.size}
           wantToGoCount={wantToGoIds.size}
-          onMichelinSyncComplete={loadLocations}
           onLogin={handleLogin}
           onLogout={logout}
           onLocationSelect={(location) => {

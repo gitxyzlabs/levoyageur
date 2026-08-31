@@ -32,7 +32,6 @@ interface MobileNavProps {
   onLocationPermissionToggle: (enabled: boolean) => void;
   favoritesCount: number;
   wantToGoCount: number;
-  onMichelinSyncComplete: () => void;
   onLogin: () => void;
   onLogout: () => void;
   onLocationSelect: (location: Location) => void;
@@ -55,7 +54,6 @@ export function MobileNav({
   onLocationPermissionToggle,
   favoritesCount,
   wantToGoCount,
-  onMichelinSyncComplete,
   onLogin,
   onLogout,
   onLocationSelect,
@@ -207,7 +205,6 @@ export function MobileNav({
                     onLocationPermissionToggle={onLocationPermissionToggle}
                     favoritesCount={favoritesCount}
                     wantToGoCount={wantToGoCount}
-                    onMichelinSyncComplete={onMichelinSyncComplete}
                   />
                 )}
               </div>
