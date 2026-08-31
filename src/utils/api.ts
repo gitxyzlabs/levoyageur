@@ -97,6 +97,23 @@ export const getAccessToken = () => accessToken;
 // Store active AbortControllers to cancel stale requests
 const activeControllers = new Map<string, AbortController>();
 
+// Shared in-flight refresh, so concurrent 401s (e.g. getCurrentUser,
+// getFavorites, getWantToGo all firing around the same time on session
+// restore) trigger exactly one supabase.auth.refreshSession() call instead
+// of several racing to consume the same single-use refresh token - with
+// refresh token rotation enabled, that race reads as a token-theft attempt
+// and Supabase kills the whole session in response.
+let refreshPromise: ReturnType<typeof supabase.auth.refreshSession> | null = null;
+
+const refreshSessionOnce = () => {
+  if (!refreshPromise) {
+    refreshPromise = supabase.auth.refreshSession().finally(() => {
+      refreshPromise = null;
+    });
+  }
+  return refreshPromise;
+};
+
 const fetchWithAuth = async (url: string, options: RequestInit = {}) => {
   // 🛡️ Cancel any pending request to the same URL
   const existingController = activeControllers.get(url);
@@ -137,7 +154,7 @@ const fetchWithAuth = async (url: string, options: RequestInit = {}) => {
       // out here on a merely-stale token destroys an otherwise-good
       // refresh token and forces a real re-login for no reason.
       console.log('🔄 Got 401, attempting token refresh before giving up');
-      const { data: refreshData, error: refreshError } = await supabase.auth.refreshSession();
+      const { data: refreshData, error: refreshError } = await refreshSessionOnce();
 
       if (!refreshError && refreshData.session?.access_token) {
         response = await doFetch(refreshData.session.access_token);
