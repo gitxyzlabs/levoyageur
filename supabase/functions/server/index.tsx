@@ -3,7 +3,7 @@ import { cors } from "npm:hono/cors";
 import { logger } from "npm:hono/logger";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { getMichelinRating } from "./michelin.tsx";
-import { formatLocationForAPI, formatLocationForDB, type LocationRow } from "./helpers.tsx";
+import { formatLocationForAPI, formatLocationForDB, isUUID, type LocationRow } from "./helpers.tsx";
 import {
   performanceMiddleware,
   errorHandlerMiddleware,
@@ -589,17 +589,22 @@ app.post('/make-server-48182530/favorites/city-stats', async (c) => {
     // Use getSupabaseAdmin to ensure we're using service role key
     const supabase = getSupabaseAdmin();
     console.log('📊 Using admin client for query');
-    
-    // Count total favorites for all locations in this city
-    const { count, error } = await supabase
+
+    // Fetch all favorited location IDs and filter in JS instead of .in()
+    // with a client-supplied array - a city with 1000+ locations would
+    // exceed PostgREST's URL length limit, the same bug already fixed for
+    // GET /locations and GET /locations/tag/:tag above.
+    const { data: favoriteRows, error } = await supabase
       .from('favorites')
-      .select('*', { count: 'exact', head: true })
-      .in('location_id', locationIds);
+      .select('location_id');
 
     if (error) {
       console.error('❌ Error fetching city favorites:', error);
       return c.json({ error: 'Failed to fetch city favorites', details: error.message }, 500);
     }
+
+    const locationIdSet = new Set(locationIds);
+    const count = (favoriteRows || []).filter(row => locationIdSet.has(row.location_id)).length;
 
     console.log('✅ City favorites count:', count);
     return c.json({ totalFavorites: count || 0 });
@@ -780,7 +785,7 @@ app.post('/make-server-48182530/favorites/:locationId', verifyAuth, async (c) =>
 
     // If location still doesn't exist and we have place data, create it
     if (locError || !location) {
-      if (placeData && placeData.name && placeData.lat && placeData.lng) {
+      if (placeData && placeData.name && placeData.lat !== undefined && placeData.lng !== undefined) {
         console.log('📍 Creating new location for favoriting:', placeData.name);
         
         const { data: newLocation, error: createError } = await supabase
@@ -845,19 +850,38 @@ app.delete('/make-server-48182530/favorites/:locationId', verifyAuth, async (c) 
 
   try {
     const supabase = getSupabaseAdmin();
-    
+
+    // locationId may be a Google place_id (e.g. from a place card) rather
+    // than the internal UUID favorites rows are actually keyed on - resolve
+    // it first, same as DELETE /want-to-go does.
+    let dbLocationId = locationId;
+    if (!isUUID(locationId)) {
+      const { data: location, error: lookupError } = await supabase
+        .from('locations')
+        .select('id')
+        .eq('google_place_id', locationId)
+        .single();
+
+      if (lookupError || !location) {
+        console.error('❌ Location not found for place_id:', locationId, lookupError);
+        return c.json({ error: 'Location not found' }, 404);
+      }
+
+      dbLocationId = location.id;
+    }
+
     const { error } = await supabase
       .from('favorites')
       .delete()
       .eq('user_id', userId)
-      .eq('location_id', locationId);
+      .eq('location_id', dbLocationId);
 
     if (error) {
       console.error('❌ Error removing favorite:', error);
       return c.json({ error: 'Failed to remove favorite' }, 500);
     }
 
-    console.log('✅ Favorite removed:', locationId);
+    console.log('✅ Favorite removed:', dbLocationId);
     return c.json({ success: true });
   } catch (error) {
     console.error('❌ Error in DELETE /favorites:', error);
@@ -993,7 +1017,7 @@ app.post('/make-server-48182530/want-to-go/:locationId', verifyAuth, async (c) =
 
     // If location still doesn't exist and we have place data, create it
     if (locError || !location) {
-      if (placeData && placeData.name && placeData.lat && placeData.lng) {
+      if (placeData && placeData.name && placeData.lat !== undefined && placeData.lng !== undefined) {
         console.log('📍 Creating new location for want to go:', placeData.name);
         
         const { data: newLocation, error: createError } = await supabase
@@ -1059,12 +1083,9 @@ app.delete('/make-server-48182530/want-to-go/:locationId', verifyAuth, async (c)
   try {
     const supabase = getSupabaseAdmin();
     
-    // Check if locationId is a UUID or a place_id
-    const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(locationId);
-    
     let dbLocationId = locationId;
-    
-    if (!isUUID) {
+
+    if (!isUUID(locationId)) {
       // It's a place_id - look up the location
       console.log('🔍 Looking up location by place_id:', locationId);
       const { data: location, error: lookupError } = await supabase
@@ -1233,12 +1254,11 @@ app.put('/make-server-48182530/locations/:id/rating', verifyAuth, verifyEditor, 
     const supabase = getSupabaseAdmin();
     
     // Check if locationId is a UUID or a Google Place ID
-    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-    const isUUID = uuidRegex.test(locationId);
-    
+    const isLocationUUID = isUUID(locationId);
+
     let query = supabase.from('locations').select('*');
-    
-    if (isUUID) {
+
+    if (isLocationUUID) {
       // It's a UUID, query by id
       query = query.eq('id', locationId);
     } else {
@@ -1251,15 +1271,17 @@ app.put('/make-server-48182530/locations/:id/rating', verifyAuth, verifyEditor, 
     // If location doesn't exist, create it automatically (only for Google Place IDs, not UUIDs)
     if (fetchError || !existingLocation) {
       // If it's a UUID and we can't find it, that's an error
-      if (isUUID) {
+      if (isLocationUUID) {
         console.error('❌ Location with UUID not found:', locationId);
         return c.json({ error: 'Location not found' }, 404);
       }
-      
+
       console.log('📍 Location not found, creating new location:', locationId);
-      
+
       // Validate that we have the necessary place data to create the location
-      if (!placeData || !placeData.name || !placeData.lat || !placeData.lng) {
+      // (explicit undefined checks, not truthiness - lat/lng of exactly 0 is
+      // a valid coordinate, e.g. the equator or prime meridian)
+      if (!placeData || !placeData.name || placeData.lat === undefined || placeData.lng === undefined) {
         console.error('❌ Missing place data for creating location:', placeData);
         return c.json({ 
           error: 'Location not found and insufficient data provided to create it. Please provide placeData with name, lat, and lng.' 
@@ -2410,8 +2432,15 @@ app.post('/make-server-48182530/signup', async (c) => {
 
     if (insertError) {
       console.error('❌ Error creating user profile:', insertError);
-      // If profile creation fails, we should probably delete the auth user
-      // But for now, just log it
+      // Roll back the auth user so signup fails cleanly instead of leaving a
+      // half-provisioned account with no user_metadata row - verifyEditor
+      // treats a missing row as a permanent 403, and no admin action can
+      // recover it since there's no row to update.
+      const { error: deleteError } = await supabase.auth.admin.deleteUser(data.user.id);
+      if (deleteError) {
+        console.error('❌ Error rolling back auth user after failed profile creation:', deleteError);
+      }
+      return c.json({ error: 'Failed to create user profile' }, 500);
     }
 
     console.log('✅ User created:', data.user.id);
@@ -2514,7 +2543,7 @@ app.get('/make-server-48182530/admin/stats', verifyAuth, verifyEditor, async (c)
       supabase.from('favorites').select('*', { count: 'exact', head: true }),
       supabase.from('want_to_go').select('*', { count: 'exact', head: true }),
       supabase.from('locations').select('*', { count: 'exact', head: true }).not('lv_editor_score', 'is', null).gt('lv_editor_score', 0),
-      supabase.from('locations').select('*', { count: 'exact', head: true }).gt('michelin_score', 0),
+      supabase.from('locations').select('*', { count: 'exact', head: true }).or('michelin_stars.not.is.null,michelin_distinction.not.is.null'),
       supabase.from('user_metadata').select('*', { count: 'exact', head: true }),
     ]);
 
@@ -2571,7 +2600,7 @@ app.get('/make-server-48182530/admin/users', verifyAuth, verifyEditor, async (c)
 });
 
 // Update user role by admin
-app.put('/make-server-48182530/admin/users/:userId/role', verifyAuth, async (c) => {
+app.put('/make-server-48182530/admin/users/:userId/role', verifyAuth, verifyEditor, async (c) => {
   console.log('📍 PUT /admin/users/:userId/role - Start');
   const targetUserId = c.req.param('userId');
   const { role } = await c.req.json();

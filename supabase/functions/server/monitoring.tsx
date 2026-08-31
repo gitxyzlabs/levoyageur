@@ -178,6 +178,13 @@ export async function trackDatabaseOperation<T>(
   
   try {
     const result = await fn();
+    // Supabase's PostgREST client resolves to { data, error } instead of
+    // throwing on a query failure - check for that shape too, or this never
+    // sees a real database error and always reports success.
+    if (result && typeof result === 'object' && (result as any).error) {
+      success = false;
+      error = (result as any).error.message || 'Unknown error';
+    }
     return result;
   } catch (err: any) {
     success = false;

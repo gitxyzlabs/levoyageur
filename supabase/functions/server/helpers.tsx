@@ -2,6 +2,13 @@
  * Helper functions for data transformation between database and API
  */
 
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/** Whether a locationId param looks like a database UUID rather than a Google place_id. */
+export function isUUID(id: string): boolean {
+  return UUID_PATTERN.test(id);
+}
+
 // Database row type (snake_case from Supabase)
 export interface LocationRow {
   id: string;
