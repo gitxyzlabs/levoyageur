@@ -2,6 +2,7 @@ import React, { useEffect, useState, useMemo, useCallback } from 'react';
 import { Map as GoogleMap, AdvancedMarker, useMap } from '@vis.gl/react-google-maps';
 import type { Location, User } from '@/utils/api';
 import { api } from '@/utils/api';
+import { FALLBACK_LOCATION } from '@/utils/geo';
 import { GooglePlaceInfoWindow } from './GooglePlaceInfoWindow';
 import { MobileInfoSheet } from './MobileInfoSheet';
 import { CityInfoWindow } from './CityInfoWindow';
@@ -32,6 +33,8 @@ interface MapProps {
   wantToGoLocations?: Location[]; // Full want-to-go locations for rendering markers
   mapCenter?: { lat: number; lng: number } | null;
   mapZoom?: number;
+  userLocation?: { lat: number; lng: number } | null;
+  onRequestLocation?: () => void;
   selectedGooglePlace?: google.maps.places.PlaceResult | null;
   selectedLVLocation?: Location | null; // LV location data for the selected place
   selectedCity?: google.maps.places.PlaceResult | null; // City/region selection
@@ -172,6 +175,8 @@ export function Map({
   wantToGoLocations,
   mapCenter,
   mapZoom,
+  userLocation,
+  onRequestLocation,
   selectedGooglePlace,
   selectedLVLocation,
   selectedCity,
@@ -189,8 +194,6 @@ export function Map({
   onMichelinMarkersToggle
 }: MapProps) {
   const map = useMap();
-  const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
-  const [locationPermissionDenied, setLocationPermissionDenied] = useState(false);
   const [currentZoom, setCurrentZoom] = useState<number>(14);
   const [validationPopup, setValidationPopup] = useState<{
     michelinData: {
@@ -410,45 +413,6 @@ export function Map({
       isFiltered: showHeatMap && heatMapData ? true : false
     });
   }, [showHeatMap, locations, heatMapData, displayLocations]);
-
-  // Get user's current location
-  const getUserLocation = () => {
-    if ('geolocation' in navigator) {
-      navigator.geolocation.getCurrentPosition(
-        (position) => {
-          const location = {
-            lat: position.coords.latitude,
-            lng: position.coords.longitude
-          };
-          console.log('📍 User location:', location);
-          setUserLocation(location);
-          setLocationPermissionDenied(false);
-          
-          // Pan map to user's location and zoom in
-          if (map) {
-            map.panTo(location);
-            map.setZoom(14); // Zoom in to street level
-          }
-        },
-        (error) => {
-          console.log('ℹ️ User location not available');
-          setLocationPermissionDenied(true);
-        },
-        {
-          enableHighAccuracy: true,
-          timeout: 5000,
-          maximumAge: 0
-        }
-      );
-    }
-  };
-
-  // Don't auto-request location on mount (causes permission errors)
-  // Users can click the "My Location" button instead
-  useEffect(() => {
-    // Optionally auto-request if you want, but it's better to let users control this
-    // getUserLocation();
-  }, []);
 
   // Set map padding to avoid InfoWindows being covered by search bar
   useEffect(() => {
@@ -801,17 +765,17 @@ export function Map({
 
         {/* My Location */}
         <button
-          onClick={getUserLocation}
+          onClick={onRequestLocation}
           className="p-2.5 bg-white/95 backdrop-blur-sm hover:bg-slate-50 rounded-lg shadow-lg border border-slate-200/50 transition-all hover:scale-105 hover:shadow-xl"
           title="My Location"
         >
           <Locate className={`w-5 h-5 ${userLocation ? 'text-blue-500' : 'text-slate-700'}`} strokeWidth={2.5} />
         </button>
       </div>
-      
+
       <GoogleMap
         defaultZoom={mapZoom ?? 14}
-        defaultCenter={mapCenter ?? { lat: 32.7157, lng: -117.1611 }}
+        defaultCenter={mapCenter ?? FALLBACK_LOCATION}
         className="size-full"
         mapId="le-voyageur-luxury-map"
         options={{

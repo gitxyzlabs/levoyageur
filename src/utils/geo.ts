@@ -1,5 +1,8 @@
 const EARTH_RADIUS_METERS = 6371000;
 
+/** Default map center used until the user's real location is known (San Diego). */
+export const FALLBACK_LOCATION = { lat: 32.7157, lng: -117.1611 };
+
 /** Great-circle distance between two coordinates, in meters (Haversine formula). */
 export function haversineDistanceMeters(lat1: number, lng1: number, lat2: number, lng2: number): number {
   const dLat = (lat2 - lat1) * Math.PI / 180;

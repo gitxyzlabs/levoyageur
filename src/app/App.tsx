@@ -33,9 +33,9 @@ import { trackApiCall, trackAction, logError, trackInteraction } from '../utils/
 import { usePerformanceMonitor, useErrorHandler } from './hooks/usePerformanceMonitor';
 import { useAuth } from './hooks/useAuth';
 import { useLocations, type Location } from './hooks/useLocations';
-import { filterWithinRadiusKm, haversineDistanceMeters } from '../utils/geo';
+import { filterWithinRadiusKm, haversineDistanceMeters, FALLBACK_LOCATION } from '../utils/geo';
 
-const FALLBACK_LOCATION = { lat: 32.7157, lng: -117.1611 }; // San Diego
+const USER_LOCATION_ZOOM = 16;
 
 export default function App() {
   const [searchQuery, setSearchQuery] = useState("");
@@ -43,7 +43,7 @@ export default function App() {
   const [loading, setLoading] = useState(true);
   const [googleMapsApiKey, setGoogleMapsApiKey] = useState<string>("");
   const [sidebarCollapsed, setSidebarCollapsed] = useState(true);
-  const [mapCenter, setMapCenter] = useState<{ lat: number; lng: number } | null>(null);
+  const [mapCenter, setMapCenter] = useState<{ lat: number; lng: number } | null>(FALLBACK_LOCATION);
   const [mapZoom, setMapZoom] = useState(14);
   const [selectedGooglePlace, setSelectedGooglePlace] = useState<google.maps.places.PlaceResult | null>(null);
   const [selectedLVLocation, setSelectedLVLocation] = useState<Location | null>(null);
@@ -96,7 +96,7 @@ export default function App() {
           lng: position.coords.longitude,
         };
         setMapCenter(userPos);
-        setMapZoom(13);
+        setMapZoom(USER_LOCATION_ZOOM);
         setUserLocation(userPos);
 
         localStorage.removeItem('lv_location_denied');
@@ -110,8 +110,12 @@ export default function App() {
         }
       },
       (error) => {
+        // Only persist "denied" for an explicit permission refusal — a timeout or
+        // POSITION_UNAVAILABLE is transient and shouldn't block a retry next load.
         if (error.code === error.PERMISSION_DENIED) {
           localStorage.setItem('lv_location_denied', 'true');
+        } else {
+          console.error('Geolocation unavailable:', error.message);
         }
         setMapCenter(FALLBACK_LOCATION);
       }
@@ -128,7 +132,7 @@ export default function App() {
       if (savedLocation) {
         const userPos = JSON.parse(savedLocation);
         setMapCenter(userPos);
-        setMapZoom(13);
+        setMapZoom(USER_LOCATION_ZOOM);
         setUserLocation(userPos);
       }
 
@@ -1287,6 +1291,8 @@ export default function App() {
               wantToGoLocations={filteredWantToGoLocations}
               mapCenter={mapCenter}
               mapZoom={mapZoom}
+              userLocation={userLocation}
+              onRequestLocation={() => requestGeolocation(user?.id)}
               selectedGooglePlace={selectedGooglePlace}
               selectedLVLocation={selectedLVLocation}
               selectedCity={selectedCity}
@@ -1336,7 +1342,7 @@ export default function App() {
           onCenterOnUser={() => {
             if (userLocation) {
               setMapCenter(userLocation);
-              setMapZoom(13);
+              setMapZoom(USER_LOCATION_ZOOM);
             }
           }}
         />
