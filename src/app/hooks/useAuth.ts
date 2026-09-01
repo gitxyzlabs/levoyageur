@@ -62,39 +62,54 @@ export function useAuth(callbacks: UseAuthCallbacks) {
     // result is ever applied.
     let generation = 0;
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       const thisGeneration = ++generation;
       const isStale = () => thisGeneration !== generation;
 
-      if (session?.user) {
-        monitor.setUserId(session.user.id);
-        trackAction('user_logged_in', 'App', { userId: session.user.id });
+      // GoTrue holds an internal lock (navigator.locks, named after the
+      // storage key) for the duration of this callback. getCurrentUser()
+      // calls fetchWithAuth(), which calls supabase.auth.getSession() -
+      // another method that needs that same lock. Calling it synchronously
+      // from in here deadlocks: the nested getSession() waits forever for a
+      // lock this callback is still holding, and since the lock is held
+      // per-storageKey (not per-call), every other pending or future call on
+      // this client - in any tab - hangs right along with it. Confirmed via
+      // navigator.locks.query(): a fresh tab, with no other tabs open, got
+      // stuck the same way on every load. Deferring with setTimeout(0) lets
+      // this callback return and the lock release before anything in here
+      // touches supabase.auth again, per Supabase's own guidance:
+      // https://github.com/supabase/auth-js/issues/762
+      setTimeout(async () => {
+        if (session?.user) {
+          monitor.setUserId(session.user.id);
+          trackAction('user_logged_in', 'App', { userId: session.user.id });
 
-        try {
-          const { user: userProfile } = await trackApiCall('getCurrentUser', () => api.getCurrentUser());
+          try {
+            const { user: userProfile } = await trackApiCall('getCurrentUser', () => api.getCurrentUser());
+            if (isStale()) return;
+            setUser(userProfile);
+            callbacksRef.current.onProfileLoaded();
+          } catch (error) {
+            if (isStale()) return;
+            console.error('Failed to fetch user profile:', error);
+            catchError(error, { context: 'user_profile_load' });
+            setUser(basicUserFromSession(session.user));
+          }
+
           if (isStale()) return;
-          setUser(userProfile);
-          callbacksRef.current.onProfileLoaded();
-        } catch (error) {
-          if (isStale()) return;
-          console.error('Failed to fetch user profile:', error);
-          catchError(error, { context: 'user_profile_load' });
-          setUser(basicUserFromSession(session.user));
-        }
+          callbacksRef.current.onUserSession(session.user.id);
 
-        if (isStale()) return;
-        callbacksRef.current.onUserSession(session.user.id);
-
-        if (event === 'SIGNED_IN') {
-          toast.success('Welcome to Le Voyageur!');
-          callbacksRef.current.onSignedIn();
+          if (event === 'SIGNED_IN') {
+            toast.success('Welcome to Le Voyageur!');
+            callbacksRef.current.onSignedIn();
+          }
+        } else {
+          monitor.setUserId(undefined);
+          trackAction('user_logged_out');
+          setUser(null);
+          callbacksRef.current.onSignedOut();
         }
-      } else {
-        monitor.setUserId(undefined);
-        trackAction('user_logged_out');
-        setUser(null);
-        callbacksRef.current.onSignedOut();
-      }
+      }, 0);
     });
 
     return () => {
