@@ -4,9 +4,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/
 import { Button } from './ui/button';
 import { Badge } from './ui/badge';
 import { toast } from 'sonner';
-import { api, type User } from '../../utils/api';
-import { projectId, publicAnonKey } from '@/utils/supabase/info';
-import { createClient } from '@supabase/supabase-js';
+import { api, supabase, type User } from '../../utils/api';
+import { projectId } from '@/utils/supabase/info';
 
 interface AdminPanelProps {
   currentUser: User;
@@ -65,11 +64,6 @@ export function AdminPanel({ currentUser }: AdminPanelProps) {
     toast.info('Starting Michelin data backfill...');
     
     try {
-      const supabase = createClient(
-        `https://${projectId}.supabase.co`,
-        publicAnonKey
-      );
-      
       const { data: { session } } = await supabase.auth.getSession();
       if (!session?.access_token) {
         toast.error('Not authenticated');
