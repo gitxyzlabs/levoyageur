@@ -21,6 +21,14 @@ export function Profile({
   favoritesCount = 0,
   wantToGoCount = 0,
 }: ProfileProps) {
+  // App.tsx only renders this when `user` is truthy, but a SIGNED_OUT event
+  // from another tab can null it out between that check and this render
+  // committing - confirmed via a real crash here (Cannot read properties of
+  // null (reading 'name')) triggered by signing out in a second tab while
+  // this one sat on the profile view. Bail out rather than crash the whole
+  // app; the parent will re-render into its signed-out view right after.
+  if (!user) return null;
+
   return (
     <div className="space-y-6">
       {/* Profile Header */}
