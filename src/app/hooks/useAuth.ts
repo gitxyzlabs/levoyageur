@@ -42,36 +42,29 @@ export function useAuth(callbacks: UseAuthCallbacks) {
   useEffect(() => {
     // onAuthStateChange fires an INITIAL_SESSION event on subscribe with
     // whatever session is currently persisted - that's the only session
-    // check this hook needs. It used to run alongside a separate explicit
-    // getSession() call (checkExistingSession) that set a placeholder user
-    // independently; the two were two competing writers to the same state
-    // with no ordering guarantee between them, and could disagree about
-    // whether a session existed on a given page load - the likely cause of
-    // "refresh sometimes logs me out" despite a perfectly valid stored
-    // session, since whichever one ran last simply won.
-    // TEMPORARY DIAGNOSTIC - remove once the close/reopen logout is found.
-    // Compares what's actually sitting in storage against what the SDK
-    // reports for it, since they've disagreed in ways not yet explained.
-    try {
-      const raw = localStorage.getItem('lv-auth-token');
-      const parsed = raw ? JSON.parse(raw) : null;
-      console.log('🔍 [AUTH DIAGNOSTIC] raw lv-auth-token on mount:', {
-        present: !!raw,
-        expires_at: parsed?.expires_at,
-        expires_at_readable: parsed?.expires_at ? new Date(parsed.expires_at * 1000).toISOString() : null,
-        now_readable: new Date().toISOString(),
-        has_refresh_token: !!parsed?.refresh_token,
-      });
-    } catch (e) {
-      console.log('🔍 [AUTH DIAGNOSTIC] error reading raw lv-auth-token:', e);
-    }
+    // check this hook needs elsewhere in the app.
+    //
+    // It can also fire more than once in quick succession on a single page
+    // load: confirmed via diagnostic logging that a plain reload sometimes
+    // gets INITIAL_SESSION followed shortly after by a spurious SIGNED_IN
+    // for the *same* session - the client broadcasts auth events across
+    // every tab sharing this storage key (supabase-js uses a
+    // BroadcastChannel for this), so a stale tab left open from earlier
+    // testing can trigger a second firing here with no new login involved.
+    //
+    // Each firing independently awaits its own getCurrentUser() call before
+    // calling setUser(). With no ordering guarantee between two overlapping
+    // firings, whichever one's fetch happened to resolve last would win -
+    // including a slower *older* firing overwriting a newer one's correct
+    // result, or racing into a state where the session ends up looking
+    // logged out despite a perfectly valid stored session. generation
+    // guards against exactly that: only the most recently started firing's
+    // result is ever applied.
+    let generation = 0;
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-      console.log('🔍 [AUTH DIAGNOSTIC] onAuthStateChange fired:', {
-        event,
-        sessionPresent: !!session,
-        expires_at: session?.expires_at,
-      });
+      const thisGeneration = ++generation;
+      const isStale = () => thisGeneration !== generation;
 
       if (session?.user) {
         monitor.setUserId(session.user.id);
@@ -79,14 +72,17 @@ export function useAuth(callbacks: UseAuthCallbacks) {
 
         try {
           const { user: userProfile } = await trackApiCall('getCurrentUser', () => api.getCurrentUser());
+          if (isStale()) return;
           setUser(userProfile);
           callbacksRef.current.onProfileLoaded();
         } catch (error) {
+          if (isStale()) return;
           console.error('Failed to fetch user profile:', error);
           catchError(error, { context: 'user_profile_load' });
           setUser(basicUserFromSession(session.user));
         }
 
+        if (isStale()) return;
         callbacksRef.current.onUserSession(session.user.id);
 
         if (event === 'SIGNED_IN') {
