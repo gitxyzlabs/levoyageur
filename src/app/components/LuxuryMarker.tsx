@@ -7,7 +7,7 @@ interface LuxuryMarkerProps {
   showHeatMap?: boolean;
   isFavorite?: boolean;
   isWantToGo?: boolean;
-  type?: 'lv-location' | 'search-result' | 'want-to-go';
+  type?: 'lv-location' | 'search-result' | 'favorite' | 'want-to-go';
   hasLVRating?: boolean; // Whether this location has an LV rating
   locationName?: string; // Place name to display when zoomed in
   currentZoom?: number; // Current map zoom level
@@ -142,15 +142,17 @@ export function LuxuryMarker({
     showLVBadge = false;
     showMichelinBadge = true;
   }
-  // Fallback: Favorite/Want-to-go markers (no ratings)
-  else if (!hasLVRating && !hasMichelin && isFavorite) {
+  // Case 4: Favorite (no LV/Michelin) - red heart, priority over want-to-go
+  else if (type === 'favorite' || isFavorite) {
     markerColor = '#ef4444';
     innerGradientColor = '#ef4444dd';
     markerGlow = 'rgba(239, 68, 68, 0.4)';
     IconComponent = Heart;
     iconColor = '#ffffff';
     showCenterIcon = 'heart';
-  } else if (!hasLVRating && !hasMichelin && isWantToGo) {
+  }
+  // Case 5: Want-to-go (no LV/Michelin/favorite) - green bookmark
+  else if (type === 'want-to-go' || isWantToGo) {
     markerColor = '#10b981';
     innerGradientColor = '#10b981dd';
     markerGlow = 'rgba(16, 185, 129, 0.4)';
@@ -426,60 +428,22 @@ export function LuxuryMarker({
             />
           )}
           <span className="truncate">{locationName}</span>
-        </div>
-      )}
 
-      {/* Favorites Counter - 10 o'clock position (upper left) */}
-      {favoritesCount !== undefined && favoritesCount > 0 && (
-        <div
-          className="absolute flex items-center gap-1 px-1.5 py-0.5 rounded-full shadow-md backdrop-blur-sm border border-white/40"
-          style={{
-            left: `${-30 * scale}px`,
-            top: `${-7 * scale}px`,
-            background: 'linear-gradient(135deg, rgba(255, 255, 255, 0.97) 0%, rgba(254, 242, 242, 0.95) 100%)',
-            fontSize: `${8 * scale}px`,
-            fontWeight: '600',
-            color: '#ef4444',
-            fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
-            zIndex: 20,
-          }}
-        >
-          <Heart 
-            className="fill-current" 
-            style={{ 
-              width: `${8 * scale}px`, 
-              height: `${8 * scale}px`,
-              color: '#ef4444'
-            }} 
-          />
-          <span>{favoritesCount}</span>
-        </div>
-      )}
-
-      {/* Want to Go Counter - 9 o'clock position (left side) */}
-      {wantToGoCount !== undefined && wantToGoCount > 0 && (
-        <div
-          className="absolute flex items-center gap-1 px-1.5 py-0.5 rounded-full shadow-md backdrop-blur-sm border border-white/40"
-          style={{
-            left: `${-18 * scale}px`,
-            top: `${8 * scale}px`,
-            background: 'linear-gradient(135deg, rgba(255, 255, 255, 0.97) 0%, rgba(240, 253, 244, 0.95) 100%)',
-            fontSize: `${8 * scale}px`,
-            fontWeight: '600',
-            color: '#10b981',
-            fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
-            zIndex: 20,
-          }}
-        >
-          <Bookmark 
-            className="fill-current" 
-            style={{ 
-              width: `${8 * scale}px`, 
-              height: `${8 * scale}px`,
-              color: '#10b981'
-            }} 
-          />
-          <span>{wantToGoCount}</span>
+          {/* Community favorites/want-to-go counts - shown after the name
+              instead of as separate floating badges, which could overlap
+              the marker or its rating badge at certain zoom levels. */}
+          {favoritesCount !== undefined && favoritesCount > 0 && (
+            <span className="flex items-center gap-0.5 flex-shrink-0" style={{ color: '#ef4444' }}>
+              <Heart className="fill-current" style={{ width: '10px', height: '10px' }} />
+              <span>{favoritesCount}</span>
+            </span>
+          )}
+          {wantToGoCount !== undefined && wantToGoCount > 0 && (
+            <span className="flex items-center gap-0.5 flex-shrink-0" style={{ color: '#10b981' }}>
+              <Bookmark className="fill-current" style={{ width: '10px', height: '10px' }} />
+              <span>{wantToGoCount}</span>
+            </span>
+          )}
         </div>
       )}
     </div>

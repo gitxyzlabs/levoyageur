@@ -61,7 +61,7 @@ export default function App() {
   const [cityStats, setCityStats] = useState<{ totalLVRatings: number; totalFavorites: number }>({ totalLVRatings: 0, totalFavorites: 0 });
   const [mobileDrawerOpen, setMobileDrawerOpen] = useState(false);
   const [showLVMarkers, setShowLVMarkers] = useState(true);
-  const [showMichelinMarkers, setShowMichelinMarkers] = useState(true);
+  const [showMichelinMarkers, setShowMichelinMarkers] = useState(false);
   const [filterMenuOpen, setFilterMenuOpen] = useState(false);
   const [monitoringDashboardOpen, setMonitoringDashboardOpen] = useState(false);
 
