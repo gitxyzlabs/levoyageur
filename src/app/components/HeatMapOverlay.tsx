@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState, useMemo } from 'react';
 import { useMap } from '@vis.gl/react-google-maps';
-import { Delaunay } from 'd3-delaunay';
 import type { Location } from '@/utils/api';
 
 interface HeatMapOverlayProps {
@@ -30,8 +29,27 @@ const getColorWithAlpha = (score: number, alpha: number = 0.4): string => {
   return `rgba(${r}, ${g}, ${b}, ${alpha})`;
 };
 
-// Contour band thresholds (0-11 scale)
-const CONTOUR_THRESHOLDS = [5, 6, 7, 8, 9, 10, 11];
+// Real-world radius of influence for each point, in meters (~75 miles). Using a real-world
+// distance rather than a fixed pixel radius keeps the heat map's geographic footprint
+// consistent across zoom levels — a sparse set of points shouldn't blanket a whole continent
+// just because the map is zoomed out. Sized generously so that with sparse data (a handful of
+// points spread across a country), nearby-ish points still blend into a connected surface
+// instead of rendering as isolated islands with dead gaps between them.
+const HEAT_SIGMA_METERS = 120000;
+
+// Standard Web Mercator meters-per-pixel at a given zoom/latitude (256px tiles)
+const metersPerPixel = (latitude: number, zoom: number): number => {
+  return (156543.03392 * Math.cos((latitude * Math.PI) / 180)) / Math.pow(2, zoom);
+};
+
+// Score values (0-11 scale) at which to draw contour lines, like elevation bands on a topo map
+const CONTOUR_THRESHOLDS = [4, 5, 6, 7, 8, 9, 10, 11];
+
+interface WeightedPoint {
+  x: number;
+  y: number;
+  score: number;
+}
 
 export function HeatMapOverlay({ locations, enabled }: HeatMapOverlayProps) {
   const map = useMap();
@@ -151,19 +169,17 @@ export function HeatMapOverlay({ locations, enabled }: HeatMapOverlayProps) {
           score: p.score
         }));
 
-        // Handle different cases based on number of points
-        if (adjustedPoints.length === 1) {
-          // Single point: draw radial gradient
-          this.drawRadialGradient(ctx, adjustedPoints[0], width, height);
-        } else if (adjustedPoints.length === 2) {
-          // Two points: draw two radial gradients
-          adjustedPoints.forEach(point => {
-            this.drawRadialGradient(ctx, point, width, height);
-          });
-        } else {
-          // Three or more points: use Delaunay triangulation
-          this.drawDelaunayHeatMap(ctx, adjustedPoints, width, height);
-        }
+        // Convert the real-world influence radius to pixels at the current zoom/latitude
+        // so the heat map's footprint stays geographically consistent as the user zooms.
+        const center = map.getCenter();
+        const zoom = map.getZoom();
+        const sigmaPixels =
+          center && zoom !== undefined
+            ? HEAT_SIGMA_METERS / metersPerPixel(center.lat(), zoom)
+            : 90; // fallback if zoom/center briefly unavailable
+
+        // Topographic-style density-weighted rendering for any number of points
+        this.drawTopographicHeatMap(ctx, adjustedPoints, width, height, sigmaPixels);
       }
 
       private drawRadialGradient(
@@ -188,62 +204,59 @@ export function HeatMapOverlay({ locations, enabled }: HeatMapOverlayProps) {
         ctx.fillRect(0, 0, width, height);
       }
 
-      private drawDelaunayHeatMap(
+      // Topographic rendering: each sample's "elevation" (score) is a density-weighted
+      // average of nearby points (Gaussian kernel), and its opacity reflects how much data
+      // supports that reading. This means a cluster of points pulls the local average toward
+      // their combined score, and a single outlier point can't outweigh a nearby cluster —
+      // its contribution is just one term in the weighted average, not a dominant overlay.
+      // The field is sampled on a coarse grid, then upscaled with bilinear smoothing (instead
+      // of flat-filled cells) so it reads as a continuous surface, with true contour lines
+      // (marching squares) traced on top for the topo-map look.
+      private drawTopographicHeatMap(
         ctx: CanvasRenderingContext2D,
-        points: Array<{ x: number; y: number; score: number }>,
+        points: WeightedPoint[],
         width: number,
-        height: number
+        height: number,
+        sigmaPixels: number
       ) {
         try {
-          console.log(`Drawing heat map - Canvas size: ${width}x${height}`);
-          console.log(`Points:`, points.map(p => ({ x: Math.round(p.x), y: Math.round(p.y), score: p.score })));
-          
-          // Reduced influence radius by 50% for more precise gradients
-          const influenceRadius = 100; // pixels (was 200) - only show heat within 100px of a data point
-          console.log(`Influence radius: ${influenceRadius}px`);
-          
-          // Use Inverse Distance Weighting (IDW) for better results with sparse distant points
-          const gridSize = 20; // pixels per grid cell
-          
-          // Render each grid cell
-          for (let y = 0; y < height; y += gridSize) {
-            for (let x = 0; x < width; x += gridSize) {
-              const interpolatedScore = this.interpolateIDW(x + gridSize / 2, y + gridSize / 2, points, 2, influenceRadius);
-              
-              if (interpolatedScore !== null) {
-                ctx.fillStyle = getColorWithAlpha(interpolatedScore, 0.45);
-                ctx.fillRect(x, y, gridSize, gridSize);
+          if (width <= 0 || height <= 0) return;
+
+          // Floor sigma so points don't vanish to sub-pixel size when zoomed far out
+          const sigma = Math.max(sigmaPixels, 15);
+          const maxDistance = sigma * 2.5; // cutoff for performance; negligible weight beyond this
+          const cellSize = 20; // sampling spacing in pixels
+          const maxAlpha = 0.55;
+
+          const cols = Math.max(2, Math.floor(width / cellSize) + 1);
+          const rows = Math.max(2, Math.floor(height / cellSize) + 1);
+
+          // Bucket points spatially so each sample only checks nearby points instead of all
+          // of them — keeps this fast as the number of data points grows.
+          const buckets = this.buildSpatialBuckets(points, maxDistance);
+
+          const scores = new Float32Array(cols * rows).fill(NaN);
+          const confidences = new Float32Array(cols * rows);
+
+          for (let r = 0; r < rows; r++) {
+            for (let c = 0; c < cols; c++) {
+              const x = Math.min(c * cellSize, width);
+              const y = Math.min(r * cellSize, height);
+              const nearby = this.nearbyPoints(buckets, x, y, maxDistance);
+              const result = this.gaussianWeightedScore(x, y, nearby, sigma, maxDistance);
+
+              if (result) {
+                const idx = r * cols + c;
+                scores[idx] = result.score;
+                confidences[idx] = result.confidence;
               }
             }
           }
 
-          // LAYERED RENDERING: Sort points by score (lowest to highest)
-          // This ensures higher scores are drawn on top and visually dominate
-          const sortedPoints = [...points].sort((a, b) => a.score - b.score);
-          
-          // Reduced halo radius by 50% for more precise gradients
-          const haloRadius = Math.min(75, influenceRadius * 0.75); // (was 150)
-          
-          sortedPoints.forEach(point => {
-            // Higher scores get stronger opacity for visual dominance
-            const baseOpacity = point.score >= 8 ? 0.85 : point.score >= 7 ? 0.75 : 0.7;
-            const midOpacity = point.score >= 8 ? 0.5 : point.score >= 7 ? 0.4 : 0.3;
-            
-            const gradient = ctx.createRadialGradient(
-              point.x, point.y, 0,
-              point.x, point.y, haloRadius
-            );
-            gradient.addColorStop(0, getColorWithAlpha(point.score, baseOpacity));
-            gradient.addColorStop(0.5, getColorWithAlpha(point.score, midOpacity));
-            gradient.addColorStop(1, getColorWithAlpha(point.score, 0));
-            
-            ctx.fillStyle = gradient;
-            ctx.beginPath();
-            ctx.arc(point.x, point.y, haloRadius, 0, Math.PI * 2);
-            ctx.fill();
-          });
+          this.paintSmoothedField(ctx, scores, confidences, cols, rows, width, height, maxAlpha);
+          this.drawContours(ctx, scores, cols, rows, cellSize);
         } catch (error) {
-          console.error('Error drawing Delaunay heat map:', error);
+          console.error('Error drawing topographic heat map:', error);
           // Fallback to simple radial gradients
           points.forEach(point => {
             this.drawRadialGradient(ctx, point, width, height);
@@ -251,127 +264,189 @@ export function HeatMapOverlay({ locations, enabled }: HeatMapOverlayProps) {
         }
       }
 
-      // Inverse Distance Weighting interpolation
-      private interpolateIDW(
+      // Bins points into a uniform grid of buckets sized to the search radius, so a 3x3
+      // neighborhood lookup is guaranteed to find every point within that radius.
+      private buildSpatialBuckets(
+        points: WeightedPoint[],
+        bucketSize: number
+      ): Map<string, WeightedPoint[]> {
+        const buckets = new Map<string, WeightedPoint[]>();
+        for (const point of points) {
+          const key = `${Math.floor(point.x / bucketSize)},${Math.floor(point.y / bucketSize)}`;
+          const bucket = buckets.get(key);
+          if (bucket) {
+            bucket.push(point);
+          } else {
+            buckets.set(key, [point]);
+          }
+        }
+        return buckets;
+      }
+
+      private nearbyPoints(
+        buckets: Map<string, WeightedPoint[]>,
         x: number,
         y: number,
-        points: Array<{ x: number; y: number; score: number }>,
-        power: number = 2,
-        maxDistance: number = 500 // pixels
-      ): number | null {
+        bucketSize: number
+      ): WeightedPoint[] {
+        const cx = Math.floor(x / bucketSize);
+        const cy = Math.floor(y / bucketSize);
+        const result: WeightedPoint[] = [];
+
+        for (let dx = -1; dx <= 1; dx++) {
+          for (let dy = -1; dy <= 1; dy++) {
+            const bucket = buckets.get(`${cx + dx},${cy + dy}`);
+            if (bucket) result.push(...bucket);
+          }
+        }
+
+        return result;
+      }
+
+      // Gaussian-kernel density-weighted average: each nearby point contributes a score
+      // weighted by proximity. `confidence` is the summed weight, i.e. how much nearby data
+      // backs this sample up — a lone close point yields confidence near 1, while a cluster of
+      // points stacks confidence above 1, producing a stronger/more saturated reading.
+      private gaussianWeightedScore(
+        x: number,
+        y: number,
+        points: WeightedPoint[],
+        sigma: number,
+        maxDistance: number
+      ): { score: number; confidence: number } | null {
         let weightSum = 0;
         let valueSum = 0;
-        let hasNearbyPoint = false;
 
         for (const point of points) {
           const dx = x - point.x;
           const dy = y - point.y;
           const distance = Math.sqrt(dx * dx + dy * dy);
 
-          // Only influence within maxDistance
           if (distance > maxDistance) continue;
 
-          hasNearbyPoint = true;
-
-          // Handle points very close to data points
-          if (distance < 1) {
-            return point.score;
-          }
-
-          const weight = 1 / Math.pow(distance, power);
+          const weight = Math.exp(-(distance * distance) / (2 * sigma * sigma));
           weightSum += weight;
           valueSum += weight * point.score;
         }
 
-        if (!hasNearbyPoint || weightSum === 0) {
-          return null;
-        }
+        if (weightSum === 0) return null;
 
-        return valueSum / weightSum;
+        return { score: valueSum / weightSum, confidence: weightSum };
       }
 
-      private getBarycentricCoords(
-        px: number,
-        py: number,
-        p0: { x: number; y: number },
-        p1: { x: number; y: number },
-        p2: { x: number; y: number }
-      ): { w0: number; w1: number; w2: number } | null {
-        const v0x = p1.x - p0.x;
-        const v0y = p1.y - p0.y;
-        const v1x = p2.x - p0.x;
-        const v1y = p2.y - p0.y;
-        const v2x = px - p0.x;
-        const v2y = py - p0.y;
-
-        const den = v0x * v1y - v1x * v0y;
-        if (Math.abs(den) < 0.0001) return null;
-
-        const w1 = (v2x * v1y - v1x * v2y) / den;
-        const w2 = (v0x * v2y - v2x * v0y) / den;
-        const w0 = 1 - w1 - w2;
-
-        // Check if point is inside triangle (with small epsilon for edge cases)
-        const epsilon = -0.01;
-        if (w0 >= epsilon && w1 >= epsilon && w2 >= epsilon) {
-          return { w0, w1, w2 };
-        }
-
-        return null;
-      }
-
-      private drawContourLines(
+      // Renders the sampled field to a tiny offscreen canvas (one pixel per sample), then
+      // scales it up with bilinear smoothing — this is what turns a coarse grid of samples
+      // into a continuous-looking gradient instead of visible flat-filled squares, without
+      // having to compute the Gaussian sum at every screen pixel.
+      private paintSmoothedField(
         ctx: CanvasRenderingContext2D,
-        delaunay: Delaunay<Delaunay.Point>,
-        points: Array<{ x: number; y: number; score: number }>,
+        scores: Float32Array,
+        confidences: Float32Array,
+        cols: number,
+        rows: number,
         width: number,
-        height: number
+        height: number,
+        maxAlpha: number
       ) {
-        // Draw contour lines at each threshold
-        for (const threshold of CONTOUR_THRESHOLDS) {
-          ctx.strokeStyle = getColorWithAlpha(threshold, 0.6);
-          ctx.lineWidth = 1.5;
-          ctx.setLineDash([4, 4]); // Dashed lines like topo maps
+        const offscreen = document.createElement('canvas');
+        offscreen.width = cols;
+        offscreen.height = rows;
+        const offCtx = offscreen.getContext('2d');
+        if (!offCtx) return;
 
-          // Check each triangle edge for contour crossings
-          for (let i = 0; i < delaunay.triangles.length; i += 3) {
-            const t0 = delaunay.triangles[i];
-            const t1 = delaunay.triangles[i + 1];
-            const t2 = delaunay.triangles[i + 2];
+        const imageData = offCtx.createImageData(cols, rows);
 
-            const p0 = points[t0];
-            const p1 = points[t1];
-            const p2 = points[t2];
+        for (let i = 0; i < cols * rows; i++) {
+          const score = scores[i];
+          const idx = i * 4;
 
-            // Check each edge for contour crossing
-            this.drawContourSegment(ctx, p0, p1, threshold);
-            this.drawContourSegment(ctx, p1, p2, threshold);
-            this.drawContourSegment(ctx, p2, p0, threshold);
+          if (Number.isNaN(score)) {
+            imageData.data[idx + 3] = 0; // no data here — fully transparent
+            continue;
           }
 
-          ctx.setLineDash([]); // Reset line dash
+          const color = getLVScoreColor(score);
+          imageData.data[idx] = parseInt(color.slice(1, 3), 16);
+          imageData.data[idx + 1] = parseInt(color.slice(3, 5), 16);
+          imageData.data[idx + 2] = parseInt(color.slice(5, 7), 16);
+          imageData.data[idx + 3] = Math.round(Math.min(confidences[i], 1) * maxAlpha * 255);
         }
+
+        offCtx.putImageData(imageData, 0, 0);
+
+        ctx.imageSmoothingEnabled = true;
+        ctx.imageSmoothingQuality = 'high';
+        ctx.drawImage(offscreen, 0, 0, cols, rows, 0, 0, width, height);
       }
 
-      private drawContourSegment(
+      // Traces contour lines through the sampled field via marching squares: for each cell of
+      // the sample grid, find where each threshold crosses the 4 surrounding edges and connect
+      // those crossing points. Adjacent cells share edge points, so the segments chain into
+      // continuous lines — the actual topo-map effect the earlier per-triangle-dot code never
+      // achieved (it only plotted isolated dots at crossings, never connected them).
+      private drawContours(
         ctx: CanvasRenderingContext2D,
-        p0: { x: number; y: number; score: number },
-        p1: { x: number; y: number; score: number },
-        threshold: number
+        scores: Float32Array,
+        cols: number,
+        rows: number,
+        cellSize: number
       ) {
-        // Check if contour line crosses this edge
-        if ((p0.score < threshold && p1.score >= threshold) ||
-            (p0.score >= threshold && p1.score < threshold)) {
-          
-          // Linear interpolation to find crossing point
-          const t = (threshold - p0.score) / (p1.score - p0.score);
-          const x = p0.x + t * (p1.x - p0.x);
-          const y = p0.y + t * (p1.y - p0.y);
+        const interpolate = (v0: number, v1: number, p0: number, p1: number, threshold: number) =>
+          p0 + ((threshold - v0) / (v1 - v0)) * (p1 - p0);
 
-          // Draw small marker at crossing
+        ctx.lineWidth = 1;
+        ctx.setLineDash([]);
+
+        for (const threshold of CONTOUR_THRESHOLDS) {
+          ctx.strokeStyle = getColorWithAlpha(threshold, 0.5);
           ctx.beginPath();
-          ctx.arc(x, y, 2, 0, Math.PI * 2);
-          ctx.fill();
+
+          for (let r = 0; r < rows - 1; r++) {
+            for (let c = 0; c < cols - 1; c++) {
+              const tl = scores[r * cols + c];
+              const tr = scores[r * cols + c + 1];
+              const bl = scores[(r + 1) * cols + c];
+              const br = scores[(r + 1) * cols + c + 1];
+
+              if (Number.isNaN(tl) || Number.isNaN(tr) || Number.isNaN(bl) || Number.isNaN(br)) {
+                continue;
+              }
+
+              const x0 = c * cellSize;
+              const y0 = r * cellSize;
+              const x1 = (c + 1) * cellSize;
+              const y1 = (r + 1) * cellSize;
+
+              const crossings: Array<{ x: number; y: number }> = [];
+
+              if ((tl < threshold) !== (tr < threshold)) {
+                crossings.push({ x: interpolate(tl, tr, x0, x1, threshold), y: y0 });
+              }
+              if ((tr < threshold) !== (br < threshold)) {
+                crossings.push({ x: x1, y: interpolate(tr, br, y0, y1, threshold) });
+              }
+              if ((bl < threshold) !== (br < threshold)) {
+                crossings.push({ x: interpolate(bl, br, x0, x1, threshold), y: y1 });
+              }
+              if ((tl < threshold) !== (bl < threshold)) {
+                crossings.push({ x: x0, y: interpolate(tl, bl, y0, y1, threshold) });
+              }
+
+              // The common case is exactly 2 crossings (the contour passes straight through);
+              // 4 crossings is the rare saddle case, paired up as an acceptable approximation.
+              if (crossings.length === 2) {
+                ctx.moveTo(crossings[0].x, crossings[0].y);
+                ctx.lineTo(crossings[1].x, crossings[1].y);
+              } else if (crossings.length === 4) {
+                ctx.moveTo(crossings[0].x, crossings[0].y);
+                ctx.lineTo(crossings[1].x, crossings[1].y);
+                ctx.moveTo(crossings[2].x, crossings[2].y);
+                ctx.lineTo(crossings[3].x, crossings[3].y);
+              }
+            }
+          }
+
+          ctx.stroke();
         }
       }
 
